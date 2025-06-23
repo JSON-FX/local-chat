@@ -1,0 +1,63 @@
+import sqlite3 from 'sqlite3';
+import { promisify } from 'util';
+import path from 'path';
+
+// Database interface for type safety
+export interface Database {
+  run: (sql: string, params?: any[]) => Promise<sqlite3.RunResult>;
+  get: (sql: string, params?: any[]) => Promise<any>;
+  all: (sql: string, params?: any[]) => Promise<any[]>;
+  close: () => Promise<void>;
+}
+
+class DatabaseConnection {
+  private db: sqlite3.Database | null = null;
+
+  async connect(): Promise<Database> {
+    if (this.db) {
+      return this.promisifyMethods(this.db);
+    }
+
+    const dbPath = path.join(process.cwd(), 'data', 'localchat.db');
+    
+    return new Promise((resolve, reject) => {
+      this.db = new sqlite3.Database(dbPath, (err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        
+        // Enable foreign keys
+        this.db!.run('PRAGMA foreign_keys = ON');
+        resolve(this.promisifyMethods(this.db!));
+      });
+    });
+  }
+
+  private promisifyMethods(db: sqlite3.Database): Database {
+    return {
+      run: promisify(db.run.bind(db)),
+      get: promisify(db.get.bind(db)),
+      all: promisify(db.all.bind(db)),
+      close: promisify(db.close.bind(db))
+    };
+  }
+
+  async close(): Promise<void> {
+    if (this.db) {
+      await this.promisifyMethods(this.db).close();
+      this.db = null;
+    }
+  }
+}
+
+// Singleton instance
+const dbConnection = new DatabaseConnection();
+
+export const getDatabase = async (): Promise<Database> => {
+  return await dbConnection.connect();
+};
+
+export const closeDatabase = async (): Promise<void> => {
+  await dbConnection.close();
+}; 
