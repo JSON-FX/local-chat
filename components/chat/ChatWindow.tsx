@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Send, Circle, Paperclip, Download, Image as ImageIcon, ArrowDown, Users, Settings, Trash2, LogOut } from 'lucide-react';
+import { Send, Circle, Paperclip, Download, Image as ImageIcon, ArrowDown, Users, Settings, Trash2, LogOut, MessageSquare, MoreVertical, UserMinus, File, FileText, FileSpreadsheet, FileBox, FileJson } from 'lucide-react';
 import { Message, User, Conversation } from '@/lib/types';
 import { socketClient } from '@/lib/socket-client';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,8 @@ import FileUpload from './FileUpload';
 import { GroupSettingsDialog } from './GroupSettingsDialog';
 import { toast } from 'sonner';
 import { apiService } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import path from 'path';
 
 interface ChatWindowProps {
   messages: Message[];
@@ -283,6 +285,36 @@ export function ChatWindow({
     return currentUser.role === 'admin';
   };
 
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+        return <ImageIcon className="w-4 h-4" />;
+      case 'pdf':
+        return <FileText className="w-4 h-4" />;
+      case 'doc':
+      case 'docx':
+        return <FileText className="w-4 h-4" />;
+      case 'xls':
+      case 'xlsx':
+        return <FileSpreadsheet className="w-4 h-4" />;
+      case 'ppt':
+      case 'pptx':
+        return <FileSpreadsheet className="w-4 h-4" />;
+      case 'txt':
+        return <FileText className="w-4 h-4" />;
+      case 'zip':
+      case 'rar':
+        return <FileBox className="w-4 h-4" />;
+      case 'json':
+        return <FileJson className="w-4 h-4" />;
+      default:
+        return <File className="w-4 h-4" />;
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="h-16 px-6 flex items-center justify-between border-b border-border">
@@ -496,7 +528,7 @@ export function ChatWindow({
                   ) : message.message_type === 'file' && message.file_path ? (
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2 p-2 bg-background/50 rounded border">
-                        <Download className="w-4 h-4" />
+                        {getFileIcon(message.file_name || '')}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{message.file_name}</p>
                           <p className="text-xs opacity-70">

@@ -20,10 +20,87 @@ export interface FileValidationOptions {
 export class FileService {
   private static readonly UPLOAD_DIR = path.join(process.cwd(), 'uploads');
   private static readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  
+  // Image file types
   private static readonly ALLOWED_IMAGE_TYPES = [
     'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'
   ];
   private static readonly ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+  
+  // Document file types
+  private static readonly ALLOWED_DOCUMENT_TYPES = [
+    // Office documents
+    'application/msword', 
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+    
+    // PDF
+    'application/pdf',
+    
+    // Text and data formats
+    'text/plain',
+    'text/csv',
+    'application/json',
+    'application/xml',
+    'text/xml',
+    
+    // Open document formats
+    'application/vnd.oasis.opendocument.text', // .odt
+    'application/vnd.oasis.opendocument.spreadsheet', // .ods
+    'application/vnd.oasis.opendocument.presentation', // .odp
+    
+    // Archives
+    'application/zip',
+    'application/x-rar-compressed',
+    'application/x-7z-compressed',
+    'application/gzip',
+    
+    // Other common formats
+    'application/rtf',
+    'text/markdown',
+    'text/html'
+  ];
+  
+  private static readonly ALLOWED_DOCUMENT_EXTENSIONS = [
+    // Office documents
+    '.doc', '.docx', 
+    '.xls', '.xlsx', 
+    '.ppt', '.pptx',
+    
+    // PDF
+    '.pdf',
+    
+    // Text and data formats
+    '.txt', '.text',
+    '.csv',
+    '.json',
+    '.xml',
+    
+    // Open document formats
+    '.odt', '.ods', '.odp',
+    
+    // Archives
+    '.zip', '.rar', '.7z', '.gz', '.tar',
+    
+    // Other common formats
+    '.rtf',
+    '.md', '.markdown',
+    '.html', '.htm'
+  ];
+  
+  // Combined allowed types and extensions
+  private static readonly ALLOWED_TYPES = [
+    ...FileService.ALLOWED_IMAGE_TYPES,
+    ...FileService.ALLOWED_DOCUMENT_TYPES
+  ];
+  
+  private static readonly ALLOWED_EXTENSIONS = [
+    ...FileService.ALLOWED_IMAGE_EXTENSIONS,
+    ...FileService.ALLOWED_DOCUMENT_EXTENSIONS
+  ];
 
   // Initialize upload directory
   static async initializeStorage(): Promise<void> {
@@ -53,8 +130,8 @@ export class FileService {
   ): { valid: boolean; error?: string } {
     const defaultOptions: FileValidationOptions = {
       maxSize: this.MAX_FILE_SIZE,
-      allowedTypes: this.ALLOWED_IMAGE_TYPES,
-      allowedExtensions: this.ALLOWED_IMAGE_EXTENSIONS
+      allowedTypes: this.ALLOWED_TYPES,
+      allowedExtensions: this.ALLOWED_EXTENSIONS
     };
     
     const config = { ...defaultOptions, ...options };
@@ -67,21 +144,22 @@ export class FileService {
       };
     }
 
-    // Check file type
-    if (!config.allowedTypes.includes(file.type)) {
-      return {
-        valid: false,
-        error: `File type not allowed. Allowed types: ${config.allowedTypes.join(', ')}`
-      };
-    }
-
-    // Check file extension
+    // Get file extension
     const ext = path.extname(file.name).toLowerCase();
+    
+    // Check file extension first (more reliable than MIME type)
     if (!config.allowedExtensions.includes(ext)) {
       return {
         valid: false,
-        error: `File extension not allowed. Allowed extensions: ${config.allowedExtensions.join(', ')}`
+        error: `File extension not allowed. Allowed extensions include images, documents, spreadsheets, and more.`
       };
+    }
+    
+    // If MIME type is available, check it too
+    if (file.type && !config.allowedTypes.includes(file.type)) {
+      // If extension is valid but MIME type isn't recognized, allow it anyway
+      // This handles cases where the browser doesn't report the correct MIME type
+      console.warn(`File MIME type ${file.type} not explicitly allowed, but extension ${ext} is valid. Allowing upload.`);
     }
 
     return { valid: true };
@@ -178,6 +256,44 @@ export class FileService {
   // Check if file is an image
   static isImageFile(mimeType: string): boolean {
     return this.ALLOWED_IMAGE_TYPES.includes(mimeType);
+  }
+  
+  // Get file icon based on extension
+  static getFileIconByExtension(extension: string): string {
+    const ext = extension.toLowerCase();
+    
+    // Document types
+    if (['.doc', '.docx', '.odt', '.rtf'].includes(ext)) {
+      return 'file-text';
+    }
+    
+    // Spreadsheet types
+    if (['.xls', '.xlsx', '.ods', '.csv'].includes(ext)) {
+      return 'file-spreadsheet';
+    }
+    
+    // Presentation types
+    if (['.ppt', '.pptx', '.odp'].includes(ext)) {
+      return 'file-presentation';
+    }
+    
+    // PDF
+    if (ext === '.pdf') {
+      return 'file-pdf';
+    }
+    
+    // Archives
+    if (['.zip', '.rar', '.7z', '.gz', '.tar'].includes(ext)) {
+      return 'file-archive';
+    }
+    
+    // Code or markup
+    if (['.json', '.xml', '.html', '.htm', '.md', '.markdown'].includes(ext)) {
+      return 'file-code';
+    }
+    
+    // Default file icon
+    return 'file';
   }
 
   // Get upload directory path

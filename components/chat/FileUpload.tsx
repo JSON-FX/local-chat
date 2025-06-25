@@ -7,7 +7,8 @@ import { Label } from '../ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { apiService } from '../../lib/api';
 import { toast } from 'sonner';
-import { Upload, X, File, Image } from 'lucide-react';
+import { Upload, X, File, Image, FileText, FileSpreadsheet, FileBox, FileJson } from 'lucide-react';
+import path from 'path';
 
 interface FileUploadProps {
   isOpen: boolean;
@@ -30,22 +31,81 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Using the singleton instance imported from api.ts
-
   // File validation
   const validateFile = (file: File): string | null => {
     const maxSize = 10 * 1024 * 1024; // 10MB
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     
+    // Check file size
     if (file.size > maxSize) {
       return 'File size must be less than 10MB';
     }
     
-    if (!allowedTypes.includes(file.type)) {
-      return 'Only image files (JPEG, PNG, GIF, WebP) are allowed';
+    // Get file extension
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    
+    // List of allowed extensions
+    const allowedExtensions = [
+      // Images
+      '.jpg', '.jpeg', '.png', '.gif', '.webp',
+      
+      // Documents
+      '.doc', '.docx', '.pdf', '.txt', '.rtf',
+      
+      // Spreadsheets
+      '.xls', '.xlsx', '.csv',
+      
+      // Presentations
+      '.ppt', '.pptx',
+      
+      // Other formats
+      '.odt', '.ods', '.odp',
+      '.zip', '.rar', '.7z',
+      '.json', '.xml', '.md', '.html'
+    ];
+    
+    if (!allowedExtensions.includes(ext)) {
+      return 'File type not allowed. Supported formats include images, documents, spreadsheets, and more.';
     }
     
     return null;
+  };
+
+  // Get file icon based on file type
+  const getFileIcon = (file: File) => {
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    
+    // Image files
+    if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext) || file.type.startsWith('image/')) {
+      return <Image className="w-8 h-8 text-blue-500" />;
+    }
+    
+    // Document files
+    if (['.doc', '.docx', '.txt', '.rtf', '.odt'].includes(ext)) {
+      return <FileText className="w-8 h-8 text-orange-500" />;
+    }
+    
+    // Spreadsheet files
+    if (['.xls', '.xlsx', '.csv', '.ods'].includes(ext)) {
+      return <FileSpreadsheet className="w-8 h-8 text-green-500" />;
+    }
+    
+    // PDF files
+    if (ext === '.pdf') {
+      return <FileText className="w-8 h-8 text-red-500" />;
+    }
+    
+    // Archive files
+    if (['.zip', '.rar', '.7z', '.tar', '.gz'].includes(ext)) {
+      return <FileBox className="w-8 h-8 text-purple-500" />;
+    }
+    
+    // Code or markup files
+    if (['.json', '.xml', '.html', '.md', '.markdown'].includes(ext)) {
+      return <FileJson className="w-8 h-8 text-gray-500" />;
+    }
+    
+    // Default file icon
+    return <File className="w-8 h-8 text-gray-500" />;
   };
 
   // Handle file selection
@@ -162,11 +222,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
             {selectedFile ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-center space-x-2">
-                  {selectedFile.type.startsWith('image/') ? (
-                    <Image className="w-8 h-8 text-blue-500" />
-                  ) : (
-                    <File className="w-8 h-8 text-gray-500" />
-                  )}
+                  {getFileIcon(selectedFile)}
                   <span className="font-medium text-sm">{selectedFile.name}</span>
                 </div>
                 <p className="text-xs text-gray-500">
@@ -196,7 +252,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                   </button>
                 </p>
                 <p className="text-xs text-gray-500">
-                  Images only, max 10MB
+                  Supports images, documents, spreadsheets and more (max 10MB)
                 </p>
               </div>
             )}
@@ -206,7 +262,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
             onChange={handleInputChange}
             className="hidden"
           />
