@@ -5,6 +5,12 @@ export interface User {
   username: string;
   role: 'admin' | 'user';
   created_at: string;
+  name?: string;
+  middle_name?: string;
+  position?: string;
+  department?: string;
+  email?: string;
+  avatar_path?: string;
 }
 
 export interface Message {
@@ -19,6 +25,7 @@ export interface Message {
   file_size?: number;
   timestamp: string;
   sender_username?: string;
+  sender_avatar?: string | null;
   queued?: boolean;
   queuedAt?: number;
   // Read status information
@@ -31,6 +38,7 @@ export interface MessageRead {
   user_id: number;
   username: string;
   read_at: string;
+  avatar_path?: string | null;
 }
 
 export interface Conversation {
@@ -41,7 +49,7 @@ export interface Conversation {
   conversation_type: 'direct' | 'group';
   group_id?: number;
   group_name?: string;
-  avatar_path?: string;
+  avatar_path?: string | null;
   unread_count?: number; // Optional for now since backend doesn't provide it
 }
 
@@ -102,7 +110,7 @@ export interface SocketEvents {
   user_online: { userId: number; username: string };
   user_offline: { userId: number; username: string };
   user_typing: { userId: number; username: string; isTyping: boolean };
-  messages_read: { message_ids: number[]; reader_id: number; reader_username: string; conversation_id: number; is_group: boolean };
+  messages_read: { message_ids: number[]; reader_id: number; reader_username: string; reader_avatar?: string | null; conversation_id: number; is_group: boolean };
   auth_error: { error: string };
   error: { error: string };
 } 

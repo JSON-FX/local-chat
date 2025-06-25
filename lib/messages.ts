@@ -127,7 +127,7 @@ export class MessageService {
 
     try {
       const messages = await db.all(
-        `SELECT m.*, u.username as sender_username,
+        `SELECT m.*, u.username as sender_username, u.avatar_path as sender_avatar,
          (
            SELECT COUNT(*) > 0 
            FROM message_reads mr 
@@ -180,7 +180,7 @@ export class MessageService {
 
       // If userId is provided, exclude messages that were deleted by this user
       let query = `
-        SELECT m.*, u.username as sender_username 
+        SELECT m.*, u.username as sender_username, u.avatar_path as sender_avatar 
         FROM messages m
         JOIN users u ON m.sender_id = u.id
         WHERE m.group_id = ? AND m.is_deleted = 0
@@ -267,7 +267,7 @@ export class MessageService {
            'direct' as conversation_type,
            NULL as group_id,
            NULL as group_name,
-           NULL as avatar_path
+           u.avatar_path as avatar_path
          FROM messages m
          JOIN users u ON (
            CASE 

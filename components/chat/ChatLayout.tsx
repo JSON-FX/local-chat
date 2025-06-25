@@ -12,7 +12,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Bell,
-  BellOff
+  BellOff,
+  Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiService } from '@/lib/api';
@@ -20,9 +21,10 @@ import { socketClient } from '@/lib/socket-client';
 import { ChatList } from './ChatList';
 import { ChatWindow } from './ChatWindow';
 import { NewChatDialog } from './NewChatDialog';
+import { UserSettingsDialog } from './UserSettingsDialog';
 import { User, Conversation, Message } from '@/lib/types';
 import { incrementUnreadCount, clearUnreadCount } from '@/lib/hooks/useReadStatus';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+  import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Debounce utility function
 function debounce<T extends (...args: any[]) => any>(
@@ -762,6 +764,46 @@ export function ChatLayout() {
       }
     });
 
+    socketClient.on('onUserAvatarUpdated', (data) => {
+      console.log('👤 User avatar updated received in ChatLayout:', data);
+      
+      // Update current user if it's their avatar
+      if (data.user_id === currentUser?.id) {
+        setCurrentUser(prev => prev ? {
+          ...prev,
+          avatar_path: data.avatar_path || undefined
+        } : prev);
+      }
+      
+      // Update conversations list to reflect the new avatar for direct chats
+      setConversations(prev => prev.map(conversation => {
+        if (conversation.conversation_type === 'direct' && conversation.other_user_id === data.user_id) {
+          return {
+            ...conversation,
+            avatar_path: data.avatar_path
+          };
+        }
+        return conversation;
+      }));
+      
+      // Update messages in current conversation if they're from this user
+      setMessages(prev => prev.map(message => {
+        if (message.sender_id === data.user_id) {
+          return {
+            ...message,
+            sender_avatar: data.avatar_path
+          };
+        }
+        return message;
+      }));
+      
+      // Show notification if it's not the current user
+      if (data.user_id !== currentUser?.id) {
+        const avatarAction = data.avatar_path ? 'updated' : 'removed';
+        toast.info(`${data.username} ${avatarAction} their avatar`);
+      }
+    });
+
     socketClient.on('onMemberLeftGroup', (data) => {
       // If this is about the current user, it's handled elsewhere
       if (data.user_id === currentUser?.id) {
@@ -810,7 +852,8 @@ export function ChatLayout() {
                       {
                         user_id: data.reader_id,
                         username: data.reader_username,
-                        read_at: new Date().toISOString()
+                        read_at: new Date().toISOString(),
+                        avatar_path: data.reader_avatar
                       }
                     ]
                   };
@@ -1271,32 +1314,104 @@ export function ChatLayout() {
           {!sidebarCollapsed && (
             <div className="p-4 border-t border-border">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{currentUser?.username}</p>
-                  <p className="text-sm text-muted-foreground capitalize">{currentUser?.role}</p>
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+                    {currentUser?.avatar_path ? (
+                      <img 
+                        src={`/api/files/download/${currentUser.avatar_path}`}
+                        alt={currentUser.username}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold">
+                        {currentUser?.name?.[0] || currentUser?.username?.[0]?.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium">{currentUser?.name || currentUser?.username}</p>
+                    <p className="text-sm text-muted-foreground capitalize">{currentUser?.role}</p>
+                  </div>
                 </div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleLogout}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <LogOut className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Sign out</p>
-                  </TooltipContent>
-                </Tooltip>
+                <div className="flex items-center space-x-1">
+                  <UserSettingsDialog 
+                    currentUser={currentUser} 
+                    onUserUpdate={setCurrentUser}
+                  >
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Settings</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </UserSettingsDialog>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleLogout}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <LogOut className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Sign out</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
             </div>
           )}
 
           {/* Collapsed User Info */}
           {sidebarCollapsed && (
-            <div className="p-2 border-t border-border flex justify-center">
+            <div className="p-2 border-t border-border flex flex-col items-center space-y-1">
+              {/* User Avatar in collapsed state */}
+              <div className="h-8 w-8 rounded-full overflow-hidden bg-muted flex items-center justify-center mb-1">
+                {currentUser?.avatar_path ? (
+                  <img 
+                    src={`/api/files/download/${currentUser.avatar_path}`}
+                    alt={currentUser.username}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xs font-semibold">
+                    {currentUser?.name?.[0] || currentUser?.username?.[0]?.toUpperCase()}
+                  </span>
+                )}
+              </div>
+              
+              <UserSettingsDialog 
+                currentUser={currentUser} 
+                onUserUpdate={setCurrentUser}
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground p-2"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Settings</p>
+                  </TooltipContent>
+                </Tooltip>
+              </UserSettingsDialog>
+              
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

@@ -110,24 +110,29 @@ export function ChatList({
                   title={displayName || (isGroup ? 'Unknown Group' : 'Unknown User')}
                 >
                   <div className="relative">
-                    <Avatar className="h-8 w-8">
-                      {isGroup && conversation.avatar_path ? (
-                        <AvatarImage 
-                          src={`/api/files/download/${conversation.avatar_path}`} 
-                          alt={displayName || 'Group'} 
-                        />
-                      ) : null}
-                      <AvatarFallback className={cn(
-                        "text-xs",
-                        isGroup ? "bg-blue-100 text-blue-700" : "bg-primary/10"
-                      )}>
-                        {isGroup ? (
-                          <Users className="h-4 w-4" />
-                        ) : (
-                          (displayName || 'U').charAt(0).toUpperCase()
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
+                                      <Avatar className="h-8 w-8">
+                    {isGroup && conversation.avatar_path ? (
+                      <AvatarImage 
+                        src={`/api/files/download/${conversation.avatar_path}`} 
+                        alt={displayName || 'Group'} 
+                      />
+                    ) : (!isGroup && conversation.avatar_path) ? (
+                      <AvatarImage 
+                        src={`/api/files/download/${conversation.avatar_path}`} 
+                        alt={displayName || 'User'} 
+                      />
+                    ) : null}
+                    <AvatarFallback className={cn(
+                      "text-xs",
+                      isGroup ? "bg-blue-100 text-blue-700" : "bg-primary/10"
+                    )}>
+                      {isGroup ? (
+                        <Users className="h-4 w-4" />
+                      ) : (
+                        (displayName || 'U').charAt(0).toUpperCase()
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
                     {!isGroup && onlineUsers.includes(conversation.other_user_id) && (
                       <Circle className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 fill-green-500 text-green-500" />
                     )}
@@ -178,6 +183,11 @@ export function ChatList({
                       <AvatarImage 
                         src={`/api/files/download/${conversation.avatar_path}`} 
                         alt={displayName || 'Group'} 
+                      />
+                    ) : (!isGroup && conversation.avatar_path) ? (
+                      <AvatarImage 
+                        src={`/api/files/download/${conversation.avatar_path}`} 
+                        alt={displayName || 'User'} 
                       />
                     ) : null}
                     <AvatarFallback className={cn(

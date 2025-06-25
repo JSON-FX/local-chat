@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
           message_ids: messageIds,
           reader_id: user.id,
           reader_username: user.username,
+          reader_avatar: (user as any).avatar_path,
           conversation_id,
           is_group: true
         });
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
           message_ids: messageIds,
           reader_id: user.id,
           reader_username: user.username,
+          reader_avatar: (user as any).avatar_path,
           conversation_id,
           is_group: false
         });

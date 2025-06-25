@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Search, MessageSquare, Circle, Plus, Users, User as UserIcon } from 'lucide-react';
 import { User } from '@/lib/types';
@@ -178,6 +178,12 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
                       {/* Avatar with online indicator */}
                       <div className="relative">
                         <Avatar className="h-8 w-8">
+                          {user.avatar_path ? (
+                            <AvatarImage 
+                              src={`/api/files/download/${user.avatar_path}`} 
+                              alt={user.username} 
+                            />
+                          ) : null}
                           <AvatarFallback className="bg-primary/10">
                             {user.username.charAt(0).toUpperCase()}
                           </AvatarFallback>

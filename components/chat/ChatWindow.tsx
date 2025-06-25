@@ -382,7 +382,15 @@ export function ChatWindow({
                 src={`/api/files/download/${conversations.find(c => c.group_id === selectedConversation)?.avatar_path}`} 
                 alt={getConversationPartner()} 
               />
-            ) : null}
+            ) : (selectedConversationType === 'direct') ? (() => {
+              const conversation = conversations.find(c => c.other_user_id === selectedConversation);
+              return (conversation?.avatar_path && conversation.avatar_path !== null) ? (
+                <AvatarImage 
+                  src={`/api/files/download/${conversation.avatar_path}`} 
+                  alt={getConversationPartner() || 'User'} 
+                />
+              ) : null;
+            })() : null}
             {selectedConversationType === 'group' ? (
               <AvatarFallback className="bg-blue-500/10 text-blue-700">
                 <Users className="h-4 w-4" />
@@ -575,6 +583,12 @@ export function ChatWindow({
                     <div className="w-8">
                       {showAvatar ? (
                         <Avatar className="h-8 w-8">
+                          {(message.sender_avatar && message.sender_avatar !== null) ? (
+                            <AvatarImage 
+                              src={`/api/files/download/${message.sender_avatar}`} 
+                              alt={message.sender_username || 'User'} 
+                            />
+                          ) : null}
                           <AvatarFallback className="bg-primary/10">
                             {(message.sender_username || 'U').charAt(0).toUpperCase()}
                           </AvatarFallback>
@@ -698,6 +712,12 @@ export function ChatWindow({
                       <div className="flex -space-x-1">
                         {message.read_by.filter(reader => reader.user_id !== currentUser?.id).slice(0, 3).map((reader) => (
                           <Avatar key={reader.user_id} className="h-4 w-4 border border-background" title={`${reader.username} - ${formatMessageTime(reader.read_at)}`}>
+                            {reader.avatar_path && typeof reader.avatar_path === 'string' ? (
+                              <AvatarImage 
+                                src={`/api/files/download/${reader.avatar_path}`} 
+                                alt={reader.username || 'User'} 
+                              />
+                            ) : null}
                             <AvatarFallback className="bg-primary/10 text-xs">
                               {reader.username.charAt(0).toUpperCase()}
                             </AvatarFallback>

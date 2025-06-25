@@ -134,6 +134,27 @@ const runMigrations = async (): Promise<void> => {
       await db.run('ALTER TABLE groups ADD COLUMN avatar_path VARCHAR(500)');
       console.log('✅ avatar_path column added to groups table');
     }
+
+    // Check and add additional user profile columns
+    const userTableInfo = await db.all("PRAGMA table_info(users)");
+    const userColumns = userTableInfo.map((column: any) => column.name);
+    
+    const profileColumns = [
+      { name: 'name', type: 'VARCHAR(100)' },
+      { name: 'middle_name', type: 'VARCHAR(100)' },
+      { name: 'position', type: 'VARCHAR(100)' },
+      { name: 'department', type: 'VARCHAR(100)' },
+      { name: 'email', type: 'VARCHAR(255)' },
+      { name: 'avatar_path', type: 'VARCHAR(500)' }
+    ];
+
+    for (const column of profileColumns) {
+      if (!userColumns.includes(column.name)) {
+        console.log(`Adding ${column.name} column to users table...`);
+        await db.run(`ALTER TABLE users ADD COLUMN ${column.name} ${column.type}`);
+        console.log(`✅ ${column.name} column added to users table`);
+      }
+    }
   } catch (error) {
     console.error('Error running migrations:', error);
     // Don't throw here, as the table might not exist yet

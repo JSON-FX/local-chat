@@ -120,7 +120,7 @@ export class MessageReadService {
       
       const placeholders = messageIds.map(() => '?').join(',');
       const reads = await db.all(
-        `SELECT mr.message_id, mr.user_id, mr.read_at, u.username 
+        `SELECT mr.message_id, mr.user_id, mr.read_at, u.username, u.avatar_path 
          FROM message_reads mr
          JOIN users u ON mr.user_id = u.id
          WHERE mr.message_id IN (${placeholders})
@@ -137,7 +137,8 @@ export class MessageReadService {
         result[read.message_id].push({
           user_id: read.user_id,
           username: read.username,
-          read_at: read.read_at
+          read_at: read.read_at,
+          avatar_path: read.avatar_path
         });
       }
       
