@@ -250,8 +250,8 @@ export class SocketService {
             // Direct message - use message queue for offline handling
             await MessageQueueService.notifyNewMessage(data.recipient_id, messageWithSender);
           } else if (data.group_id) {
-            // Group message - emit to all group members (implementation needed when groups are added)
-            socket.to(`group_${data.group_id}`).emit('new_message', messageWithSender);
+            // Group message - emit to all group members as group_message
+            socket.to(`group_${data.group_id}`).emit('group_message', messageWithSender);
           }
 
           console.log(`📨 Message sent from ${userSession.username} to ${data.recipient_id ? `user ${data.recipient_id}` : `group ${data.group_id}`}`);
