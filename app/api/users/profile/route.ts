@@ -8,12 +8,12 @@ export async function PUT(request: NextRequest) {
     const user = await requireAuth(request);
     const body = await request.json();
 
-    const { name, middle_name, position, department, email } = body;
+    const { name, last_name, middle_name, position, department, email, mobile_number } = body;
 
     // Validate required fields
-    if (!name || !email) {
+    if (!name || !last_name || !email) {
       return NextResponse.json(
-        { success: false, error: 'Name and email are required' },
+        { success: false, error: 'First name, last name, and email are required' },
         { status: 400 }
       );
     }
@@ -46,17 +46,19 @@ export async function PUT(request: NextRequest) {
     await db.run(
       `UPDATE users SET 
         name = ?, 
+        last_name = ?, 
         middle_name = ?, 
         position = ?, 
         department = ?, 
-        email = ?
+        email = ?, 
+        mobile_number = ?
       WHERE id = ?`,
-      [name, middle_name || null, position || null, department || null, email, user.id]
+      [name, last_name, middle_name || null, position || null, department || null, email, mobile_number || null, user.id]
     );
 
     // Get updated user data
     const updatedUser = await db.get(
-      'SELECT id, username, role, created_at, name, middle_name, position, department, email, avatar_path FROM users WHERE id = ?',
+      'SELECT id, username, role, created_at, name, last_name, middle_name, position, department, email, mobile_number, avatar_path FROM users WHERE id = ?',
       [user.id]
     );
 

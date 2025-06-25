@@ -1329,8 +1329,20 @@ export function ChatLayout() {
                     )}
                   </div>
                   <div>
-                    <p className="font-medium">{currentUser?.name || currentUser?.username}</p>
-                    <p className="text-sm text-muted-foreground capitalize">{currentUser?.role}</p>
+                    <p className="font-medium">
+                      {currentUser?.name && currentUser?.last_name 
+                        ? `${currentUser.name} ${currentUser.last_name}` 
+                        : currentUser?.name || currentUser?.username}
+                    </p>
+                    {currentUser?.position && (
+                      <p className="text-sm text-muted-foreground">{currentUser.position}</p>
+                    )}
+                    {currentUser?.department && (
+                      <p className="text-xs text-muted-foreground">{currentUser.department}</p>
+                    )}
+                    {(!currentUser?.position && !currentUser?.department) && (
+                      <p className="text-sm text-muted-foreground capitalize">{currentUser?.role}</p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center space-x-1">

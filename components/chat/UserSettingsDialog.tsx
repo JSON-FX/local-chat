@@ -33,10 +33,12 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
   // Profile form state - update when currentUser changes
   const [profileForm, setProfileForm] = useState({
     name: currentUser?.name || '',
+    last_name: currentUser?.last_name || '',
     middle_name: currentUser?.middle_name || '',
     position: currentUser?.position || '',
     department: currentUser?.department || '',
-    email: currentUser?.email || ''
+    email: currentUser?.email || '',
+    mobile_number: currentUser?.mobile_number || ''
   });
 
   // Update form when currentUser changes
@@ -44,10 +46,12 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
     if (currentUser) {
       setProfileForm({
         name: currentUser.name || '',
+        last_name: currentUser.last_name || '',
         middle_name: currentUser.middle_name || '',
         position: currentUser.position || '',
         department: currentUser.department || '',
-        email: currentUser.email || ''
+        email: currentUser.email || '',
+        mobile_number: currentUser.mobile_number || ''
       });
     }
   }, [currentUser]);
@@ -60,8 +64,8 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
   });
 
   const handleProfileUpdate = useCallback(async () => {
-    if (!profileForm.name || !profileForm.email) {
-      toast.error('Name and email are required');
+    if (!profileForm.name || !profileForm.last_name || !profileForm.email) {
+      toast.error('First name, last name, and email are required');
       return;
     }
 
@@ -299,7 +303,7 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">First Name *</Label>
                   <Input
@@ -307,6 +311,15 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
                     value={profileForm.name}
                     onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Enter your first name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last_name">Last Name *</Label>
+                  <Input
+                    id="last_name"
+                    value={profileForm.last_name}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, last_name: e.target.value }))}
+                    placeholder="Enter your last name"
                   />
                 </div>
                 <div className="space-y-2">
@@ -341,15 +354,27 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={profileForm.email}
-                  onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="Enter your email address"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profileForm.email}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Enter your email address"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mobile_number">Mobile Number</Label>
+                  <Input
+                    id="mobile_number"
+                    type="tel"
+                    value={profileForm.mobile_number}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, mobile_number: e.target.value }))}
+                    placeholder="Enter your mobile number"
+                  />
+                </div>
               </div>
 
               <div className="flex items-center space-x-2">

@@ -141,10 +141,12 @@ const runMigrations = async (): Promise<void> => {
     
     const profileColumns = [
       { name: 'name', type: 'VARCHAR(100)' },
+      { name: 'last_name', type: 'VARCHAR(100)' },
       { name: 'middle_name', type: 'VARCHAR(100)' },
       { name: 'position', type: 'VARCHAR(100)' },
       { name: 'department', type: 'VARCHAR(100)' },
       { name: 'email', type: 'VARCHAR(255)' },
+      { name: 'mobile_number', type: 'VARCHAR(20)' },
       { name: 'avatar_path', type: 'VARCHAR(500)' }
     ];
 

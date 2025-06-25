@@ -6,10 +6,12 @@ export interface User {
   role: 'admin' | 'user';
   created_at: string;
   name?: string;
+  last_name?: string;
   middle_name?: string;
   position?: string;
   department?: string;
   email?: string;
+  mobile_number?: string;
   avatar_path?: string;
 }
 
