@@ -15,7 +15,9 @@ import {
   WifiOff,
   Circle,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiService } from '@/lib/api';
@@ -38,11 +40,317 @@ export function ChatLayout() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isPageVisible, setIsPageVisible] = useState(true);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [serviceWorkerRegistration, setServiceWorkerRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
   // Initialize user and socket connection
   useEffect(() => {
     initializeApp();
+    // Don't auto-request notifications - wait for user interaction
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+    setupServiceWorker();
+    const cleanup = setupPageVisibility();
+    
+    return () => {
+      if (cleanup) cleanup();
+    };
   }, []);
+
+  // Setup service worker for better system notifications
+  const setupServiceWorker = async () => {
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        setServiceWorkerRegistration(registration);
+        console.log('✅ Service Worker registered:', registration);
+        
+        // Wait for service worker to be ready
+        await navigator.serviceWorker.ready;
+        console.log('✅ Service Worker ready');
+      } catch (error) {
+        console.warn('Service Worker registration failed:', error);
+      }
+    }
+  };
+
+  // Setup notifications
+  const setupNotifications = async () => {
+    if ('Notification' in window) {
+      try {
+        // Check current permission first
+        let permission = Notification.permission;
+        
+        // For Chrome compatibility - only request if not already decided
+        if (permission === 'default') {
+          // Show a user-friendly prompt first (Chrome requires user gesture)
+          const userWantsNotifications = window.confirm(
+            'LocalChat would like to send you notifications when you receive new messages. Allow notifications?'
+          );
+          
+          if (userWantsNotifications) {
+            permission = await Notification.requestPermission();
+          } else {
+            permission = 'denied';
+          }
+        }
+        
+        setNotificationPermission(permission);
+        
+        if (permission === 'granted') {
+          console.log('✅ Notification permission granted');
+          toast.success('🔔 Notifications enabled! You\'ll be notified of new messages.');
+          
+          // Test notification on first enable
+          try {
+            const testNotification = new Notification('LocalChat Notifications Enabled', {
+              body: 'You will now receive notifications for new messages.',
+              icon: '/favicon.ico',
+              tag: 'test-notification',
+              requireInteraction: false
+            });
+            
+            setTimeout(() => {
+              testNotification.close();
+            }, 3000);
+          } catch (error) {
+            console.warn('Test notification failed:', error);
+          }
+          
+        } else if (permission === 'denied') {
+          console.log('❌ Notification permission denied');
+          toast.error('Notifications blocked. To enable: Click the bell icon in your browser\'s address bar or go to site settings.');
+        }
+      } catch (error) {
+        console.error('Notification setup error:', error);
+        toast.error('Failed to setup notifications. Please check your browser settings.');
+      }
+    } else {
+      console.log('❌ This browser does not support notifications');
+      toast.error('Your browser does not support notifications');
+    }
+  };
+
+  // Setup page visibility detection
+  const setupPageVisibility = () => {
+    const handleVisibilityChange = () => {
+      setIsPageVisible(!document.hidden);
+      console.log('👁️ Page visibility changed:', !document.hidden ? 'visible' : 'hidden');
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also listen for window focus/blur
+    const handleFocus = () => setIsPageVisible(true);
+    const handleBlur = () => setIsPageVisible(false);
+    
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  };
+
+  // Play notification sound
+  const playNotificationSound = async () => {
+    try {
+      // Check if audio context is allowed (Chrome autoplay policy)
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) {
+        console.warn('Web Audio API not supported');
+        return;
+      }
+
+      const audioContext = new AudioContext();
+      
+      // Resume audio context if suspended (Chrome autoplay policy)
+      if (audioContext.state === 'suspended') {
+        try {
+          await audioContext.resume();
+        } catch (error) {
+          console.warn('Could not resume audio context:', error);
+          return;
+        }
+      }
+
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Create a pleasant notification sound
+      oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime); // E5
+      oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime + 0.1); // C5
+      oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.2); // E5
+      
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+      
+      oscillator.type = 'sine';
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.4);
+
+      // Clean up audio context after use
+      setTimeout(() => {
+        audioContext.close();
+      }, 500);
+      
+    } catch (error) {
+      console.warn('Failed to play notification sound:', error);
+      
+      // Fallback: Try using a simple HTML5 audio beep
+      try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMbBTmV2/LReSsFJXzJ8t2WQQAWX7np1JBMEA9Pqd/trWAaAA=');
+        audio.volume = 0.1;
+        audio.play().catch(() => {
+          console.warn('Audio fallback also failed');
+        });
+      } catch (fallbackError) {
+        console.warn('Audio fallback failed:', fallbackError);
+      }
+    }
+  };
+
+  // Show browser/system notification
+  const showNotification = (title: string, body: string, icon?: string, data?: any) => {
+    if (notificationPermission === 'granted' && !isPageVisible) {
+      try {
+        // Prefer service worker notifications for better system integration
+        if (serviceWorkerRegistration && 'showNotification' in serviceWorkerRegistration) {
+          // Use service worker for persistent system notifications
+          const notificationOptions: any = {
+            body,
+            icon: icon || '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: 'localchat-message',
+            requireInteraction: false,
+            silent: false,
+            data: data || {},
+            actions: [
+              {
+                action: 'view',
+                title: 'Open Chat'
+              }
+            ]
+          };
+          serviceWorkerRegistration.showNotification(title, notificationOptions);
+          console.log('🔔 Service Worker notification shown:', title);
+        } else {
+          // Fallback to regular notification
+          const notification = new Notification(title, {
+            body,
+            icon: icon || '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: 'localchat-message',
+            requireInteraction: false,
+            silent: false
+          });
+
+          // Auto-close notification after 8 seconds
+          setTimeout(() => {
+            notification.close();
+          }, 8000);
+
+          // Handle notification interactions
+          notification.onclick = () => {
+            // Focus and bring window to front
+            if (window.focus) {
+              window.focus();
+            }
+            
+            // For Chrome/Edge: bring tab to front
+            if (parent && parent !== window) {
+              parent.focus();
+            }
+            
+            // Try to bring browser window to front (may not work due to security)
+            try {
+              window.parent.focus();
+            } catch (e) {
+              // Silently fail
+            }
+            
+            notification.close();
+          };
+
+          console.log('🔔 Browser notification shown:', title);
+        }
+        
+        // Flash the title bar for additional attention
+        try {
+          const originalTitle = document.title;
+          let flashCount = 0;
+          const flashInterval = setInterval(() => {
+            document.title = flashCount % 2 === 0 ? '💬 New Message!' : originalTitle;
+            flashCount++;
+            if (flashCount >= 6) {
+              clearInterval(flashInterval);
+              document.title = originalTitle;
+            }
+          }, 500);
+        } catch (error) {
+          // Silently fail
+        }
+
+      } catch (error) {
+        console.error('Failed to show notification:', error);
+        
+        // Ultimate fallback: Change tab title
+        try {
+          if (!isPageVisible) {
+            const originalTitle = document.title;
+            document.title = `💬 ${title}`;
+            
+            setTimeout(() => {
+              document.title = originalTitle;
+            }, 5000);
+          }
+        } catch (fallbackError) {
+          console.error('Notification fallback failed:', fallbackError);
+        }
+      }
+    }
+  };
+
+  // Handle new message notifications
+  const handleMessageNotification = (message: Message, senderName: string, isGroup: boolean = false) => {
+    // Don't notify for own messages
+    if (message.sender_id === currentUser?.id) {
+      return;
+    }
+
+    // Always play sound for new messages (even when page is visible)
+    playNotificationSound();
+
+    // Only show browser notification when page is not visible
+    if (!isPageVisible) {
+      const title = isGroup 
+        ? `New message in ${conversations.find(c => c.group_id === message.group_id)?.group_name || 'group'}`
+        : `New message from ${senderName}`;
+      
+      const body = message.file_path 
+        ? '📎 Sent a file'
+        : message.content || 'New message';
+
+      const notificationData = {
+        messageId: message.id,
+        senderId: message.sender_id,
+        senderName,
+        isGroup,
+        conversationId: isGroup ? message.group_id : message.sender_id,
+        timestamp: new Date().toISOString()
+      };
+
+      showNotification(title, body, '/favicon.ico', notificationData);
+    }
+  };
 
   // Restore selected conversation from localStorage
   useEffect(() => {
@@ -188,6 +496,16 @@ export function ChatLayout() {
           return [...prev, message];
         });
       }
+
+      // Handle notifications for direct messages
+      if (!message.group_id && message.recipient_id === currentUser?.id) {
+        // Find sender information
+        const senderName = conversations.find(c => 
+          c.conversation_type === 'direct' && c.other_user_id === message.sender_id
+        )?.other_username || 'Unknown User';
+        
+        handleMessageNotification(message, senderName, false);
+      }
       
       // Update conversation list
       loadConversations();
@@ -208,6 +526,13 @@ export function ChatLayout() {
           if (exists) return prev;
           return [...prev, message];
         });
+      }
+
+      // Handle notifications for group messages
+      if (message.group_id && message.sender_id !== currentUser?.id) {
+        // Find sender and group information
+        const senderName = message.sender_username || 'Unknown User';
+        handleMessageNotification(message, senderName, true);
       }
       
       // Update conversation list
@@ -648,6 +973,24 @@ export function ChatLayout() {
                 <span className="font-semibold">LocalChat</span>
               </div>
               <div className="flex items-center space-x-2">
+                {/* Notification Status */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setupNotifications()}
+                  className="text-muted-foreground hover:text-foreground p-1"
+                  title={notificationPermission === 'granted' ? 'Notifications enabled - you will receive alerts for new messages' : 
+                         notificationPermission === 'denied' ? 'Notifications blocked - check your browser settings or site permissions' : 
+                         'Click to enable desktop notifications for new messages'}
+                >
+                  {notificationPermission === 'granted' ? (
+                    <Bell className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <BellOff className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+                
+                {/* Connection Status */}
                 {isConnected ? (
                   <Badge variant="secondary" className="text-xs">
                     <Circle className="h-2 w-2 mr-1 fill-green-500 text-green-500" />
@@ -662,7 +1005,7 @@ export function ChatLayout() {
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center w-full">
+            <div className="flex flex-col items-center justify-center w-full space-y-1">
               <div className="relative">
                 <MessageSquare className="h-6 w-6 text-primary" />
                 {isConnected ? (
@@ -671,6 +1014,22 @@ export function ChatLayout() {
                   <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-red-500 text-red-500" />
                 )}
               </div>
+              {/* Notification status in collapsed view */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setupNotifications()}
+                className="p-1 h-6"
+                title={notificationPermission === 'granted' ? 'Notifications enabled - you will receive alerts for new messages' : 
+                       notificationPermission === 'denied' ? 'Notifications blocked - check your browser settings or site permissions' : 
+                       'Click to enable desktop notifications for new messages'}
+              >
+                {notificationPermission === 'granted' ? (
+                  <Bell className="h-3 w-3 text-green-600" />
+                ) : (
+                  <BellOff className="h-3 w-3 text-muted-foreground" />
+                )}
+              </Button>
             </div>
           )}
         </div>
