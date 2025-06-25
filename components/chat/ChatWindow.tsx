@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Send, Circle, Paperclip, Download, Image as ImageIcon } from 'lucide-react';
+import { Send, Circle, Paperclip, Download, Image as ImageIcon, ArrowDown } from 'lucide-react';
 import { Message, User, Conversation } from '@/lib/types';
 import { socketClient } from '@/lib/socket-client';
 import { cn } from '@/lib/utils';
@@ -39,6 +39,7 @@ export function ChatWindow({
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showFileUpload, setShowFileUpload] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const [imageModal, setImageModal] = useState<{
     isOpen: boolean;
     imageSrc: string;
@@ -51,11 +52,48 @@ export function ChatWindow({
     fileName: undefined
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Use setTimeout to ensure the DOM is fully updated before scrolling
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [messages]);
+
+  // Scroll to bottom when selected conversation changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [selectedConversation]);
+
+  // Add scroll event listener to detect when user has scrolled up
+  useEffect(() => {
+    const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    
+    if (!scrollArea) return;
+    
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollArea as HTMLElement;
+      const isScrolledUp = scrollHeight - scrollTop - clientHeight > 100;
+      setShowScrollButton(isScrolledUp);
+    };
+    
+    scrollArea.addEventListener('scroll', handleScroll);
+    return () => {
+      scrollArea.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const getConversationPartner = () => {
     const conversation = conversations.find(c => c.other_user_id === selectedConversation);
@@ -68,6 +106,11 @@ export function ChatWindow({
       onSendMessage(inputValue);
       setInputValue('');
       handleStopTyping();
+      
+      // Scroll to bottom after sending a message
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      }, 100);
     }
   };
 
@@ -191,7 +234,7 @@ export function ChatWindow({
         </Badge>
       </div>
 
-      <ScrollArea className="flex-1 px-6">
+      <ScrollArea className="flex-1 px-6 overflow-y-auto h-full" ref={scrollAreaRef}>
         <div className="py-4 space-y-4">
           {messages.map((message, index) => {
             const isCurrentUser = message.sender_id === currentUser?.id;
@@ -296,6 +339,18 @@ export function ChatWindow({
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
+
+      {showScrollButton && (
+        <div className="absolute bottom-24 right-6">
+          <Button 
+            size="icon" 
+            className="rounded-full shadow-md" 
+            onClick={scrollToBottom}
+          >
+            <ArrowDown className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       <div className="p-4 border-t border-border">
         <form onSubmit={handleSubmit} className="flex space-x-2">

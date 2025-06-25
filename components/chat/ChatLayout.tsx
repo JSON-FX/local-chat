@@ -312,7 +312,7 @@ export function ChatLayout() {
   return (
     <div className="h-screen flex bg-background">
       {/* Sidebar */}
-      <div className="w-80 border-r border-border flex flex-col">
+      <div className="w-80 border-r border-border flex flex-col h-full">
         {/* Header */}
         <div className="h-16 px-4 flex items-center justify-between border-b border-border">
           <div className="flex items-center space-x-2">
@@ -373,7 +373,7 @@ export function ChatLayout() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         {selectedConversation ? (
           <ChatWindow
             messages={messages}
