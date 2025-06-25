@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '../../../../lib/auth';
 import { GroupService } from '../../../../lib/groups';
+import { SocketService } from '../../../../lib/socket';
 
 interface RouteContext {
   params: Promise<{
@@ -160,6 +161,13 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
       );
     }
     await GroupService.deleteGroup(groupId);
+    
+    // Broadcast group deletion to all members
+    SocketService.broadcastGroupDeleted(groupId, {
+      id: user.id,
+      username: user.username
+    });
+    
     return NextResponse.json({
       success: true,
       message: 'Group deleted successfully'

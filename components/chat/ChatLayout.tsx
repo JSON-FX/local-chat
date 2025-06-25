@@ -41,6 +41,37 @@ export function ChatLayout() {
     initializeApp();
   }, []);
 
+  // Restore selected conversation from localStorage
+  useEffect(() => {
+    if (currentUser && conversations.length > 0) {
+      const savedConversation = localStorage.getItem('selectedConversation');
+      if (savedConversation) {
+        try {
+          const { id, type } = JSON.parse(savedConversation);
+          if (id && type) {
+            // Find the conversation in the loaded conversations
+            const exists = conversations.find(c => 
+              (type === 'direct' && c.other_user_id === id) || 
+              (type === 'group' && c.group_id === id)
+            );
+            
+            if (exists) {
+              console.log('🔄 Restoring conversation:', id, type);
+              handleConversationSelect(id, type === 'group');
+            } else {
+              // Conversation no longer exists, clear localStorage
+              console.warn('Saved conversation no longer exists, clearing localStorage');
+              localStorage.removeItem('selectedConversation');
+            }
+          }
+        } catch (error) {
+          console.error('Failed to parse saved conversation:', error);
+          localStorage.removeItem('selectedConversation');
+        }
+      }
+    }
+  }, [currentUser, conversations]);
+
   // Setup socket handlers with current state
   useEffect(() => {
     console.log('🔧 Setting up socket handlers with current state');
@@ -56,6 +87,7 @@ export function ChatLayout() {
       socketClient.off('onNewMessage');
       socketClient.off('onMessageSent');
       socketClient.off('onGroupMessage');
+      socketClient.off('onGroupDeleted');
       socketClient.off('onUserOnline');
       socketClient.off('onUserOffline');
       socketClient.off('onUserTyping');
@@ -176,6 +208,30 @@ export function ChatLayout() {
       }
       
       // Update conversation list
+      loadConversations();
+    });
+
+    socketClient.on('onGroupDeleted', (data) => {
+      console.log('Group deleted:', data);
+      
+      // If the deleted group is the currently selected conversation, reset it
+      if (selectedConversation && 
+          selectedConversationType === 'group' && 
+          selectedConversation.group_id === data.group_id) {
+        setSelectedConversation(null);
+        setMessages([]);
+        localStorage.removeItem('selectedConversation');
+        
+        // Show notification
+        toast.info(`Group was deleted by ${data.deleted_by.username}`);
+      }
+      
+      // Immediately update conversations list to remove the deleted group
+      setConversations(prev => prev.filter(c => 
+        !(c.conversation_type === 'group' && c.group_id === data.group_id)
+      ));
+      
+      // Also refresh from server
       loadConversations();
     });
 
@@ -342,38 +398,84 @@ export function ChatLayout() {
   };
 
   const handleConversationSelect = async (conversationId: number, isGroup: boolean = false) => {
-    setIsLoadingMessages(true);
-    
-    // Find the conversation in the list
-    const conversation = conversations.find(c => 
-      isGroup 
-        ? c.group_id === conversationId 
-        : c.other_user_id === conversationId
-    );
-    
-    if (conversation) {
-      setSelectedConversation(conversation);
-      setSelectedConversationType(conversation.conversation_type);
+    try {
+      setIsLoadingMessages(true);
       
-      try {
-        // Load messages for this conversation
-        const response = isGroup
-          ? await apiService.getGroupMessages(conversationId)
-          : await apiService.getDirectMessages(conversationId);
-          
-        if (response.success && response.data) {
-          setMessages(response.data);
-        } else {
-          toast.error('Failed to load messages');
-          setMessages([]);
+      // Save selected conversation to localStorage
+      localStorage.setItem('selectedConversation', JSON.stringify({
+        id: conversationId,
+        type: isGroup ? 'group' : 'direct'
+      }));
+      
+      const conversation = conversations.find(c => 
+        (isGroup && c.group_id === conversationId) || 
+        (!isGroup && c.other_user_id === conversationId)
+      );
+      
+      if (!conversation) {
+        // For direct chats, if the conversation doesn't exist yet, create a temporary conversation object
+        // This allows users to start a new chat with someone they haven't chatted with before
+        if (!isGroup) {
+          // Get user info to create a temporary conversation
+          try {
+            const usersResponse = await apiService.getUsers();
+            if (usersResponse.success && usersResponse.data) {
+              const user = usersResponse.data.find(u => u.id === conversationId);
+              if (user) {
+                const tempConversation: Conversation = {
+                  other_user_id: user.id,
+                  other_username: user.username,
+                  last_message: '',
+                  last_message_time: new Date().toISOString(),
+                  conversation_type: 'direct',
+                  group_id: undefined,
+                  group_name: undefined,
+                  avatar_path: undefined
+                };
+                
+                setSelectedConversation(tempConversation);
+                setSelectedConversationType('direct');
+                setMessages([]);
+                setIsLoadingMessages(false);
+                return;
+              }
+            }
+          } catch (error) {
+            console.error('Failed to get user info:', error);
+          }
         }
-      } catch (error) {
-        console.error('Failed to load messages:', error);
+        
+        // If we reach here, either it's a group that doesn't exist or we couldn't get user info
+        localStorage.removeItem('selectedConversation');
+        setSelectedConversation(null);
+        setMessages([]);
+        console.warn(`Conversation not found: ${isGroup ? 'group' : 'direct'} ID ${conversationId}`);
+        return;
+      }
+      
+      setSelectedConversation(conversation);
+      setSelectedConversationType(isGroup ? 'group' : 'direct');
+      
+      // Fetch messages for this conversation
+      const response = isGroup
+        ? await apiService.getGroupMessages(conversationId)
+        : await apiService.getDirectMessages(conversationId);
+      
+      if (response.success && response.data) {
+        setMessages(response.data);
+      } else {
         toast.error('Failed to load messages');
         setMessages([]);
-      } finally {
-        setIsLoadingMessages(false);
       }
+    } catch (error) {
+      console.error('Failed to load conversation:', error);
+      toast.error('Failed to load conversation');
+      // Reset state on error
+      setSelectedConversation(null);
+      setMessages([]);
+      localStorage.removeItem('selectedConversation');
+    } finally {
+      setIsLoadingMessages(false);
     }
   };
 
@@ -457,6 +559,8 @@ export function ChatLayout() {
       if ((isGroup && currentId === conversationId) || 
           (!isGroup && currentId === conversationId)) {
         setSelectedConversation(null);
+        // Clear localStorage when conversation is deleted
+        localStorage.removeItem('selectedConversation');
       }
     }
     

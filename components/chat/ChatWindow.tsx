@@ -236,14 +236,12 @@ export function ChatWindow({
     try {
       if (selectedConversationType === 'direct') {
         await apiService.deleteConversation(selectedConversation);
-        toast.success('Conversation deleted');
+        toast.success('Chat deleted');
       } else {
-        // Group deletion (owner only)
-        const selectedGroup = conversations.find(c => c.group_id === selectedConversation);
-        if (!selectedGroup) return;
-        
-        await apiService.deleteGroup(selectedConversation);
-        toast.success('Group deleted');
+        // For groups, we just clear the conversation for the current user
+        // (we don't delete the entire group unless it's done from group settings)
+        await apiService.clearGroupConversation(selectedConversation);
+        toast.success('Conversation cleared');
       }
       
       // Notify parent to refresh conversations
@@ -251,7 +249,8 @@ export function ChatWindow({
         onDeleteConversation(selectedConversation, selectedConversationType === 'group');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete conversation');
+      toast.error(error.message || (selectedConversationType === 'direct' ? 
+        'Failed to delete chat' : 'Failed to clear conversation'));
     } finally {
       setIsConfirmingDelete(false);
     }
@@ -327,6 +326,7 @@ export function ChatWindow({
                 size="sm"
                 onClick={() => setShowGroupSettings(true)}
                 className="h-8 w-8 p-0"
+                title="Group Settings"
               >
                 <Settings className="h-4 w-4" />
               </Button>
@@ -337,6 +337,7 @@ export function ChatWindow({
                   size="sm"
                   onClick={() => setIsConfirmingDelete(true)}
                   className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                  title="Clear Conversation"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -346,6 +347,7 @@ export function ChatWindow({
                   size="sm"
                   onClick={() => setIsConfirmingLeave(true)}
                   className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                  title="Leave Group"
                 >
                   <LogOut className="h-4 w-4" />
                 </Button>
@@ -359,6 +361,7 @@ export function ChatWindow({
               size="sm"
               onClick={() => setIsConfirmingDelete(true)}
               className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+              title="Delete Chat"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -379,12 +382,12 @@ export function ChatWindow({
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md">
             <h3 className="text-lg font-bold mb-4">
-              {selectedConversationType === 'direct' ? 'Delete Conversation?' : 'Delete Group?'}
+              {selectedConversationType === 'direct' ? 'Delete Chat?' : 'Clear Conversation?'}
             </h3>
             <p className="mb-6">
               {selectedConversationType === 'direct' 
                 ? 'This will remove this conversation from your list. The other person will still see the conversation.'
-                : 'This will permanently delete the group for all members. This action cannot be undone.'}
+                : 'This will clear all messages in this group from your conversation list. Other members will still see the messages.'}
             </p>
             <div className="flex justify-end gap-2">
               <Button 
@@ -397,7 +400,7 @@ export function ChatWindow({
                 variant="destructive"
                 onClick={handleDeleteConversation}
               >
-                Delete
+                {selectedConversationType === 'direct' ? 'Delete Chat' : 'Clear Conversation'}
               </Button>
             </div>
           </div>
@@ -626,10 +629,18 @@ export function ChatWindow({
             created_by: 0 // This will be populated when the dialog loads members
           }}
           currentUser={currentUser}
-          onGroupUpdated={() => {
-            // Refresh conversations or handle group updates
-            if (onRefreshMessages) {
-              onRefreshMessages();
+          onGroupUpdated={(updatedGroup) => {
+            // Check if the group was deleted
+            if (updatedGroup.deleted && updatedGroup.groupId === selectedConversation) {
+              // Handle group deletion
+              if (onDeleteConversation) {
+                onDeleteConversation(selectedConversation, true);
+              }
+            } else {
+              // Refresh conversations or handle group updates
+              if (onRefreshMessages) {
+                onRefreshMessages();
+              }
             }
           }}
         />

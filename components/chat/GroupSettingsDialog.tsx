@@ -471,6 +471,27 @@ export function GroupSettingsDialog({
         </div>
 
         <div className="flex justify-end pt-4">
+          {isAdmin && (
+            <Button 
+              variant="destructive" 
+              onClick={async () => {
+                try {
+                  await apiService.deleteGroup(group.id);
+                  toast.success('Group deleted successfully');
+                  onClose();
+                  if (onGroupUpdated) {
+                    // Pass a special flag to indicate group deletion
+                    onGroupUpdated({ deleted: true, groupId: group.id });
+                  }
+                } catch (error: any) {
+                  toast.error(error.message || 'Failed to delete group');
+                }
+              }}
+              className="mr-auto"
+            >
+              Delete Group
+            </Button>
+          )}
           <Button onClick={onClose}>Close</Button>
         </div>
       </DialogContent>

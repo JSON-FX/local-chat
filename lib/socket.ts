@@ -418,6 +418,20 @@ export class SocketService {
     }
   }
 
+  // Notify all members when a group is deleted
+  static broadcastGroupDeleted(groupId: number, deletedBy: { id: number; username: string }): void {
+    if (this.io) {
+      // Broadcast to all connected users instead of just the group room
+      // This ensures everyone receives the event even if they're not in the room
+      // or if the room is no longer accessible
+      this.io.emit('group_deleted', { 
+        group_id: groupId,
+        deleted_by: deletedBy
+      });
+      console.log(`📢 Broadcasting group deletion: ${groupId} deleted by ${deletedBy.username}`);
+    }
+  }
+
   static getIO(): SocketServer | null {
     // If local instance is null, try to get from global singleton
     if (!this.io && global.__socketio__) {

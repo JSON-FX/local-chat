@@ -14,6 +14,27 @@ export class MessageService {
         throw new Error('Message must have either recipient_id or group_id, but not both');
       }
 
+      // For group messages, check if the group exists and user is a member
+      if (messageData.group_id) {
+        const group = await db.get(
+          'SELECT id FROM groups WHERE id = ? AND is_active = 1',
+          [messageData.group_id]
+        );
+        
+        if (!group) {
+          throw new Error('Group not found or has been deleted');
+        }
+        
+        const membership = await db.get(
+          'SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND is_active = 1',
+          [messageData.group_id, messageData.sender_id]
+        );
+        
+        if (!membership) {
+          throw new Error('You are not a member of this group');
+        }
+      }
+
       // Insert message
       const result = await db.run(
         `INSERT INTO messages (sender_id, recipient_id, group_id, content, message_type, file_path, file_name, file_size) 
@@ -80,46 +101,54 @@ export class MessageService {
     }
   }
 
-  // Get group messages (with membership verification)
+  // Get messages from a group chat
   static async getGroupMessages(groupId: number, userId?: number, limit: number = 50, offset: number = 0): Promise<Message[]> {
     const db = await getDatabase();
 
     try {
-      // If userId is provided, verify membership
-      if (userId !== undefined) {
-        // Check if group is active
-        const group = await db.get(
-          'SELECT id FROM groups WHERE id = ? AND is_active = 1',
-          [groupId]
-        );
-        
-        if (!group) {
-          throw new Error('Group not found or has been deleted');
-        }
-        
-        const membership = await db.get(
-          'SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND is_active = 1',
-          [groupId, userId]
-        );
-
-        if (!membership) {
-          throw new Error('You are not a member of this group');
-        }
+      // First check if the group exists
+      const group = await db.get('SELECT id FROM groups WHERE id = ? AND is_active = 1', [groupId]);
+      
+      if (!group) {
+        console.warn(`Group not found or has been deleted: ${groupId}`);
+        return []; // Return empty array instead of throwing error
+      }
+      
+      const membership = await db.get(
+        'SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND is_active = 1',
+        [groupId, userId]
+      );
+      
+      if (userId && !membership) {
+        console.warn(`User ${userId} is not a member of group ${groupId}`);
+        return []; // Return empty array instead of throwing error
       }
 
-      const messages = await db.all(
-        `SELECT m.*, u.username as sender_username 
-         FROM messages m
-         JOIN users u ON m.sender_id = u.id
-         WHERE m.group_id = ? AND m.is_deleted = 0
-         ORDER BY m.timestamp DESC
-         LIMIT ? OFFSET ?`,
-        [groupId, limit, offset]
-      );
+      // If userId is provided, exclude messages that were deleted by this user
+      let query = `
+        SELECT m.*, u.username as sender_username 
+        FROM messages m
+        JOIN users u ON m.sender_id = u.id
+        WHERE m.group_id = ? AND m.is_deleted = 0
+      `;
+      
+      const params = [groupId];
+      
+      // Only filter by user_deleted_by if a userId is provided
+      if (userId) {
+        query += ` AND (m.user_deleted_by IS NULL OR m.user_deleted_by NOT LIKE ?)`;
+        params.push(`%,${userId},%`);
+      }
+      
+      query += ` ORDER BY m.timestamp DESC LIMIT ? OFFSET ?`;
+      params.push(Number(limit), Number(offset));
+      
+      const messages = await db.all(query, params);
 
-      return messages.reverse(); // Return in chronological order
+      return messages.reverse();
     } catch (error) {
-      throw error;
+      console.error('Get group messages error:', error);
+      return []; // Return empty array on error
     }
   }
 
@@ -404,6 +433,64 @@ export class MessageService {
       }
     } catch (error) {
       console.error('Delete conversation error:', error);
+      throw error;
+    }
+  }
+
+  // Leave a group (non-owners)
+  static async leaveGroup(groupId: number, userId: number): Promise<void> {
+    const db = await getDatabase();
+    await db.run('UPDATE group_members SET is_active = 0 WHERE group_id = ? AND user_id = ?', [groupId, userId]);
+  }
+
+  // Clear group conversation for a user (mark messages as deleted for this user only)
+  static async clearGroupConversation(userId: number, groupId: number): Promise<void> {
+    const db = await getDatabase();
+    
+    try {
+      // First check if the user is a member of the group
+      const membership = await db.get(
+        'SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND is_active = 1',
+        [groupId, userId]
+      );
+      
+      if (!membership) {
+        throw new Error('You are not a member of this group');
+      }
+      
+      // Get all messages in this group
+      const messages = await db.all(
+        `SELECT id, user_deleted_by FROM messages WHERE group_id = ? AND is_deleted = 0`,
+        [groupId]
+      );
+      
+      // Update each message to mark as deleted for this user
+      for (const message of messages) {
+        let deletedBy = message.user_deleted_by || '';
+        
+        // Only add the user if not already in the list
+        if (!deletedBy.includes(`,${userId},`)) {
+          // Format: ,1,2,3, (with commas at start and end for easier searching)
+          deletedBy = deletedBy ? 
+            (deletedBy.startsWith(',') ? deletedBy : ',' + deletedBy) : 
+            ',';
+          
+          if (!deletedBy.endsWith(',')) {
+            deletedBy += ',';
+          }
+          
+          deletedBy += `${userId},`;
+          
+          await db.run(
+            'UPDATE messages SET user_deleted_by = ? WHERE id = ?',
+            [deletedBy, message.id]
+          );
+        }
+      }
+      
+      return;
+    } catch (error) {
+      console.error('Clear group conversation error:', error);
       throw error;
     }
   }

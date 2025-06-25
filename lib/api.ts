@@ -293,6 +293,7 @@ class ApiService {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.getToken()}`
       },
     });
 
@@ -308,6 +309,7 @@ class ApiService {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.getToken()}`
       },
     });
 
@@ -323,12 +325,29 @@ class ApiService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.getToken()}`
       },
     });
 
     const data = await response.json();
     if (!data.success) {
       throw new Error(data.error || 'Failed to leave group');
+    }
+  }
+
+  // Clear group conversation (for owner) - removes messages from conversation list without deleting the group
+  async clearGroupConversation(groupId: number): Promise<void> {
+    const response = await fetch(`/api/messages/group/${groupId}/clear`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.getToken()}`
+      },
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to clear group conversation');
     }
   }
 }
