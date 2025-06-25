@@ -199,6 +199,7 @@ export function ChatList({
                       <span className="text-[8px] text-white font-bold">#</span>
                     </div>
                   )}
+                  <NotificationBadge count={unreadCount} />
                 </div>
 
                 {/* Conversation details */}
@@ -230,7 +231,6 @@ export function ChatList({
                       </p>
                     </div>
                   </div>
-                  <NotificationBadge count={unreadCount} className="top-0 right-0" />
                 </div>
               </div>
             </Button>

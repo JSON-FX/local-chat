@@ -22,7 +22,7 @@ export function NotificationBadge({
   return (
     <div
       className={cn(
-        "absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-xs font-semibold flex items-center justify-center px-1 shadow-sm border-2 border-background z-10",
+        "absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-xs font-semibold flex items-center justify-center px-1 shadow-sm border-2 border-background z-20",
         className
       )}
     >
