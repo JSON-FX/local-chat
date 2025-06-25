@@ -13,7 +13,9 @@ import {
   LogOut, 
   Wifi, 
   WifiOff,
-  Circle 
+  Circle,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiService } from '@/lib/api';
@@ -35,6 +37,7 @@ export function ChatLayout() {
   const [typingUsers, setTypingUsers] = useState<{ [userId: number]: boolean }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Initialize user and socket connection
   useEffect(() => {
@@ -635,52 +638,90 @@ export function ChatLayout() {
   return (
     <div className="h-screen flex bg-background">
       {/* Sidebar */}
-      <div className="w-80 border-r border-border flex flex-col h-full">
+      <div className={`${sidebarCollapsed ? 'w-16' : 'w-80'} border-r border-border flex flex-col h-full transition-all duration-300 ease-in-out`}>
         {/* Header */}
         <div className="h-16 px-4 flex items-center justify-between border-b border-border">
-          <div className="flex items-center space-x-2">
-            <MessageSquare className="h-6 w-6 text-primary" />
-            <span className="font-semibold">LocalChat</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            {isConnected ? (
-              <Badge variant="secondary" className="text-xs">
-                <Circle className="h-2 w-2 mr-1 fill-green-500 text-green-500" />
-                Online
-              </Badge>
+          {!sidebarCollapsed ? (
+            <>
+              <div className="flex items-center space-x-2">
+                <MessageSquare className="h-6 w-6 text-primary" />
+                <span className="font-semibold">LocalChat</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                {isConnected ? (
+                  <Badge variant="secondary" className="text-xs">
+                    <Circle className="h-2 w-2 mr-1 fill-green-500 text-green-500" />
+                    Online
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive" className="text-xs">
+                    <Circle className="h-2 w-2 mr-1 fill-red-500 text-red-500" />
+                    Offline
+                  </Badge>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center w-full">
+              <div className="relative">
+                <MessageSquare className="h-6 w-6 text-primary" />
+                {isConnected ? (
+                  <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-green-500 text-green-500" />
+                ) : (
+                  <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-red-500 text-red-500" />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Toggle Button */}
+        <div className="px-2 py-2 border-b border-border">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className={`w-full ${sidebarCollapsed ? 'justify-center' : 'justify-start'} space-x-2`}
+            title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
             ) : (
-              <Badge variant="destructive" className="text-xs">
-                <Circle className="h-2 w-2 mr-1 fill-red-500 text-red-500" />
-                Offline
-              </Badge>
+              <>
+                <PanelLeftClose className="h-4 w-4" />
+                <span className="text-xs">Hide</span>
+              </>
             )}
-          </div>
+          </Button>
         </div>
 
         {/* User Info */}
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">{currentUser?.username}</p>
-              <p className="text-sm text-muted-foreground capitalize">{currentUser?.role}</p>
+        {!sidebarCollapsed && (
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">{currentUser?.username}</p>
+                <p className="text-sm text-muted-foreground capitalize">{currentUser?.role}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
           </div>
-        </div>
+        )}
 
         {/* New Chat Button */}
-        <div className="p-4 border-b border-border">
+        <div className="p-2 border-b border-border">
           <NewChatDialog
             onlineUsers={onlineUsers}
             onStartChat={handleStartChat}
             onGroupCreated={handleGroupCreated}
+            collapsed={sidebarCollapsed}
           />
         </div>
 
@@ -695,6 +736,7 @@ export function ChatLayout() {
             onSelectConversation={handleConversationSelect}
             onlineUsers={onlineUsers}
             typingUsers={typingUsers}
+            collapsed={sidebarCollapsed}
           />
         </div>
       </div>

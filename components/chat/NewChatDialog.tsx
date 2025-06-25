@@ -24,9 +24,10 @@ interface NewChatDialogProps {
   onlineUsers: number[];
   onStartChat: (userId: number) => void;
   onGroupCreated?: (group: any) => void;
+  collapsed?: boolean;
 }
 
-export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated }: NewChatDialogProps) {
+export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collapsed = false }: NewChatDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showGroupDialog, setShowGroupDialog] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
@@ -96,10 +97,16 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated }: NewC
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="w-full">
-          <Plus className="h-4 w-4 mr-2" />
-          New Chat
-        </Button>
+        {collapsed ? (
+          <Button size="sm" className="w-full h-10 p-2" title="New Chat">
+            <Plus className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button size="sm" className="w-full">
+            <Plus className="h-4 w-4 mr-2" />
+            New Chat
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

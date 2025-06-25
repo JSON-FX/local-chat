@@ -15,6 +15,7 @@ interface ChatListProps {
   onSelectConversation: (userId: number, isGroup?: boolean) => void;
   onlineUsers: number[];
   typingUsers: { [userId: number]: boolean };
+  collapsed?: boolean;
 }
 
 export function ChatList({
@@ -22,7 +23,8 @@ export function ChatList({
   selectedConversation,
   onSelectConversation,
   onlineUsers,
-  typingUsers
+  typingUsers,
+  collapsed = false
 }: ChatListProps) {
   const selectedConversationRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +54,13 @@ export function ChatList({
   };
 
   if (conversations.length === 0) {
+    if (collapsed) {
+      return (
+        <div className="flex-1 flex items-center justify-center p-2">
+          <MessageSquare className="h-6 w-6 text-muted-foreground" />
+        </div>
+      );
+    }
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-center">
@@ -62,6 +71,76 @@ export function ChatList({
           </p>
         </div>
       </div>
+    );
+  }
+
+  // Render collapsed view
+  if (collapsed) {
+    return (
+      <ScrollArea className="flex-1 overflow-y-auto">
+        <div className="p-1">
+          {conversations.map((conversation) => {
+            const isGroup = conversation.conversation_type === 'group';
+            const conversationId = isGroup ? conversation.group_id! : conversation.other_user_id;
+            const isSelected = selectedConversation === conversationId;
+            const displayName = isGroup ? conversation.group_name : conversation.other_username;
+            
+            return (
+              <div 
+                key={isGroup ? `group-${conversation.group_id}` : `user-${conversation.other_user_id}`}
+                className="mb-2"
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "w-full h-12 p-2 justify-center relative",
+                    isSelected && "bg-accent"
+                  )}
+                  onClick={() => onSelectConversation(conversationId, isGroup)}
+                  title={displayName || (isGroup ? 'Unknown Group' : 'Unknown User')}
+                >
+                  <div className="relative">
+                    <Avatar className="h-8 w-8">
+                      {isGroup && conversation.avatar_path ? (
+                        <AvatarImage 
+                          src={`/api/files/download/${conversation.avatar_path.split('/').pop()}`} 
+                          alt={displayName || 'Group'} 
+                        />
+                      ) : null}
+                      <AvatarFallback className={cn(
+                        "text-xs",
+                        isGroup ? "bg-blue-100 text-blue-700" : "bg-primary/10"
+                      )}>
+                        {isGroup ? (
+                          <Users className="h-4 w-4" />
+                        ) : (
+                          (displayName || 'U').charAt(0).toUpperCase()
+                        )}
+                      </AvatarFallback>
+                    </Avatar>
+                    {!isGroup && onlineUsers.includes(conversation.other_user_id) && (
+                      <Circle className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 fill-green-500 text-green-500" />
+                    )}
+                    {isGroup && (
+                      <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-[6px] text-white font-bold">#</span>
+                      </div>
+                    )}
+                    {(conversation.unread_count || 0) > 0 && (
+                      <div className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full flex items-center justify-center">
+                        <span className="text-[8px] text-destructive-foreground font-bold">
+                          {(conversation.unread_count || 0) > 9 ? '9+' : (conversation.unread_count || 0)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      </ScrollArea>
     );
   }
 
