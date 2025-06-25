@@ -93,7 +93,14 @@ class SocketClient {
       this.isConnecting = true;
 
       try {
-        this.socket = io('http://localhost:3000', {
+        // Use current host for socket connection to support network access
+        const socketUrl = typeof window !== 'undefined' 
+          ? `${window.location.protocol}//${window.location.host}`
+          : 'http://localhost:3000';
+          
+        console.log('🔌 Connecting to socket server:', socketUrl);
+        
+        this.socket = io(socketUrl, {
           transports: ['websocket', 'polling'],
           timeout: 20000,
         });

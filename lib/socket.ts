@@ -3,6 +3,7 @@ import { Socket, Server as SocketServer } from 'socket.io';
 import { AuthService } from './auth';
 import { MessageService } from './messages';
 import { MessageQueueService } from './messageQueue';
+import { networkInterfaces } from 'os';
 
 // Make these variables truly global to persist across module imports
 declare global {
@@ -52,10 +53,43 @@ export class SocketService {
       return this.io;
     }
 
+    // Get all local network IPs for CORS
+    const getLocalOrigins = () => {
+      const origins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+      
+      if (process.env.NODE_ENV === 'development') {
+        // Add auto-detected network IPs
+        const networks = networkInterfaces();
+        Object.keys(networks).forEach(name => {
+          networks[name]?.forEach(net => {
+            if (!net.internal && net.family === 'IPv4') {
+              origins.push(`http://${net.address}:3000`);
+            }
+          });
+        });
+        
+        // Add custom IPs from environment variable
+        const customIPs = process.env.CUSTOM_ALLOWED_IPS;
+        if (customIPs) {
+          const additionalOrigins = customIPs.split(',').map(ip => `http://${ip.trim()}:3000`);
+          origins.push(...additionalOrigins);
+        }
+      }
+      
+      return origins;
+    };
+
     this.io = new SocketServer(server, {
       cors: {
-        origin: process.env.NODE_ENV === 'production' ? false : ['http://localhost:3000'],
-        methods: ['GET', 'POST']
+        origin: process.env.NODE_ENV === 'production' ? false : [
+          ...getLocalOrigins(),
+          // Allow any local network IP for development
+          /^http:\/\/192\.168\.\d+\.\d+:3000$/,
+          /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
+          /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+:3000$/
+        ],
+        methods: ['GET', 'POST'],
+        credentials: true
       },
       path: '/socket.io/'
     });
