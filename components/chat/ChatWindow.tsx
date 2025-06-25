@@ -198,7 +198,10 @@ export function ChatWindow({
   }, [selectedConversation]);
 
   const formatMessageTime = (timestamp: string) => {
-    const date = new Date(timestamp);
+    // SQLite CURRENT_TIMESTAMP returns UTC time in 'YYYY-MM-DD HH:MM:SS' format
+    // We need to append 'Z' to indicate it's UTC, then convert to local time
+    const utcTimestamp = timestamp.includes('Z') ? timestamp : timestamp + 'Z';
+    const date = new Date(utcTimestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 

@@ -445,7 +445,7 @@ export function GroupSettingsDialog({
                           <div className="flex items-center gap-2">
                             {getRoleBadge(member.group_role)}
                             <span className="text-xs text-muted-foreground">
-                              Joined {new Date(member.joined_at).toLocaleDateString()}
+                              Joined {new Date(member.joined_at.includes('Z') ? member.joined_at : member.joined_at + 'Z').toLocaleDateString()}
                             </span>
                           </div>
                         </div>

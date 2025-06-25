@@ -35,7 +35,10 @@ export function ChatList({
   }, [selectedConversation]);
 
   const formatLastMessageTime = (timestamp: string) => {
-    const date = new Date(timestamp);
+    // SQLite CURRENT_TIMESTAMP returns UTC time in 'YYYY-MM-DD HH:MM:SS' format
+    // We need to append 'Z' to indicate it's UTC, then convert to local time
+    const utcTimestamp = timestamp.includes('Z') ? timestamp : timestamp + 'Z';
+    const date = new Date(utcTimestamp);
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
