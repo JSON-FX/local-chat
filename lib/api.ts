@@ -363,6 +363,17 @@ class ApiService {
     });
   }
 
+  // Mark ALL unread messages in a conversation as read
+  async markAllUnreadAsRead(data: {
+    conversation_id: number;
+    is_group: boolean;
+  }): Promise<ApiResponse<{ marked_count: number; message: string }>> {
+    return this.fetchApi('/api/messages/read', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, mark_all: true }),
+    });
+  }
+
   async getUnreadCounts(): Promise<ApiResponse<Record<string, number>>> {
     const response = await this.fetchApi<{ unread_counts: Record<string, number> }>('/api/messages/read');
     if (response.success && response.data?.unread_counts) {

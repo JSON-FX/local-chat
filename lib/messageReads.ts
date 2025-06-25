@@ -8,6 +8,8 @@ export class MessageReadService {
   static async markMessagesAsRead(messageIds: number[], userId: number): Promise<void> {
     if (messageIds.length === 0) return;
     
+    console.log(`📖 markMessagesAsRead called with messageIds: [${messageIds.slice(0, 5).join(', ')}${messageIds.length > 5 ? '...' : ''}] (${messageIds.length} total)`);
+    
     // Create a unique key for this operation to prevent concurrent calls
     const operationKey = `${userId}-${messageIds.sort().join(',')}`;
     
@@ -35,6 +37,77 @@ export class MessageReadService {
       throw error;
     } finally {
       this.markingInProgress.delete(operationKey);
+    }
+  }
+
+  // Mark ALL unread messages in a conversation as read
+  static async markAllUnreadAsRead(userId: number, conversationId: number, isGroup: boolean): Promise<number[]> {
+    const db = await getDatabase();
+    
+    try {
+      let query: string;
+      let params: any[];
+      
+      if (isGroup) {
+        // Get all unread messages in the group for this user
+        query = `
+          SELECT m.id
+          FROM messages m
+          WHERE m.group_id = ? 
+          AND m.sender_id != ? 
+          AND m.is_deleted = 0
+          AND m.id NOT IN (
+            SELECT message_id 
+            FROM message_reads 
+            WHERE user_id = ?
+          )
+          AND EXISTS (
+            SELECT 1 FROM group_members gm 
+            WHERE gm.group_id = ? AND gm.user_id = ? AND gm.is_active = 1
+          )
+        `;
+        params = [conversationId, userId, userId, conversationId, userId];
+      } else {
+        // Get all unread messages in the direct conversation for this user
+        query = `
+          SELECT m.id
+          FROM messages m
+          WHERE ((m.sender_id = ? AND m.recipient_id = ?) OR (m.sender_id = ? AND m.recipient_id = ?))
+          AND m.sender_id != ?
+          AND m.group_id IS NULL
+          AND m.is_deleted = 0
+          AND m.id NOT IN (
+            SELECT message_id 
+            FROM message_reads 
+            WHERE user_id = ?
+          )
+        `;
+        params = [conversationId, userId, userId, conversationId, userId, userId];
+      }
+      
+      const unreadMessages = await db.all(query, params);
+      const messageIds = unreadMessages.map(m => m.id);
+      
+      if (messageIds.length > 0) {
+        console.log(`📖 markAllUnreadAsRead: Found ${messageIds.length} unread messages in ${isGroup ? 'group' : 'direct'}_${conversationId} for user ${userId}`);
+        
+        // Mark all unread messages as read
+        for (const messageId of messageIds) {
+          await db.run(
+            `INSERT OR IGNORE INTO message_reads (message_id, user_id) VALUES (?, ?)`,
+            [messageId, userId]
+          );
+        }
+        
+        console.log(`📖 User ${userId} marked ${messageIds.length} unread messages as read in ${isGroup ? 'group' : 'direct'}_${conversationId}`);
+      } else {
+        console.log(`📖 No unread messages found for user ${userId} in ${isGroup ? 'group' : 'direct'}_${conversationId}`);
+      }
+      
+      return messageIds;
+    } catch (error) {
+      console.error('Error marking all unread messages as read:', error);
+      throw error;
     }
   }
 

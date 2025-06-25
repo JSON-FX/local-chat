@@ -69,7 +69,7 @@ export function ChatWindow({
   const [isConfirmingLeave, setIsConfirmingLeave] = useState(false);
   
   // Read status hook
-  const { markMessagesAsRead } = useReadStatus(currentUser);
+  const { markAllUnreadAsRead, markMessagesAsRead } = useReadStatus(currentUser);
 
   useEffect(() => {
     // Use setTimeout to ensure the DOM is fully updated before scrolling
@@ -89,30 +89,24 @@ export function ChatWindow({
     return () => clearTimeout(timer);
   }, [selectedConversation]);
 
-  // Auto-mark messages as read when viewing conversation - use refs to prevent infinite loops
-  const lastProcessedMessageCountRef = useRef(0);
+  // Auto-mark ALL unread messages as read when viewing conversation
   const processingRef = useRef(false);
+  const lastConversationRef = useRef<string>('');
   
   useEffect(() => {
     if (!currentUser || !selectedConversation || processingRef.current) return;
     
-    // Find unread messages from other users
-    const unreadMessages = messages.filter(message => 
-      message.sender_id !== currentUser.id && 
-      !message.is_read &&
-      message.message_type !== 'system'
-    );
+    const conversationKey = `${selectedConversationType}_${selectedConversation}`;
     
-    // Only process if we have new unread messages
-    if (unreadMessages.length > 0 && unreadMessages.length !== lastProcessedMessageCountRef.current) {
-      lastProcessedMessageCountRef.current = unreadMessages.length;
+    // Only process when we switch to a new conversation (not on every message update)
+    if (conversationKey !== lastConversationRef.current) {
+      lastConversationRef.current = conversationKey;
       processingRef.current = true;
       
-      // Mark messages as read after a short delay to ensure they're actually visible
+      // Mark ALL unread messages in this conversation as read after a short delay
       const timer = setTimeout(() => {
-        const messageIds = unreadMessages.map(m => m.id);
-        // Auto-mark unread messages as read
-        markMessagesAsRead(messageIds, selectedConversation, selectedConversationType === 'group').finally(() => {
+        console.log(`📖 ChatWindow: Auto-marking all unread messages as read in ${conversationKey}`);
+        markAllUnreadAsRead(selectedConversation, selectedConversationType === 'group').finally(() => {
           processingRef.current = false;
         });
       }, 1000);
@@ -122,11 +116,10 @@ export function ChatWindow({
         processingRef.current = false;
       };
     }
-  }, [selectedConversation, selectedConversationType, currentUser?.id, messages.length, markMessagesAsRead]);
+  }, [selectedConversation, selectedConversationType, currentUser?.id, markAllUnreadAsRead]);
   
-  // Reset counters when conversation changes
+  // Reset processing state when conversation changes
   useEffect(() => {
-    lastProcessedMessageCountRef.current = 0;
     processingRef.current = false;
   }, [selectedConversation, selectedConversationType]);
 
