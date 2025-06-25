@@ -67,7 +67,7 @@ export function GroupSettingsDialog({
   useEffect(() => {
     // Set initial avatar preview if group has avatar
     if (group.avatar_path) {
-      setAvatarPreview(`/api/files/download/${group.avatar_path.split('/').pop()}`);
+      setAvatarPreview(`/api/files/download/${group.avatar_path}`);
     }
   }, [group.avatar_path]);
 

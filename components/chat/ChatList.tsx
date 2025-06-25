@@ -113,7 +113,7 @@ export function ChatList({
                     <Avatar className="h-8 w-8">
                       {isGroup && conversation.avatar_path ? (
                         <AvatarImage 
-                          src={`/api/files/download/${conversation.avatar_path.split('/').pop()}`} 
+                          src={`/api/files/download/${conversation.avatar_path}`} 
                           alt={displayName || 'Group'} 
                         />
                       ) : null}
@@ -176,7 +176,7 @@ export function ChatList({
                   <Avatar className="h-10 w-10">
                     {isGroup && conversation.avatar_path ? (
                       <AvatarImage 
-                        src={`/api/files/download/${conversation.avatar_path.split('/').pop()}`} 
+                        src={`/api/files/download/${conversation.avatar_path}`} 
                         alt={displayName || 'Group'} 
                       />
                     ) : null}

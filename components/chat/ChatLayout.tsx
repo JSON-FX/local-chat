@@ -741,6 +741,27 @@ export function ChatLayout() {
       toast.success(`You were added to group "${data.group.name}" by ${data.added_by.username}`);
     });
 
+    socketClient.on('onGroupAvatarUpdated', (data) => {
+      console.log('Group avatar updated:', data);
+      
+      // Update conversations list to reflect the new avatar
+      setConversations(prev => prev.map(conversation => {
+        if (conversation.conversation_type === 'group' && conversation.group_id === data.group_id) {
+          return {
+            ...conversation,
+            avatar_path: data.avatar_path
+          };
+        }
+        return conversation;
+      }));
+      
+      // Show notification if the current user didn't update it
+      if (data.updated_by.id !== currentUser?.id) {
+        const avatarAction = data.avatar_path ? 'updated' : 'removed';
+        toast.info(`Group avatar ${avatarAction} by ${data.updated_by.username}`);
+      }
+    });
+
     socketClient.on('onMemberLeftGroup', (data) => {
       // If this is about the current user, it's handled elsewhere
       if (data.user_id === currentUser?.id) {

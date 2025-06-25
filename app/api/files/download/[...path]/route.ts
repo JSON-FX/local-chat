@@ -6,7 +6,7 @@ import path from 'path';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ filename: string }> }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
     // For intranet chat, we'll use a more lenient auth check
@@ -57,19 +57,22 @@ export async function GET(
       }
     }
     
-    const { filename } = await params;
+    const { path: pathSegments } = await params;
 
-    if (!filename) {
+    if (!pathSegments || pathSegments.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Filename required' },
+        { success: false, error: 'File path required' },
         { status: 400 }
       );
     }
 
+    // Join path segments to create the full file path
+    const filename = pathSegments.join('/');
+
     // Security check: ensure filename doesn't contain path traversal
-    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    if (filename.includes('..') || filename.includes('\\') || filename.startsWith('/') || filename.includes('//')) {
       return NextResponse.json(
-        { success: false, error: 'Invalid filename' },
+        { success: false, error: 'Invalid file path' },
         { status: 400 }
       );
     }

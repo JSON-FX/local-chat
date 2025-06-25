@@ -18,6 +18,7 @@ export interface SocketClientEvents {
   onGroupDeleted: (data: { group_id: number; deleted_by: { id: number; username: string } }) => void;
   onMemberLeftGroup: (data: { group_id: number; user_id: number; username: string }) => void;
   onOwnershipTransferred: (data: { group_id: number; former_owner: { id: number; username: string }; new_owner: { id: number; username: string } }) => void;
+  onGroupAvatarUpdated: (data: { group_id: number; avatar_path: string | null; avatar_url: string | null; updated_by: { id: number; username: string } }) => void;
   onMessagesRead: (data: { message_ids: number[]; reader_id: number; reader_username: string; conversation_id: number; is_group: boolean }) => void;
   onError: (error: { error: string }) => void;
   onAuthError: (error: { error: string }) => void;
@@ -252,6 +253,11 @@ class SocketClient {
     this.socket.on('ownership_transferred', (data) => {
       console.log('👑 Ownership transferred:', `${data.former_owner.username} → ${data.new_owner.username}`);
       this.handlers.onOwnershipTransferred?.(data);
+    });
+
+    this.socket.on('group_avatar_updated', (data) => {
+      console.log('🖼️ Group avatar updated:', data.group_id, data.avatar_path ? 'updated' : 'removed');
+      this.handlers.onGroupAvatarUpdated?.(data);
     });
 
     this.socket.on('error', (error) => {

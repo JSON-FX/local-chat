@@ -379,7 +379,7 @@ export function ChatWindow({
           <Avatar className={cn("h-8 w-8 shrink-0", selectedConversationType === 'group' && "bg-blue-500/10")}>
             {selectedConversationType === 'group' && conversations.find(c => c.group_id === selectedConversation)?.avatar_path ? (
               <AvatarImage 
-                src={`/api/files/download/${conversations.find(c => c.group_id === selectedConversation)?.avatar_path?.split('/').pop()}`} 
+                src={`/api/files/download/${conversations.find(c => c.group_id === selectedConversation)?.avatar_path}`} 
                 alt={getConversationPartner()} 
               />
             ) : null}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '../../../../../lib/auth';
 import { GroupService } from '../../../../../lib/groups';
+import { SocketService } from '../../../../../lib/socket';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -87,11 +88,22 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const avatarPath = `avatars/${filename}`;
     const updatedGroup = await GroupService.updateGroupAvatar(groupId, avatarPath, user.id);
 
+    // Broadcast avatar update to all group members
+    SocketService.broadcastToGroup(groupId, 'group_avatar_updated', {
+      group_id: groupId,
+      avatar_path: avatarPath,
+      avatar_url: `/api/files/download/${avatarPath}`,
+      updated_by: {
+        id: user.id,
+        username: user.username
+      }
+    });
+
     return NextResponse.json({
       success: true,
       data: {
         group: updatedGroup,
-        avatar_url: `/api/files/download/${filename}`
+        avatar_url: `/api/files/download/${avatarPath}`
       },
       message: 'Group avatar updated successfully'
     });
@@ -155,6 +167,17 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
 
     // Remove avatar path from database
     const updatedGroup = await GroupService.removeGroupAvatar(groupId, user.id);
+
+    // Broadcast avatar removal to all group members
+    SocketService.broadcastToGroup(groupId, 'group_avatar_updated', {
+      group_id: groupId,
+      avatar_path: null,
+      avatar_url: null,
+      updated_by: {
+        id: user.id,
+        username: user.username
+      }
+    });
 
     return NextResponse.json({
       success: true,

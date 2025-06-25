@@ -191,6 +191,7 @@ export class FileService {
   // Get file for download
   static async getFile(filename: string): Promise<{ stream: NodeJS.ReadableStream; stats: any } | null> {
     try {
+      // Handle both direct filenames and paths with subdirectories (e.g., "avatars/filename.jpg")
       const filePath = path.join(this.UPLOAD_DIR, filename);
       
       if (!existsSync(filePath)) {
