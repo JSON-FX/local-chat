@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '../../../../lib/auth';
 import { MessageService } from '../../../../lib/messages';
+import { SocketService } from '../../../../lib/socket';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,9 +36,29 @@ export async function POST(request: NextRequest) {
       message_type: message_type || 'text'
     });
 
+    // Add sender username for real-time display
+    const messageWithSender = {
+      ...message,
+      sender_username: user.username
+    };
+
+    // Broadcast message via socket for real-time delivery
+    if (group_id) {
+      // Group message - broadcast to all group members in the room
+      const io = SocketService.getIO();
+      if (io) {
+        io.to(`group_${group_id}`).emit('new_message', messageWithSender);
+        console.log(`📨 Message broadcast to group ${group_id} from ${user.username}`);
+      }
+    } else if (recipient_id) {
+      // Direct message - send to specific user if online
+      SocketService.sendToUser(recipient_id, 'new_message', messageWithSender);
+      console.log(`📨 Message sent to user ${recipient_id} from ${user.username}`);
+    }
+
     return NextResponse.json({
       success: true,
-      data: message,
+      data: messageWithSender,
       message: 'Message sent successfully'
     });
 

@@ -31,6 +31,7 @@ export interface Conversation {
   conversation_type: 'direct' | 'group';
   group_id?: number;
   group_name?: string;
+  avatar_path?: string;
   unread_count?: number; // Optional for now since backend doesn't provide it
 }
 

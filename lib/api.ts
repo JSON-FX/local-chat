@@ -118,6 +118,21 @@ class ApiService {
     });
   }
 
+  async sendGroupMessage(
+    groupId: number,
+    content: string,
+    messageType: 'text' | 'file' | 'image' = 'text'
+  ): Promise<ApiResponse<Message>> {
+    return this.fetchApi<Message>('/api/messages/send', {
+      method: 'POST',
+      body: JSON.stringify({
+        group_id: groupId,
+        content,
+        message_type: messageType,
+      }),
+    });
+  }
+
   // File upload endpoint
   async uploadFile(
     file: File,
@@ -159,12 +174,108 @@ class ApiService {
     return this.fetchApi<Message[]>(`/api/messages/direct/${userId}`);
   }
 
+  async getGroupMessages(groupId: number): Promise<ApiResponse<Message[]>> {
+    return this.fetchApi<Message[]>(`/api/messages/group/${groupId}`);
+  }
+
   async getOnlineUsers(): Promise<ApiResponse<OnlineUser[]>> {
     return this.fetchApi<OnlineUser[]>('/api/users/online');
   }
 
   async getUsers(): Promise<ApiResponse<User[]>> {
     return this.fetchApi<User[]>('/api/users');
+  }
+
+  // Group endpoints
+  async createGroup(data: {
+    name: string;
+    description?: string;
+    initial_members?: number[];
+  }): Promise<ApiResponse<any>> {
+    return this.fetchApi('/api/groups/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getGroups(): Promise<ApiResponse<any[]>> {
+    return this.fetchApi<any[]>('/api/groups');
+  }
+
+  async getGroupById(groupId: number): Promise<ApiResponse<any>> {
+    return this.fetchApi<any>(`/api/groups/${groupId}`);
+  }
+
+  async updateGroup(groupId: number, data: {
+    name?: string;
+    description?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.fetchApi(`/api/groups/${groupId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getGroupMembers(groupId: number): Promise<ApiResponse<any[]>> {
+    return this.fetchApi<any[]>(`/api/groups/${groupId}/members`);
+  }
+
+  async addGroupMember(groupId: number, userId: number, role: 'member' | 'moderator' = 'member'): Promise<ApiResponse<any[]>> {
+    return this.fetchApi<any[]>(`/api/groups/${groupId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, role }),
+    });
+  }
+
+  async removeGroupMember(groupId: number, userId: number): Promise<ApiResponse<any[]>> {
+    return this.fetchApi<any[]>(`/api/groups/${groupId}/members`, {
+      method: 'DELETE',
+      body: JSON.stringify({ user_id: userId }),
+    });
+  }
+
+  // Helper method to add multiple members
+  async addGroupMembers(groupId: number, userIds: number[]): Promise<ApiResponse<any>> {
+    try {
+      const results = [];
+      for (const userId of userIds) {
+        const result = await this.addGroupMember(groupId, userId);
+        if (!result.success) {
+          throw new Error(result.error || `Failed to add user ${userId}`);
+        }
+        results.push(result);
+      }
+      
+      // Return the last result which contains the updated member list
+      return results[results.length - 1] || { success: true, data: [] };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to add members'
+      };
+    }
+  }
+
+  // Group avatar endpoints
+  async uploadGroupAvatar(groupId: number, file: File): Promise<ApiResponse<{ group: any; avatar_url: string }>> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await fetch(`/api/groups/${groupId}/avatar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.getToken()}`,
+      },
+      body: formData,
+    });
+
+    return await response.json();
+  }
+
+  async removeGroupAvatar(groupId: number): Promise<ApiResponse<{ group: any }>> {
+    return this.fetchApi<{ group: any }>(`/api/groups/${groupId}/avatar`, {
+      method: 'DELETE',
+    });
   }
 
   // Utility methods
@@ -174,6 +285,51 @@ class ApiService {
 
   clearAuth(): void {
     this.setToken(null);
+  }
+
+  // Delete a direct conversation
+  async deleteConversation(otherUserId: number): Promise<void> {
+    const response = await fetch(`/api/messages/conversations/${otherUserId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to delete conversation');
+    }
+  }
+
+  // Delete a group (owner only)
+  async deleteGroup(groupId: number): Promise<void> {
+    const response = await fetch(`/api/groups/${groupId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to delete group');
+    }
+  }
+
+  // Leave a group (non-owners)
+  async leaveGroup(groupId: number): Promise<void> {
+    const response = await fetch(`/api/groups/${groupId}/leave`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to leave group');
+    }
   }
 }
 

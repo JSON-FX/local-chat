@@ -4,6 +4,7 @@ import { FileService } from '../../../../lib/files';
 import { MessageService } from '../../../../lib/messages';
 import { MessageQueueService } from '../../../../lib/messageQueue';
 import { SocketService } from '../../../../lib/socket';
+import { GroupService } from '../../../../lib/groups';
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,6 +44,18 @@ export async function POST(request: NextRequest) {
         { success: false, error: validation.error },
         { status: 400 }
       );
+    }
+
+    // If sending to a group, verify the user is a member
+    if (groupId) {
+      const groupIdNum = parseInt(groupId);
+      const isMember = await GroupService.isUserMember(groupIdNum, user.id);
+      if (!isMember) {
+        return NextResponse.json(
+          { success: false, error: 'You are not a member of this group' },
+          { status: 403 }
+        );
+      }
     }
 
     // Convert file to buffer
@@ -85,9 +98,15 @@ export async function POST(request: NextRequest) {
       console.log(`📎 File uploaded by ${user.username} for user ${recipientIdNum}`);
       
     } else if (groupId) {
-      // For group messages, we'd broadcast to all group members
-      // This will be implemented in Phase 2
-      console.log(`📎 File uploaded for group ${groupId} (not implemented yet)`);
+      const groupIdNum = parseInt(groupId);
+      
+      // Send confirmation to sender
+      SocketService.sendToUser(user.id, 'message_sent', messageWithSender);
+      
+      // Broadcast to all group members
+      SocketService.broadcastToGroup(groupIdNum, 'group_message', messageWithSender);
+      
+      console.log(`📎 File uploaded by ${user.username} for group ${groupId}`);
     }
 
     return NextResponse.json({

@@ -12,6 +12,9 @@ export interface SocketClientEvents {
   onUserOnline: (user: { userId: number; username: string }) => void;
   onUserOffline: (user: { userId: number; username: string }) => void;
   onUserTyping: (data: { userId: number; username: string; isTyping: boolean }) => void;
+  onGroupCreated: (data: { group: any; created_by: { id: number; username: string } }) => void;
+  onMemberAddedToGroup: (data: { group: any; added_by: { id: number; username: string } }) => void;
+  onGroupMessage: (message: Message) => void;
   onError: (error: { error: string }) => void;
   onAuthError: (error: { error: string }) => void;
 }
@@ -184,6 +187,11 @@ class SocketClient {
       this.handlers.onMessageSent?.(message);
     });
 
+    this.socket.on('group_message', (message: Message) => {
+      console.log('👥 Group message received:', message);
+      this.handlers.onGroupMessage?.(message);
+    });
+
     this.socket.on('user_online', (data) => {
       console.log('🟢 User online:', data.username);
       this.handlers.onUserOnline?.(data);
@@ -196,6 +204,16 @@ class SocketClient {
 
     this.socket.on('user_typing', (data) => {
       this.handlers.onUserTyping?.(data);
+    });
+
+    this.socket.on('group_created', (data) => {
+      console.log('👥 Group created:', data.group.name);
+      this.handlers.onGroupCreated?.(data);
+    });
+
+    this.socket.on('member_added_to_group', (data) => {
+      console.log('👥 Member added to group:', data.group.name);
+      this.handlers.onMemberAddedToGroup?.(data);
     });
 
     this.socket.on('error', (error) => {
@@ -242,22 +260,48 @@ class SocketClient {
     });
   }
 
+  // Send a group message
+  sendGroupMessage(groupId: number, content: string, messageType: 'text' | 'file' | 'image' = 'text', fileData?: { file_path?: string; file_name?: string; file_size?: number }) {
+    if (!this.socket?.connected) {
+      throw new Error('Socket not connected');
+    }
+
+    this.socket.emit('send_message', {
+      group_id: groupId,
+      content,
+      message_type: messageType,
+      ...fileData
+    });
+  }
+
   // Start typing indicator
-  startTyping(recipientId: number) {
+  startTyping(recipientId?: number, groupId?: number) {
     if (!this.socket?.connected) return;
-    this.socket.emit('typing_start', { recipient_id: recipientId });
+    this.socket.emit('typing_start', { 
+      recipient_id: recipientId,
+      group_id: groupId 
+    });
   }
 
   // Stop typing indicator
-  stopTyping(recipientId: number) {
+  stopTyping(recipientId?: number, groupId?: number) {
     if (!this.socket?.connected) return;
-    this.socket.emit('typing_stop', { recipient_id: recipientId });
+    this.socket.emit('typing_stop', { 
+      recipient_id: recipientId,
+      group_id: groupId 
+    });
   }
 
   // Join a group (for future group functionality)
   joinGroup(groupId: number) {
     if (!this.socket?.connected) return;
     this.socket.emit('join_group', { group_id: groupId });
+  }
+
+  // Join a specific room
+  joinRoom(roomName: string) {
+    if (!this.socket?.connected) return;
+    this.socket.emit('join_room', { room: roomName });
   }
 
   // Leave a group

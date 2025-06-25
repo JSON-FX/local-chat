@@ -4,42 +4,50 @@ import { useState, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Send, Circle, Paperclip, Download, Image as ImageIcon, ArrowDown } from 'lucide-react';
+import { Send, Circle, Paperclip, Download, Image as ImageIcon, ArrowDown, Users, Settings, Trash2, LogOut } from 'lucide-react';
 import { Message, User, Conversation } from '@/lib/types';
 import { socketClient } from '@/lib/socket-client';
 import { cn } from '@/lib/utils';
 import { ImageModal } from '@/components/ui/image-modal';
 import FileUpload from './FileUpload';
+import { GroupSettingsDialog } from './GroupSettingsDialog';
+import { toast } from 'sonner';
+import { apiService } from '@/lib/api';
 
 interface ChatWindowProps {
   messages: Message[];
   currentUser: User | null;
   selectedConversation: number;
+  selectedConversationType: 'direct' | 'group';
   onSendMessage: (content: string) => void;
   isConnected: boolean;
   conversations: Conversation[];
   typingUsers: { [userId: number]: boolean };
   onRefreshMessages?: () => void;
   onFileUploaded?: (message: Message) => void;
+  onDeleteConversation?: (conversationId: number, isGroup: boolean) => void;
 }
 
 export function ChatWindow({
   messages,
   currentUser,
   selectedConversation,
+  selectedConversationType,
   onSendMessage,
   isConnected,
   conversations,
   typingUsers,
   onRefreshMessages,
-  onFileUploaded
+  onFileUploaded,
+  onDeleteConversation
 }: ChatWindowProps) {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [imageModal, setImageModal] = useState<{
     isOpen: boolean;
     imageSrc: string;
@@ -54,6 +62,8 @@ export function ChatWindow({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isConfirmingLeave, setIsConfirmingLeave] = useState(false);
 
   useEffect(() => {
     // Use setTimeout to ensure the DOM is fully updated before scrolling
@@ -96,7 +106,14 @@ export function ChatWindow({
   };
 
   const getConversationPartner = () => {
-    const conversation = conversations.find(c => c.other_user_id === selectedConversation);
+    const conversation = conversations.find(c => 
+      (selectedConversationType === 'direct' && c.other_user_id === selectedConversation) || 
+      (selectedConversationType === 'group' && c.group_id === selectedConversation)
+    );
+    
+    if (selectedConversationType === 'group') {
+      return conversation?.group_name || 'Unknown Group';
+    }
     return conversation?.other_username || 'Unknown User';
   };
 
@@ -119,7 +136,11 @@ export function ChatWindow({
     
     if (!isTyping && e.target.value.length > 0) {
       setIsTyping(true);
-      socketClient.startTyping(selectedConversation);
+      if (selectedConversationType === 'group') {
+        socketClient.startTyping(undefined, selectedConversation);
+      } else {
+        socketClient.startTyping(selectedConversation);
+      }
     }
 
     if (typingTimeoutRef.current) {
@@ -134,7 +155,11 @@ export function ChatWindow({
   const handleStopTyping = () => {
     if (isTyping) {
       setIsTyping(false);
-      socketClient.stopTyping(selectedConversation);
+      if (selectedConversationType === 'group') {
+        socketClient.stopTyping(undefined, selectedConversation);
+      } else {
+        socketClient.stopTyping(selectedConversation);
+      }
     }
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -205,17 +230,86 @@ export function ChatWindow({
     }
   };
 
+  const handleDeleteConversation = async () => {
+    if (!currentUser || !selectedConversation) return;
+    
+    try {
+      if (selectedConversationType === 'direct') {
+        await apiService.deleteConversation(selectedConversation);
+        toast.success('Conversation deleted');
+      } else {
+        // Group deletion (owner only)
+        const selectedGroup = conversations.find(c => c.group_id === selectedConversation);
+        if (!selectedGroup) return;
+        
+        await apiService.deleteGroup(selectedConversation);
+        toast.success('Group deleted');
+      }
+      
+      // Notify parent to refresh conversations
+      if (onDeleteConversation) {
+        onDeleteConversation(selectedConversation, selectedConversationType === 'group');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete conversation');
+    } finally {
+      setIsConfirmingDelete(false);
+    }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!currentUser || !selectedConversation) return;
+    
+    try {
+      await apiService.leaveGroup(selectedConversation);
+      toast.success('Left group successfully');
+      
+      // Notify parent to refresh conversations
+      if (onDeleteConversation) {
+        onDeleteConversation(selectedConversation, true);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to leave group');
+    } finally {
+      setIsConfirmingLeave(false);
+    }
+  };
+
+  // Check if user is the group owner
+  const isGroupOwner = () => {
+    if (!currentUser || selectedConversationType !== 'group') return false;
+    const selectedGroup = conversations.find(c => c.group_id === selectedConversation);
+    // This is a simplification - in a real app you'd check the created_by field
+    // For now, assume only admin users can be group owners
+    return currentUser.role === 'admin';
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="h-16 px-6 flex items-center justify-between border-b border-border">
         <div className="flex items-center space-x-3">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-primary/10">
-              {getConversationPartner().charAt(0).toUpperCase()}
-            </AvatarFallback>
+          <Avatar className={cn("h-8 w-8", selectedConversationType === 'group' && "bg-blue-500/10")}>
+            {selectedConversationType === 'group' && conversations.find(c => c.group_id === selectedConversation)?.avatar_path ? (
+              <AvatarImage 
+                src={`/api/files/download/${conversations.find(c => c.group_id === selectedConversation)?.avatar_path?.split('/').pop()}`} 
+                alt={getConversationPartner()} 
+              />
+            ) : null}
+            {selectedConversationType === 'group' ? (
+              <AvatarFallback className="bg-blue-500/10 text-blue-700">
+                <Users className="h-4 w-4" />
+              </AvatarFallback>
+            ) : (
+              <AvatarFallback className="bg-primary/10">
+                {getConversationPartner().charAt(0).toUpperCase()}
+              </AvatarFallback>
+            )}
           </Avatar>
           <div>
-            <h2 className="font-semibold">{getConversationPartner()}</h2>
+            <h2 className="font-semibold flex items-center gap-2">
+              {selectedConversationType === 'group' && <span className="text-blue-600">#</span>}
+              {getConversationPartner()}
+            </h2>
             {typingUsers[selectedConversation] ? (
               <p className="text-xs text-muted-foreground italic">typing...</p>
             ) : (
@@ -225,14 +319,116 @@ export function ChatWindow({
             )}
           </div>
         </div>
-        <Badge variant={isConnected ? 'secondary' : 'destructive'} className="text-xs">
-          <Circle className={cn(
-            "h-2 w-2 mr-1",
-            isConnected ? "fill-green-500 text-green-500" : "fill-red-500 text-red-500"
-          )} />
-          {isConnected ? 'Connected' : 'Disconnected'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {selectedConversationType === 'group' && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowGroupSettings(true)}
+                className="h-8 w-8 p-0"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+
+              {isGroupOwner() ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsConfirmingDelete(true)}
+                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsConfirmingLeave(true)}
+                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              )}
+            </>
+          )}
+
+          {selectedConversationType === 'direct' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsConfirmingDelete(true)}
+              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+
+          <Badge variant={isConnected ? 'secondary' : 'destructive'} className="text-xs">
+            <Circle className={cn(
+              "h-2 w-2 mr-1",
+              isConnected ? "fill-green-500 text-green-500" : "fill-red-500 text-red-500"
+            )} />
+            {isConnected ? 'Connected' : 'Disconnected'}
+          </Badge>
+        </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {isConfirmingDelete && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md">
+            <h3 className="text-lg font-bold mb-4">
+              {selectedConversationType === 'direct' ? 'Delete Conversation?' : 'Delete Group?'}
+            </h3>
+            <p className="mb-6">
+              {selectedConversationType === 'direct' 
+                ? 'This will remove this conversation from your list. The other person will still see the conversation.'
+                : 'This will permanently delete the group for all members. This action cannot be undone.'}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsConfirmingDelete(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={handleDeleteConversation}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Group Confirmation Dialog */}
+      {isConfirmingLeave && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md">
+            <h3 className="text-lg font-bold mb-4">Leave Group?</h3>
+            <p className="mb-6">
+              This will remove you from the group. You'll need to be added again to rejoin.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsConfirmingLeave(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={handleLeaveGroup}
+              >
+                Leave
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ScrollArea className="flex-1 px-6 overflow-y-auto h-full" ref={scrollAreaRef}>
         <div className="py-4 space-y-4">
@@ -390,7 +586,8 @@ export function ChatWindow({
       <FileUpload
         isOpen={showFileUpload}
         onClose={() => setShowFileUpload(false)}
-        recipientId={selectedConversation}
+        recipientId={selectedConversationType === 'direct' ? selectedConversation : undefined}
+        groupId={selectedConversationType === 'group' ? selectedConversation : undefined}
         onFileUploaded={(message) => {
           console.log('File uploaded:', message);
           if (onFileUploaded) {
@@ -415,6 +612,28 @@ export function ChatWindow({
         fileName={imageModal.fileName}
         onDownload={handleImageDownload}
       />
+
+      {/* Group Settings Dialog */}
+      {selectedConversationType === 'group' && currentUser && (
+        <GroupSettingsDialog
+          isOpen={showGroupSettings}
+          onClose={() => setShowGroupSettings(false)}
+          group={{
+            id: selectedConversation,
+            name: getConversationPartner(),
+            description: '',
+            avatar_path: conversations.find(c => c.group_id === selectedConversation)?.avatar_path,
+            created_by: 0 // This will be populated when the dialog loads members
+          }}
+          currentUser={currentUser}
+          onGroupUpdated={() => {
+            // Refresh conversations or handle group updates
+            if (onRefreshMessages) {
+              onRefreshMessages();
+            }
+          }}
+        />
+      )}
     </div>
   );
 } 

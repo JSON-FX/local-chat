@@ -39,6 +39,7 @@ export const initializeDatabase = async (): Promise<void> => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(100) NOT NULL,
         description TEXT,
+        avatar_path VARCHAR(500),
         created_by INTEGER NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         is_active BOOLEAN DEFAULT 1,
@@ -83,6 +84,9 @@ export const initializeDatabase = async (): Promise<void> => {
       )
     `);
 
+    // Run migrations for existing databases
+    await runMigrations();
+
     // Create indexes for better performance
     await db.run('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)');
@@ -98,6 +102,26 @@ export const initializeDatabase = async (): Promise<void> => {
   } catch (error) {
     console.error('Error initializing database schema:', error);
     throw error;
+  }
+};
+
+// Run database migrations for existing databases
+const runMigrations = async (): Promise<void> => {
+  const db = await getDatabase();
+  
+  try {
+    // Check if avatar_path column exists in groups table
+    const tableInfo = await db.all("PRAGMA table_info(groups)");
+    const hasAvatarPath = tableInfo.some((column: any) => column.name === 'avatar_path');
+    
+    if (!hasAvatarPath) {
+      console.log('Adding avatar_path column to groups table...');
+      await db.run('ALTER TABLE groups ADD COLUMN avatar_path VARCHAR(500)');
+      console.log('✅ avatar_path column added to groups table');
+    }
+  } catch (error) {
+    console.error('Error running migrations:', error);
+    // Don't throw here, as the table might not exist yet
   }
 };
 

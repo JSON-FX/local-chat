@@ -2,17 +2,17 @@
 
 import { useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Circle, MessageSquare } from 'lucide-react';
+import { Circle, MessageSquare, Users } from 'lucide-react';
 import { Conversation } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface ChatListProps {
   conversations: Conversation[];
   selectedConversation: number | null;
-  onSelectConversation: (userId: number) => void;
+  onSelectConversation: (userId: number, isGroup?: boolean) => void;
   onlineUsers: number[];
   typingUsers: { [userId: number]: boolean };
 }
@@ -69,10 +69,14 @@ export function ChatList({
     <ScrollArea className="flex-1 overflow-y-auto">
       <div className="p-2">
         {conversations.map((conversation) => {
-          const isSelected = selectedConversation === conversation.other_user_id;
+          const isGroup = conversation.conversation_type === 'group';
+          const conversationId = isGroup ? conversation.group_id! : conversation.other_user_id;
+          const isSelected = selectedConversation === conversationId;
+          const displayName = isGroup ? conversation.group_name : conversation.other_username;
+          
           return (
           <div 
-            key={conversation.other_user_id}
+            key={isGroup ? `group-${conversation.group_id}` : `user-${conversation.other_user_id}`}
             ref={isSelected ? selectedConversationRef : null}
           >
             <Button
@@ -81,27 +85,52 @@ export function ChatList({
                 "w-full h-auto p-3 mb-1 justify-start text-left",
                 isSelected && "bg-accent"
               )}
-              onClick={() => onSelectConversation(conversation.other_user_id)}
+              onClick={() => onSelectConversation(conversationId, isGroup)}
             >
               <div className="flex items-start space-x-3 w-full">
                 {/* Avatar with online indicator */}
                 <div className="relative">
                   <Avatar className="h-10 w-10">
-                    <AvatarFallback className="bg-primary/10">
-                      {(conversation.other_username || 'U').charAt(0).toUpperCase()}
+                    {isGroup && conversation.avatar_path ? (
+                      <AvatarImage 
+                        src={`/api/files/download/${conversation.avatar_path.split('/').pop()}`} 
+                        alt={displayName || 'Group'} 
+                      />
+                    ) : null}
+                    <AvatarFallback className={cn(
+                      "text-xs",
+                      isGroup ? "bg-blue-100 text-blue-700" : "bg-primary/10"
+                    )}>
+                      {isGroup ? (
+                        <Users className="h-5 w-5" />
+                      ) : (
+                        (displayName || 'U').charAt(0).toUpperCase()
+                      )}
                     </AvatarFallback>
                   </Avatar>
-                  {onlineUsers.includes(conversation.other_user_id) && (
+                  {!isGroup && onlineUsers.includes(conversation.other_user_id) && (
                     <Circle className="absolute -bottom-1 -right-1 h-3 w-3 fill-green-500 text-green-500" />
+                  )}
+                  {isGroup && (
+                    <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-[8px] text-white font-bold">#</span>
+                    </div>
                   )}
                 </div>
 
                 {/* Conversation details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium truncate">
-                      {conversation.other_username || 'Unknown User'}
-                    </p>
+                    <div className="flex items-center space-x-1">
+                      <p className="text-sm font-medium truncate">
+                        {displayName || (isGroup ? 'Unknown Group' : 'Unknown User')}
+                      </p>
+                      {isGroup && (
+                        <Badge variant="secondary" className="text-[10px] h-4 px-1">
+                          Group
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-xs text-muted-foreground">
                       {conversation.last_message_time ? formatLastMessageTime(conversation.last_message_time) : ''}
                     </span>
@@ -109,10 +138,10 @@ export function ChatList({
                   
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-muted-foreground truncate">
-                      {typingUsers[conversation.other_user_id] ? (
+                      {!isGroup && typingUsers[conversation.other_user_id] ? (
                         <span className="italic text-primary">typing...</span>
                       ) : (
-                        truncateMessage(conversation.last_message || 'No messages yet')
+                        truncateMessage(conversation.last_message || (isGroup ? 'Group created' : 'No messages yet'))
                       )}
                     </p>
                     {(conversation.unread_count || 0) > 0 && (

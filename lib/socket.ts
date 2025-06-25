@@ -118,6 +118,23 @@ export class SocketService {
           // Join user to their personal room
           socket.join(`user_${user.id}`);
 
+          // Join user's group rooms
+          try {
+            const { getDatabase } = await import('./database');
+            const db = await getDatabase();
+            const userGroups = await db.all(
+              'SELECT group_id FROM group_members WHERE user_id = ? AND is_active = 1',
+              [user.id]
+            );
+            
+            for (const group of userGroups) {
+              socket.join(`group_${group.group_id}`);
+              console.log(`👥 User ${user.username} auto-joined group room ${group.group_id}`);
+            }
+          } catch (error) {
+            console.error('Failed to join user groups:', error);
+          }
+
           // Emit successful authentication
           socket.emit('authenticated', { 
             userId: user.id, 
@@ -280,7 +297,16 @@ export class SocketService {
         if (!userSession) return;
 
         socket.join(`group_${data.group_id}`);
-        console.log(`👥 User ${userSession.username} joined group ${data.group_id}`);
+        console.log(`👥 User ${userSession.username} joined group room ${data.group_id}`);
+      });
+
+      // Handle join any room
+      socket.on('join_room', (data: { room: string }) => {
+        const userSession = socketSessions.get(socket.id);
+        if (!userSession) return;
+
+        socket.join(data.room);
+        console.log(`🏠 User ${userSession.username} joined room ${data.room}`);
       });
 
       socket.on('leave_group', (data: { group_id: number }) => {
@@ -374,9 +400,21 @@ export class SocketService {
   }
 
   // Broadcast to all connected users
-  static broadcast(event: string, data: any): void {
+  static broadcast(event: string, data: any, room?: string): void {
     if (this.io) {
-      this.io.emit(event, data);
+      if (room) {
+        this.io.to(room).emit(event, data);
+      } else {
+        this.io.emit(event, data);
+      }
+    }
+  }
+
+  // Broadcast to all members of a group
+  static broadcastToGroup(groupId: number, event: string, data: any): void {
+    if (this.io) {
+      this.io.to(`group_${groupId}`).emit(event, data);
+      console.log(`📢 Broadcasting to group ${groupId}: ${event}`);
     }
   }
 

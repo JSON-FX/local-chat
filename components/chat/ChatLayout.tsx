@@ -27,12 +27,14 @@ export function ChatLayout() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [selectedConversationType, setSelectedConversationType] = useState<'direct' | 'group'>('direct');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<number[]>([]);
   const [typingUsers, setTypingUsers] = useState<{ [userId: number]: boolean }>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
 
   // Initialize user and socket connection
   useEffect(() => {
@@ -53,6 +55,7 @@ export function ChatLayout() {
       socketClient.off('onAuthenticated');
       socketClient.off('onNewMessage');
       socketClient.off('onMessageSent');
+      socketClient.off('onGroupMessage');
       socketClient.off('onUserOnline');
       socketClient.off('onUserOffline');
       socketClient.off('onUserTyping');
@@ -125,12 +128,43 @@ export function ChatLayout() {
 
     socketClient.on('onNewMessage', (message) => {
       // Check if this message is for the currently opened conversation
-      const isRelevantMessage = selectedConversation && (
-        // Incoming message: from selected user to me
-        (message.sender_id === selectedConversation && message.recipient_id === currentUser?.id) ||
-        // Outgoing message: from me to selected user (in case we missed onMessageSent)
-        (message.sender_id === currentUser?.id && message.recipient_id === selectedConversation)
-      );
+      let isRelevantMessage = false;
+      
+      if (selectedConversation) {
+        if (selectedConversationType === 'group' && message.group_id) {
+          // Group message: check if it's for the selected group
+          isRelevantMessage = message.group_id === selectedConversation.group_id;
+        } else if (selectedConversationType === 'direct' && !message.group_id) {
+          // Direct message: check if it's between current user and selected user
+          isRelevantMessage = (
+            // Incoming message: from selected user to me
+            (message.sender_id === selectedConversation.other_user_id && message.recipient_id === currentUser?.id) ||
+            // Outgoing message: from me to selected user (in case we missed onMessageSent)
+            (message.sender_id === currentUser?.id && message.recipient_id === selectedConversation.other_user_id)
+          );
+        }
+      }
+      
+      if (isRelevantMessage) {
+        setMessages(prev => {
+          // Prevent duplicates by checking if message already exists
+          const exists = prev.some(m => m.id === message.id);
+          if (exists) return prev;
+          return [...prev, message];
+        });
+      }
+      
+      // Update conversation list
+      loadConversations();
+    });
+
+    socketClient.on('onGroupMessage', (message) => {
+      // Check if this message is for the currently opened group conversation
+      let isRelevantMessage = false;
+      
+      if (selectedConversation && selectedConversationType === 'group' && message.group_id) {
+        isRelevantMessage = message.group_id === selectedConversation.group_id;
+      }
       
       if (isRelevantMessage) {
         setMessages(prev => {
@@ -147,7 +181,17 @@ export function ChatLayout() {
 
     socketClient.on('onMessageSent', (message) => {
       // Add sent message to current chat if it's for the selected conversation
-      const isForCurrentConversation = selectedConversation && message.recipient_id === selectedConversation;
+      let isForCurrentConversation = false;
+      
+      if (selectedConversation) {
+        if (selectedConversationType === 'group' && message.group_id) {
+          // Group message: check if it's for the selected group
+          isForCurrentConversation = message.group_id === selectedConversation.group_id;
+        } else if (selectedConversationType === 'direct' && !message.group_id) {
+          // Direct message: check if it's for the selected user
+          isForCurrentConversation = message.recipient_id === selectedConversation.other_user_id;
+        }
+      }
       
       if (isForCurrentConversation) {
         setMessages(prev => {
@@ -190,6 +234,29 @@ export function ChatLayout() {
       }
     });
 
+    socketClient.on('onGroupCreated', (data) => {
+      // Refresh conversations to show the new group
+      loadConversations();
+      
+      // Show notification (but only if current user didn't create it)
+      if (data.created_by.id !== currentUser?.id) {
+        toast.success(`You were added to group "${data.group.name}"`);
+      }
+    });
+
+    socketClient.on('onMemberAddedToGroup', (data) => {
+      // Refresh conversations to show the group
+      loadConversations();
+      
+      // Auto-join the group room for real-time messaging
+      if (socketClient.isConnected()) {
+        socketClient.joinRoom(`group_${data.group.id}`);
+      }
+      
+      // Show notification
+      toast.success(`You were added to group "${data.group.name}" by ${data.added_by.username}`);
+    });
+
     socketClient.on('onError', (error) => {
       toast.error(error.error || 'Socket error occurred');
     });
@@ -205,6 +272,35 @@ export function ChatLayout() {
       const response = await apiService.getConversations();
       if (response.success && response.data) {
         setConversations(response.data);
+        
+        // Restore last conversation if none is selected and we have saved state
+        if (!selectedConversation && response.data.length > 0) {
+          const savedConversation = localStorage.getItem('lastConversation');
+          if (savedConversation) {
+            try {
+              const { conversationId, isGroup } = JSON.parse(savedConversation);
+              
+              // Check if the saved conversation still exists
+              const conversationExists = response.data.some((conv: any) => {
+                if (isGroup) {
+                  return conv.group_id === conversationId;
+                } else {
+                  return conv.other_user_id === conversationId;
+                }
+              });
+              
+              if (conversationExists) {
+                // Restore the conversation with a small delay to ensure everything is loaded
+                setTimeout(() => {
+                  handleConversationSelect(conversationId, isGroup);
+                }, 100);
+              }
+            } catch (e) {
+              // Invalid saved data, ignore
+              localStorage.removeItem('lastConversation');
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to load conversations:', error);
@@ -225,36 +321,79 @@ export function ChatLayout() {
 
   const handleStartChat = async (userId: number) => {
     // Select the conversation (this will create one if it doesn't exist when first message is sent)
-    await handleConversationSelect(userId);
+    await handleConversationSelect(userId, false);
     
     // Reload conversations to show the new chat in the sidebar
     await loadConversations();
   };
 
-  const handleConversationSelect = async (userId: number) => {
-    setSelectedConversation(userId);
+  const handleGroupCreated = async (groupData: any) => {
+    // Handle both API response format and direct group object
+    const group = groupData.group || groupData;
     
-    try {
-      const response = await apiService.getDirectMessages(userId);
-      if (response.success && response.data) {
-        setMessages(response.data);
+    // Refresh conversations to show the new group
+    await loadConversations();
+    
+    // Show success message
+    toast.success(`Group "${group.name}" created successfully`);
+    
+    // Optionally select the new group conversation
+    // TODO: Add group selection logic when group chat display is implemented
+  };
+
+  const handleConversationSelect = async (conversationId: number, isGroup: boolean = false) => {
+    setIsLoadingMessages(true);
+    
+    // Find the conversation in the list
+    const conversation = conversations.find(c => 
+      isGroup 
+        ? c.group_id === conversationId 
+        : c.other_user_id === conversationId
+    );
+    
+    if (conversation) {
+      setSelectedConversation(conversation);
+      setSelectedConversationType(conversation.conversation_type);
+      
+      try {
+        // Load messages for this conversation
+        const response = isGroup
+          ? await apiService.getGroupMessages(conversationId)
+          : await apiService.getDirectMessages(conversationId);
+          
+        if (response.success && response.data) {
+          setMessages(response.data);
+        } else {
+          toast.error('Failed to load messages');
+          setMessages([]);
+        }
+      } catch (error) {
+        console.error('Failed to load messages:', error);
+        toast.error('Failed to load messages');
+        setMessages([]);
+      } finally {
+        setIsLoadingMessages(false);
       }
-    } catch (error) {
-      console.error('Failed to load messages:', error);
-      toast.error('Failed to load messages');
     }
   };
 
   const handleSendMessage = async (content: string) => {
-    if (!selectedConversation || !content.trim()) return;
+    if (!content.trim() || !selectedConversation) return;
 
     try {
-      // Send via socket for real-time delivery
+      // Try to send via socket first (real-time)
       if (socketClient.isConnected()) {
-        socketClient.sendMessage(selectedConversation, content.trim());
+        if (selectedConversationType === 'group') {
+          socketClient.sendGroupMessage(selectedConversation.group_id || 0, content.trim());
+        } else {
+          socketClient.sendMessage(selectedConversation.other_user_id, content.trim());
+        }
       } else {
         // Fallback to HTTP API
-        const response = await apiService.sendMessage(selectedConversation, content.trim());
+        const response = selectedConversationType === 'group' 
+          ? await apiService.sendGroupMessage(selectedConversation.group_id || 0, content.trim())
+          : await apiService.sendMessage(selectedConversation.other_user_id, content.trim());
+          
         if (response.success && response.data) {
           setMessages(prev => [...prev, response.data!]);
           loadConversations();
@@ -270,7 +409,17 @@ export function ChatLayout() {
 
   const handleFileUploaded = (message: Message) => {
     // Add the message immediately to show in current conversation
-    const isForCurrentConversation = selectedConversation && message.recipient_id === selectedConversation;
+    let isForCurrentConversation = false;
+    
+    if (selectedConversation) {
+      if (selectedConversationType === 'group' && message.group_id) {
+        // Group message: check if it's for the selected group
+        isForCurrentConversation = message.group_id === selectedConversation.group_id;
+      } else if (selectedConversationType === 'direct' && !message.group_id) {
+        // Direct message: check if it's for the selected user
+        isForCurrentConversation = message.recipient_id === selectedConversation.other_user_id;
+      }
+    }
     
     if (isForCurrentConversation) {
       setMessages(prev => {
@@ -296,6 +445,23 @@ export function ChatLayout() {
       socketClient.disconnect();
       router.push('/');
     }
+  };
+
+  const handleDeleteConversation = (conversationId: number, isGroup: boolean) => {
+    // Reset selected conversation if it was deleted
+    if (selectedConversation) {
+      const currentId = selectedConversation.conversation_type === 'direct' 
+        ? selectedConversation.other_user_id 
+        : selectedConversation.group_id;
+        
+      if ((isGroup && currentId === conversationId) || 
+          (!isGroup && currentId === conversationId)) {
+        setSelectedConversation(null);
+      }
+    }
+    
+    // Refresh conversations list
+    loadConversations();
   };
 
   if (isLoading) {
@@ -357,6 +523,7 @@ export function ChatLayout() {
           <NewChatDialog
             onlineUsers={onlineUsers}
             onStartChat={handleStartChat}
+            onGroupCreated={handleGroupCreated}
           />
         </div>
 
@@ -364,7 +531,10 @@ export function ChatLayout() {
         <div className="flex-1 overflow-hidden">
           <ChatList
             conversations={conversations}
-            selectedConversation={selectedConversation}
+            selectedConversation={selectedConversation ? 
+              (selectedConversation.conversation_type === 'direct' ? 
+                selectedConversation.other_user_id : 
+                selectedConversation.group_id || 0) : null}
             onSelectConversation={handleConversationSelect}
             onlineUsers={onlineUsers}
             typingUsers={typingUsers}
@@ -378,13 +548,26 @@ export function ChatLayout() {
           <ChatWindow
             messages={messages}
             currentUser={currentUser}
-            selectedConversation={selectedConversation}
+            selectedConversation={
+              selectedConversation.conversation_type === 'direct'
+                ? selectedConversation.other_user_id
+                : selectedConversation.group_id || 0
+            }
+            selectedConversationType={selectedConversation.conversation_type}
             onSendMessage={handleSendMessage}
             isConnected={isConnected}
             conversations={conversations}
             typingUsers={typingUsers}
-            onRefreshMessages={() => selectedConversation && handleConversationSelect(selectedConversation)}
+            onRefreshMessages={() => {
+              if (selectedConversation) {
+                const id = selectedConversation.conversation_type === 'direct' 
+                  ? selectedConversation.other_user_id 
+                  : (selectedConversation.group_id || 0);
+                handleConversationSelect(id, selectedConversation.conversation_type === 'group');
+              }
+            }}
             onFileUploaded={handleFileUploaded}
+            onDeleteConversation={handleDeleteConversation}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center">

@@ -66,6 +66,7 @@ export interface Group {
   id: number;
   name: string;
   description?: string;
+  avatar_path?: string;
   created_by: number;
   created_at: string;
   is_active: boolean;

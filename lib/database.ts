@@ -34,6 +34,11 @@ class DatabaseConnection {
     });
   }
 
+  async forceReconnect(): Promise<Database> {
+    await this.close();
+    return await this.connect();
+  }
+
   private promisifyMethods(db: sqlite3.Database): Database {
     return {
       run: promisify(db.run.bind(db)),
@@ -60,4 +65,8 @@ export const getDatabase = async (): Promise<Database> => {
 
 export const closeDatabase = async (): Promise<void> => {
   await dbConnection.close();
+};
+
+export const forceReconnectDatabase = async (): Promise<Database> => {
+  return await dbConnection.forceReconnect();
 }; 

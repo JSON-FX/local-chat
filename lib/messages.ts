@@ -67,22 +67,46 @@ export class MessageService {
          JOIN users u ON m.sender_id = u.id
          WHERE m.is_deleted = 0 
          AND ((m.sender_id = ? AND m.recipient_id = ?) OR (m.sender_id = ? AND m.recipient_id = ?))
+         AND (m.user_deleted_by IS NULL OR m.user_deleted_by = '' OR NOT m.user_deleted_by LIKE '%,' || ? || ',%')
          ORDER BY m.timestamp DESC
          LIMIT ? OFFSET ?`,
-        [userId1, userId2, userId2, userId1, limit, offset]
+        [userId1, userId2, userId2, userId1, userId1, limit, offset]
       );
 
       return messages.reverse(); // Return in chronological order
     } catch (error) {
+      console.error('Get direct messages error:', error);
       throw error;
     }
   }
 
-  // Get group messages
-  static async getGroupMessages(groupId: number, limit: number = 50, offset: number = 0): Promise<Message[]> {
+  // Get group messages (with membership verification)
+  static async getGroupMessages(groupId: number, userId?: number, limit: number = 50, offset: number = 0): Promise<Message[]> {
     const db = await getDatabase();
 
     try {
+      // If userId is provided, verify membership
+      if (userId !== undefined) {
+        // Check if group is active
+        const group = await db.get(
+          'SELECT id FROM groups WHERE id = ? AND is_active = 1',
+          [groupId]
+        );
+        
+        if (!group) {
+          throw new Error('Group not found or has been deleted');
+        }
+        
+        const membership = await db.get(
+          'SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND is_active = 1',
+          [groupId, userId]
+        );
+
+        if (!membership) {
+          throw new Error('You are not a member of this group');
+        }
+      }
+
       const messages = await db.all(
         `SELECT m.*, u.username as sender_username 
          FROM messages m
@@ -94,6 +118,37 @@ export class MessageService {
       );
 
       return messages.reverse(); // Return in chronological order
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Send message to group (enhanced version with membership verification)
+  static async sendGroupMessage(groupId: number, senderId: number, content: string, messageType: 'text' | 'file' | 'image' = 'text', fileData?: { file_path?: string; file_name?: string; file_size?: number }): Promise<Message> {
+    const db = await getDatabase();
+
+    try {
+      // Verify user is a member of the group
+      const membership = await db.get(
+        'SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND is_active = 1',
+        [groupId, senderId]
+      );
+
+      if (!membership) {
+        throw new Error('You are not a member of this group');
+      }
+
+      // Create message data
+      const messageData: CreateMessageData = {
+        sender_id: senderId,
+        group_id: groupId,
+        content,
+        message_type: messageType,
+        ...fileData
+      };
+
+      // Send the message
+      return this.sendMessage(messageData);
     } catch (error) {
       throw error;
     }
@@ -116,7 +171,8 @@ export class MessageService {
            m.timestamp as last_message_time,
            'direct' as conversation_type,
            NULL as group_id,
-           NULL as group_name
+           NULL as group_name,
+           NULL as avatar_path
          FROM messages m
          JOIN users u ON (
            CASE 
@@ -127,12 +183,14 @@ export class MessageService {
          WHERE (m.sender_id = ? OR m.recipient_id = ?) 
          AND m.group_id IS NULL 
          AND m.is_deleted = 0
+         AND (m.user_deleted_by IS NULL OR m.user_deleted_by = '' OR NOT m.user_deleted_by LIKE '%,' || ? || ',%')
          AND m.id IN (
            SELECT MAX(id) 
            FROM messages 
            WHERE (sender_id = ? OR recipient_id = ?) 
            AND group_id IS NULL 
            AND is_deleted = 0
+           AND (user_deleted_by IS NULL OR user_deleted_by = '' OR NOT user_deleted_by LIKE '%,' || ? || ',%')
            GROUP BY 
              CASE 
                WHEN sender_id = ? THEN recipient_id 
@@ -140,7 +198,7 @@ export class MessageService {
              END
          )
          ORDER BY m.timestamp DESC`,
-        [userId, userId, userId, userId, userId, userId, userId]
+        [userId, userId, userId, userId, userId, userId, userId, userId, userId]
       );
 
       // Get recent group messages
@@ -152,12 +210,14 @@ export class MessageService {
            m.timestamp as last_message_time,
            'group' as conversation_type,
            g.id as group_id,
-           g.name as group_name
+           g.name as group_name,
+           g.avatar_path
          FROM messages m
          JOIN groups g ON m.group_id = g.id
          JOIN group_members gm ON g.id = gm.group_id
          WHERE gm.user_id = ? 
          AND gm.is_active = 1
+         AND g.is_active = 1
          AND m.is_deleted = 0
          AND m.id IN (
            SELECT MAX(id) 
@@ -174,13 +234,43 @@ export class MessageService {
         [userId, userId]
       );
 
+      // Get all user's groups (including those without messages)
+      const allUserGroups = await db.all(
+        `SELECT 
+           NULL as other_user_id,
+           NULL as other_username,
+           NULL as last_message,
+           g.created_at as last_message_time,
+           'group' as conversation_type,
+           g.id as group_id,
+           g.name as group_name,
+           g.avatar_path
+         FROM groups g
+         JOIN group_members gm ON g.id = gm.group_id
+         WHERE gm.user_id = ? 
+         AND gm.is_active = 1
+         AND g.is_active = 1`,
+        [userId]
+      );
+
+      // Merge group conversations (prioritize those with messages)
+      const groupsWithMessages = new Set(groupConversations.map(g => g.group_id));
+      const groupsWithoutMessages = allUserGroups.filter(g => !groupsWithMessages.has(g.group_id));
+      
+      const allGroupConversations = [...groupConversations, ...groupsWithoutMessages];
+
       // Combine and sort by timestamp
-      const allConversations = [...directConversations, ...groupConversations];
-      allConversations.sort((a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime());
+      const allConversations = [...directConversations, ...allGroupConversations];
+      allConversations.sort((a, b) => {
+        const aTime = a.last_message_time ? new Date(a.last_message_time).getTime() : 0;
+        const bTime = b.last_message_time ? new Date(b.last_message_time).getTime() : 0;
+        return bTime - aTime;
+      });
 
       return allConversations;
     } catch (error) {
-      throw error;
+      console.error('Get conversations error:', error);
+      return [];
     }
   }
 
@@ -271,6 +361,49 @@ export class MessageService {
 
       return message || null;
     } catch (error) {
+      throw error;
+    }
+  }
+
+  // Soft-delete a direct conversation for a user
+  static async deleteConversation(userId: number, otherUserId: number): Promise<void> {
+    const db = await getDatabase();
+    
+    try {
+      // Get all messages between the two users
+      const messages = await db.all(
+        `SELECT id, user_deleted_by 
+         FROM messages 
+         WHERE ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))
+         AND is_deleted = 0`,
+        [userId, otherUserId, otherUserId, userId]
+      );
+
+      // Update each message to mark as deleted for this user
+      for (const message of messages) {
+        let deletedBy = message.user_deleted_by || '';
+        
+        // Only add the user if not already in the list
+        if (!deletedBy.includes(`,${userId},`)) {
+          // Format: ,1,2,3, (with commas at start and end for easier searching)
+          deletedBy = deletedBy ? 
+            (deletedBy.startsWith(',') ? deletedBy : ',' + deletedBy) : 
+            ',';
+          
+          if (!deletedBy.endsWith(',')) {
+            deletedBy += ',';
+          }
+          
+          deletedBy += `${userId},`;
+          
+          await db.run(
+            'UPDATE messages SET user_deleted_by = ? WHERE id = ?',
+            [deletedBy, message.id]
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Delete conversation error:', error);
       throw error;
     }
   }

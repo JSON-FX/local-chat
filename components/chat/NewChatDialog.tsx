@@ -14,18 +14,21 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Search, MessageSquare, Circle, Plus } from 'lucide-react';
+import { Search, MessageSquare, Circle, Plus, Users, User as UserIcon } from 'lucide-react';
 import { User } from '@/lib/types';
 import { apiService } from '@/lib/api';
 import { toast } from 'sonner';
+import NewGroupDialog from './NewGroupDialog';
 
 interface NewChatDialogProps {
   onlineUsers: number[];
   onStartChat: (userId: number) => void;
+  onGroupCreated?: (group: any) => void;
 }
 
-export function NewChatDialog({ onlineUsers, onStartChat }: NewChatDialogProps) {
+export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated }: NewChatDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showGroupDialog, setShowGroupDialog] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -73,6 +76,11 @@ export function NewChatDialog({ onlineUsers, onStartChat }: NewChatDialogProps) 
     setSearchQuery('');
   };
 
+  const handleGroupCreated = (group: any) => {
+    onGroupCreated?.(group);
+    setIsOpen(false);
+  };
+
   const sortedUsers = filteredUsers.sort((a, b) => {
     // Sort online users first
     const aOnline = onlineUsers.includes(a.id);
@@ -97,16 +105,38 @@ export function NewChatDialog({ onlineUsers, onStartChat }: NewChatDialogProps) 
         <DialogHeader>
           <DialogTitle>Start New Chat</DialogTitle>
           <DialogDescription>
-            Choose a user to start a conversation with
+            Choose how you want to start a conversation
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
+          {/* Chat Type Selection */}
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              className="h-auto p-4 flex-col space-y-2"
+              onClick={() => setShowGroupDialog(true)}
+            >
+              <Users className="h-6 w-6" />
+              <span className="text-sm font-medium">Create Group</span>
+              <span className="text-xs text-muted-foreground">Chat with multiple people</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto p-4 flex-col space-y-2"
+              onClick={() => {/* Keep dialog open for direct chat selection */}}
+            >
+              <UserIcon className="h-6 w-6" />
+              <span className="text-sm font-medium">Direct Chat</span>
+              <span className="text-xs text-muted-foreground">Chat with one person</span>
+            </Button>
+          </div>
+
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search users..."
+              placeholder="Search users for direct chat..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -172,6 +202,13 @@ export function NewChatDialog({ onlineUsers, onStartChat }: NewChatDialogProps) 
           </ScrollArea>
         </div>
       </DialogContent>
+
+      {/* Group Creation Dialog */}
+      <NewGroupDialog
+        isOpen={showGroupDialog}
+        onClose={() => setShowGroupDialog(false)}
+        onGroupCreated={handleGroupCreated}
+      />
     </Dialog>
   );
 } 
