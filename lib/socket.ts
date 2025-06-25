@@ -4,12 +4,28 @@ import { AuthService } from './auth';
 import { MessageService } from './messages';
 import { MessageQueueService } from './messageQueue';
 
-// Connected users map: userId -> socketId
-const connectedUsers = new Map<number, string>();
-// Socket sessions map: socketId -> user data
-const socketSessions = new Map<string, { userId: number; username: string }>();
-// Typing users per conversation: conversationKey -> Set of userIds
-const typingUsers = new Map<string, Set<number>>();
+// Make these variables truly global to persist across module imports
+declare global {
+  var __connectedUsers: Map<number, string> | undefined;
+  var __socketSessions: Map<string, { userId: number; username: string }> | undefined;
+  var __typingUsers: Map<string, Set<number>> | undefined;
+}
+
+// Initialize global Maps if they don't exist
+if (!globalThis.__connectedUsers) {
+  globalThis.__connectedUsers = new Map<number, string>();
+}
+if (!globalThis.__socketSessions) {
+  globalThis.__socketSessions = new Map<string, { userId: number; username: string }>();
+}
+if (!globalThis.__typingUsers) {
+  globalThis.__typingUsers = new Map<string, Set<number>>();
+}
+
+// Always use the global references
+const connectedUsers = globalThis.__connectedUsers;
+const socketSessions = globalThis.__socketSessions;
+const typingUsers = globalThis.__typingUsers;
 
 export interface SocketUser {
   userId: number;
@@ -17,10 +33,21 @@ export interface SocketUser {
   socketId: string;
 }
 
+// Global singleton to persist across module reloads in development
+declare global {
+  var __socketio__: SocketServer | undefined;
+}
+
 export class SocketService {
   private static io: SocketServer | null = null;
 
   static initialize(server: HttpServer): SocketServer {
+    // Check global singleton first (persists across module reloads)
+    if (global.__socketio__) {
+      this.io = global.__socketio__;
+      return this.io;
+    }
+    
     if (this.io) {
       return this.io;
     }
@@ -32,6 +59,9 @@ export class SocketService {
       },
       path: '/socket.io/'
     });
+
+    // Store in global singleton
+    global.__socketio__ = this.io;
 
     this.setupSocketHandlers();
     console.log('✅ Socket.io server initialized');
@@ -105,6 +135,7 @@ export class SocketService {
           });
 
           console.log(`✅ User authenticated: ${user.username} (${socket.id})`);
+          console.log(`📊 Connected users now:`, Array.from(connectedUsers.entries()));
 
         } catch (error) {
           console.error('Authentication error:', error);
@@ -139,13 +170,20 @@ export class SocketService {
           }
 
           // Save message to database
-          const message = await MessageService.sendMessage({
+          const messageData: any = {
             sender_id: userSession.userId,
             recipient_id: data.recipient_id,
             group_id: data.group_id,
             content: data.content.trim(),
             message_type: (data.message_type as 'text' | 'file' | 'image') || 'text'
-          });
+          };
+
+          // Add file properties if they exist (for file uploads via socket)
+          if ('file_path' in data && data.file_path) messageData.file_path = data.file_path;
+          if ('file_name' in data && data.file_name) messageData.file_name = data.file_name;
+          if ('file_size' in data && data.file_size) messageData.file_size = data.file_size;
+
+          const message = await MessageService.sendMessage(messageData);
 
           // Add sender username for real-time display
           const messageWithSender = {
@@ -322,10 +360,16 @@ export class SocketService {
   // Send message to specific user (for system notifications)
   static sendToUser(userId: number, event: string, data: any): boolean {
     const socketId = connectedUsers.get(userId);
-    if (socketId && this.io) {
-      this.io.to(socketId).emit(event, data);
+    
+    // Ensure we have the Socket.io instance (force retrieval from global)
+    const io = this.getIO();
+    
+    if (socketId && io) {
+      io.to(socketId).emit(event, data);
+      console.log(`✅ Message sent to user ${userId} via socket ${socketId}`);
       return true;
     }
+    console.log(`❌ Failed to send to user ${userId} - socketId: ${socketId}, io: ${!!io}`);
     return false;
   }
 
@@ -337,6 +381,11 @@ export class SocketService {
   }
 
   static getIO(): SocketServer | null {
+    // If local instance is null, try to get from global singleton
+    if (!this.io && global.__socketio__) {
+      this.io = global.__socketio__;
+    }
+    
     return this.io;
   }
 } 

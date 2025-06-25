@@ -2,6 +2,7 @@ import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
 import { SocketService } from './lib/socket';
+import { FileService } from './lib/files';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
@@ -24,6 +25,13 @@ app.prepare().then(() => {
 
   // Initialize Socket.io
   SocketService.initialize(server);
+
+  // Initialize file storage
+  FileService.initializeStorage().then(() => {
+    console.log('> File storage initialized');
+  }).catch((err) => {
+    console.error('Error initializing file storage:', err);
+  });
 
   server.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`);

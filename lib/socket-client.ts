@@ -229,7 +229,7 @@ class SocketClient {
   }
 
   // Send a message
-  sendMessage(recipientId: number, content: string, messageType: 'text' | 'file' | 'image' = 'text') {
+  sendMessage(recipientId: number, content: string, messageType: 'text' | 'file' | 'image' = 'text', fileData?: { file_path?: string; file_name?: string; file_size?: number }) {
     if (!this.socket?.connected) {
       throw new Error('Socket not connected');
     }
@@ -238,6 +238,7 @@ class SocketClient {
       recipient_id: recipientId,
       content,
       message_type: messageType,
+      ...fileData
     });
   }
 

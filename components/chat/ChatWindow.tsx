@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Send, Circle } from 'lucide-react';
+import { Send, Circle, Paperclip, Download, Image as ImageIcon } from 'lucide-react';
 import { Message, User, Conversation } from '@/lib/types';
 import { socketClient } from '@/lib/socket-client';
 import { cn } from '@/lib/utils';
+import FileUpload from './FileUpload';
 
 interface ChatWindowProps {
   messages: Message[];
@@ -19,6 +20,8 @@ interface ChatWindowProps {
   isConnected: boolean;
   conversations: Conversation[];
   typingUsers: { [userId: number]: boolean };
+  onRefreshMessages?: () => void;
+  onFileUploaded?: (message: Message) => void;
 }
 
 export function ChatWindow({
@@ -28,10 +31,13 @@ export function ChatWindow({
   onSendMessage,
   isConnected,
   conversations,
-  typingUsers
+  typingUsers,
+  onRefreshMessages,
+  onFileUploaded
 }: ChatWindowProps) {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [showFileUpload, setShowFileUpload] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -40,8 +46,8 @@ export function ChatWindow({
   }, [messages]);
 
   const getConversationPartner = () => {
-    const conversation = conversations.find(c => c.user_id === selectedConversation);
-    return conversation?.username || 'Unknown User';
+    const conversation = conversations.find(c => c.other_user_id === selectedConversation);
+    return conversation?.other_username || 'Unknown User';
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -169,7 +175,45 @@ export function ChatWindow({
                       {message.sender_username}
                     </p>
                   )}
-                  <p className="text-sm">{message.content}</p>
+                  
+                  {/* Message content based on type */}
+                  {message.message_type === 'image' && message.file_path ? (
+                    <div className="space-y-2">
+                      <img
+                        src={`/api/files/download/${message.file_path?.split('/').pop()}`}
+                        alt={message.file_name || 'Image'}
+                        className="max-w-64 max-h-64 rounded-lg object-cover cursor-pointer hover:opacity-90"
+                        onClick={() => message.file_path && window.open(`/api/files/download/${message.file_path.split('/').pop()}`, '_blank')}
+                      />
+                      {message.content && message.content !== `Shared image: ${message.file_name}` && (
+                        <p className="text-sm">{message.content}</p>
+                      )}
+                    </div>
+                  ) : message.message_type === 'file' && message.file_path ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2 p-2 bg-background/50 rounded border">
+                        <Download className="w-4 h-4" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{message.file_name}</p>
+                          <p className="text-xs opacity-70">
+                            {message.file_size ? `${Math.round(message.file_size / 1024)} KB` : 'File'}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => message.file_path && window.open(`/api/files/download/${message.file_path.split('/').pop()}`, '_blank')}
+                        >
+                          <Download className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      {message.content && message.content !== `Shared file: ${message.file_name}` && (
+                        <p className="text-sm">{message.content}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm">{message.content}</p>
+                  )}
                   <div className="flex items-center justify-between mt-1">
                     <span className={cn(
                       "text-xs opacity-70",
@@ -193,6 +237,16 @@ export function ChatWindow({
 
       <div className="p-4 border-t border-border">
         <form onSubmit={handleSubmit} className="flex space-x-2">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={() => setShowFileUpload(true)}
+            disabled={!isConnected}
+            className="shrink-0"
+          >
+            <Paperclip className="h-4 w-4" />
+          </Button>
           <Input
             value={inputValue}
             onChange={handleInputChange}
@@ -214,6 +268,26 @@ export function ChatWindow({
           </p>
         )}
       </div>
+
+      {/* File Upload Dialog */}
+      <FileUpload
+        isOpen={showFileUpload}
+        onClose={() => setShowFileUpload(false)}
+        recipientId={selectedConversation}
+        onFileUploaded={(message) => {
+          console.log('File uploaded:', message);
+          if (onFileUploaded) {
+            onFileUploaded(message);
+          } else {
+            // Fallback: trigger refresh if no handler provided
+            setTimeout(() => {
+              if (onRefreshMessages) {
+                onRefreshMessages();
+              }
+            }, 1000);
+          }
+        }}
+      />
     </div>
   );
 } 

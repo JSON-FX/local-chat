@@ -118,6 +118,39 @@ class ApiService {
     });
   }
 
+  // File upload endpoint
+  async uploadFile(
+    file: File,
+    recipientId?: number,
+    groupId?: number,
+    caption?: string
+  ): Promise<ApiResponse<{ message: Message; file: any }>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    if (recipientId) {
+      formData.append('recipient_id', recipientId.toString());
+    }
+    
+    if (groupId) {
+      formData.append('group_id', groupId.toString());
+    }
+    
+    if (caption) {
+      formData.append('caption', caption);
+    }
+
+    const response = await fetch('/api/files/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.getToken()}`,
+      },
+      body: formData,
+    });
+
+    return await response.json();
+  }
+
   async getConversations(): Promise<ApiResponse<Conversation[]>> {
     return this.fetchApi<Conversation[]>('/api/messages/conversations');
   }

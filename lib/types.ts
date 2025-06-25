@@ -14,6 +14,9 @@ export interface Message {
   group_id?: number;
   content: string;
   message_type: 'text' | 'file' | 'image';
+  file_path?: string;
+  file_name?: string;
+  file_size?: number;
   timestamp: string;
   sender_username?: string;
   queued?: boolean;
@@ -71,6 +74,9 @@ export interface SocketEvents {
     group_id?: number;
     content: string;
     message_type?: string;
+    file_path?: string;
+    file_name?: string;
+    file_size?: number;
   };
   typing_start: { recipient_id?: number; group_id?: number };
   typing_stop: { recipient_id?: number; group_id?: number };

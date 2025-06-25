@@ -110,31 +110,20 @@ export function ChatLayout() {
   };
 
   const setupSocketHandlers = () => {
-    console.log('🔧 Setting up socket handlers...');
-    
     socketClient.on('onConnected', () => {
-      console.log('✅ Socket handler: Connected');
       setIsConnected(true);
     });
 
     socketClient.on('onDisconnected', () => {
-      console.log('❌ Socket handler: Disconnected');
       setIsConnected(false);
     });
 
     socketClient.on('onAuthenticated', (data) => {
-      console.log('🔐 Socket handler: Authenticated as', data.username);
       setIsConnected(true);
       toast.success(`Connected as ${data.username}`);
     });
 
     socketClient.on('onNewMessage', (message) => {
-      console.log('📨 NEW MESSAGE EVENT RECEIVED:', message);
-      console.log('📨 Current selectedConversation:', selectedConversation);
-      console.log('📨 Current user ID:', currentUser?.id);
-      console.log('📨 Message sender_id:', message.sender_id);
-      console.log('📨 Message recipient_id:', message.recipient_id);
-      
       // Check if this message is for the currently opened conversation
       const isRelevantMessage = selectedConversation && (
         // Incoming message: from selected user to me
@@ -143,15 +132,11 @@ export function ChatLayout() {
         (message.sender_id === currentUser?.id && message.recipient_id === selectedConversation)
       );
       
-      console.log('📨 Is relevant message:', isRelevantMessage);
-      
       if (isRelevantMessage) {
         setMessages(prev => {
           // Prevent duplicates by checking if message already exists
           const exists = prev.some(m => m.id === message.id);
-          console.log('📨 Message already exists in state:', exists);
           if (exists) return prev;
-          console.log('📨 Adding message to state');
           return [...prev, message];
         });
       }
@@ -161,21 +146,14 @@ export function ChatLayout() {
     });
 
     socketClient.on('onMessageSent', (message) => {
-      console.log('✅ MESSAGE SENT EVENT RECEIVED:', message);
-      console.log('✅ Current selectedConversation:', selectedConversation);
-      console.log('✅ Message recipient_id:', message.recipient_id);
-      
       // Add sent message to current chat if it's for the selected conversation
       const isForCurrentConversation = selectedConversation && message.recipient_id === selectedConversation;
-      console.log('✅ Is for current conversation:', isForCurrentConversation);
       
       if (isForCurrentConversation) {
         setMessages(prev => {
           // Prevent duplicates by checking if message already exists
           const exists = prev.some(m => m.id === message.id);
-          console.log('✅ Message already exists in state:', exists);
           if (exists) return prev;
-          console.log('✅ Adding sent message to state');
           return [...prev, message];
         });
       }
@@ -226,7 +204,6 @@ export function ChatLayout() {
     try {
       const response = await apiService.getConversations();
       if (response.success && response.data) {
-        console.log('📋 Loaded conversations:', response.data);
         setConversations(response.data);
       }
     } catch (error) {
@@ -255,13 +232,11 @@ export function ChatLayout() {
   };
 
   const handleConversationSelect = async (userId: number) => {
-    console.log('🎯 Selecting conversation with userId:', userId);
     setSelectedConversation(userId);
     
     try {
       const response = await apiService.getDirectMessages(userId);
       if (response.success && response.data) {
-        console.log('💬 Loaded messages:', response.data);
         setMessages(response.data);
       }
     } catch (error) {
@@ -273,16 +248,11 @@ export function ChatLayout() {
   const handleSendMessage = async (content: string) => {
     if (!selectedConversation || !content.trim()) return;
 
-    console.log('🚀 Sending message:', { selectedConversation, content: content.trim() });
-    console.log('🔌 Socket connected:', socketClient.isConnected());
-
     try {
       // Send via socket for real-time delivery
       if (socketClient.isConnected()) {
-        console.log('📤 Sending via socket to user:', selectedConversation);
         socketClient.sendMessage(selectedConversation, content.trim());
       } else {
-        console.log('📡 Socket not connected, using HTTP API fallback');
         // Fallback to HTTP API
         const response = await apiService.sendMessage(selectedConversation, content.trim());
         if (response.success && response.data) {
@@ -296,6 +266,22 @@ export function ChatLayout() {
       console.error('Failed to send message:', error);
       toast.error('Failed to send message');
     }
+  };
+
+  const handleFileUploaded = (message: Message) => {
+    // Add the message immediately to show in current conversation
+    const isForCurrentConversation = selectedConversation && message.recipient_id === selectedConversation;
+    
+    if (isForCurrentConversation) {
+      setMessages(prev => {
+        const exists = prev.some(m => m.id === message.id);
+        if (exists) return prev;
+        return [...prev, message];
+      });
+    }
+    
+    // Update conversation list to show latest activity
+    loadConversations();
   };
 
   const handleLogout = async () => {
@@ -397,6 +383,8 @@ export function ChatLayout() {
             isConnected={isConnected}
             conversations={conversations}
             typingUsers={typingUsers}
+            onRefreshMessages={() => selectedConversation && handleConversationSelect(selectedConversation)}
+            onFileUploaded={handleFileUploaded}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center">
