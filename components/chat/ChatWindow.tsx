@@ -10,6 +10,7 @@ import { Send, Circle, Paperclip, Download, Image as ImageIcon } from 'lucide-re
 import { Message, User, Conversation } from '@/lib/types';
 import { socketClient } from '@/lib/socket-client';
 import { cn } from '@/lib/utils';
+import { ImageModal } from '@/components/ui/image-modal';
 import FileUpload from './FileUpload';
 
 interface ChatWindowProps {
@@ -38,6 +39,17 @@ export function ChatWindow({
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showFileUpload, setShowFileUpload] = useState(false);
+  const [imageModal, setImageModal] = useState<{
+    isOpen: boolean;
+    imageSrc: string;
+    imageAlt: string;
+    fileName?: string;
+  }>({
+    isOpen: false,
+    imageSrc: '',
+    imageAlt: '',
+    fileName: undefined
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -102,6 +114,52 @@ export function ChatWindow({
   const formatMessageTime = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const openImageModal = (imageSrc: string, imageAlt: string, fileName?: string) => {
+    setImageModal({
+      isOpen: true,
+      imageSrc,
+      imageAlt,
+      fileName
+    });
+  };
+
+  const closeImageModal = () => {
+    setImageModal({
+      isOpen: false,
+      imageSrc: null as unknown as string,
+      imageAlt: '',
+      fileName: undefined
+    });
+  };
+
+  const handleImageDownload = async () => {
+    if (imageModal.imageSrc && imageModal.fileName) {
+      try {
+        // Fetch the image as a blob
+        const response = await fetch(imageModal.imageSrc);
+        const blob = await response.blob();
+        
+        // Create a temporary URL for the blob
+        const url = window.URL.createObjectURL(blob);
+        
+        // Create a temporary anchor element and trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = imageModal.fileName; // Use the original filename
+        document.body.appendChild(link);
+        link.click();
+        
+        // Clean up
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Failed to download image:', error);
+        // Fallback to opening in new tab if download fails
+        window.open(imageModal.imageSrc, '_blank');
+      }
+    }
   };
 
   return (
@@ -182,8 +240,12 @@ export function ChatWindow({
                       <img
                         src={`/api/files/download/${message.file_path?.split('/').pop()}`}
                         alt={message.file_name || 'Image'}
-                        className="max-w-64 max-h-64 rounded-lg object-cover cursor-pointer hover:opacity-90"
-                        onClick={() => message.file_path && window.open(`/api/files/download/${message.file_path.split('/').pop()}`, '_blank')}
+                        className="max-w-64 max-h-64 rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => {
+                          const imageSrc = `/api/files/download/${message.file_path?.split('/').pop()}`;
+                          const imageAlt = message.file_name || 'Image';
+                          openImageModal(imageSrc, imageAlt, message.file_name);
+                        }}
                       />
                       {message.content && message.content !== `Shared image: ${message.file_name}` && (
                         <p className="text-sm">{message.content}</p>
@@ -287,6 +349,16 @@ export function ChatWindow({
             }, 1000);
           }
         }}
+      />
+
+      {/* Image Modal */}
+      <ImageModal
+        isOpen={imageModal.isOpen}
+        onClose={closeImageModal}
+        imageSrc={imageModal.imageSrc}
+        imageAlt={imageModal.imageAlt}
+        fileName={imageModal.fileName}
+        onDownload={handleImageDownload}
       />
     </div>
   );
