@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    // Get group to check if user is the owner
+    // Get group to check if user is a member
     const group = await GroupService.getGroupById(groupId, user.id);
     if (!group) {
       return NextResponse.json(
@@ -30,27 +30,40 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    // Cannot leave if you're the owner
-    if (group.created_by === user.id) {
-      return NextResponse.json(
-        { success: false, error: 'Group owner cannot leave. Transfer ownership or delete the group instead.' },
-        { status: 400 }
-      );
-    }
-
-    // Leave the group
-    await GroupService.leaveGroup(groupId, user.id);
+    // Leave the group (handles ownership transfer automatically)
+    const leaveResult = await GroupService.leaveGroup(groupId, user.id);
     
-    // Notify other group members
-    SocketService.broadcast(`group_${groupId}`, 'member_left_group', {
+    // Notify other group members about the user leaving
+    SocketService.broadcastToGroup(groupId, 'member_left_group', {
       group_id: groupId,
       user_id: user.id,
       username: user.username
     });
+    
+    // If ownership was transferred, notify group members
+    if (leaveResult.ownershipTransferred && leaveResult.newOwnerId && leaveResult.newOwnerUsername) {
+      SocketService.broadcastToGroup(groupId, 'ownership_transferred', {
+        group_id: groupId,
+        former_owner: {
+          id: user.id,
+          username: user.username
+        },
+        new_owner: {
+          id: leaveResult.newOwnerId,
+          username: leaveResult.newOwnerUsername
+        }
+      });
+    }
+
+    let message = 'Left group successfully';
+    if (leaveResult.ownershipTransferred) {
+      message += `. Ownership transferred to ${leaveResult.newOwnerUsername}`;
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Left group successfully'
+      message,
+      data: leaveResult
     });
 
   } catch (error: any) {

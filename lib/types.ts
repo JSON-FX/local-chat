@@ -13,7 +13,7 @@ export interface Message {
   recipient_id?: number;
   group_id?: number;
   content: string;
-  message_type: 'text' | 'file' | 'image';
+  message_type: 'text' | 'file' | 'image' | 'system';
   file_path?: string;
   file_name?: string;
   file_size?: number;

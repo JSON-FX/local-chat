@@ -181,7 +181,8 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
   }
 }
 
-// Leave a group (non-owners)
+// This POST handler is no longer needed as we have a dedicated /leave/route.ts
+// Keeping it for backwards compatibility, but it now supports ownership transfer
 export async function POST(request: NextRequest, { params }: RouteContext) {
   const url = new URL(request.url);
   if (url.pathname.endsWith('/leave')) {
@@ -195,7 +196,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           { status: 400 }
         );
       }
-      // Only allow if not owner
+      
+      // Get group to check if user is a member
       const group = await GroupService.getGroupById(groupId, user.id);
       if (!group) {
         return NextResponse.json(
@@ -203,16 +205,19 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           { status: 404 }
         );
       }
-      if (group.created_by === user.id) {
-        return NextResponse.json(
-          { success: false, error: 'Owner cannot leave the group. Delete instead.' },
-          { status: 403 }
-        );
+      
+      // Leave the group (handles ownership transfer automatically)
+      const leaveResult = await GroupService.leaveGroup(groupId, user.id);
+      
+      let message = 'Left group successfully';
+      if (leaveResult.ownershipTransferred) {
+        message += `. Ownership transferred to ${leaveResult.newOwnerUsername}`;
       }
-      await GroupService.leaveGroup(groupId, user.id);
+      
       return NextResponse.json({
         success: true,
-        message: 'Left group successfully'
+        message,
+        data: leaveResult
       });
     } catch (error: any) {
       console.error('Leave group error:', error);

@@ -435,30 +435,52 @@ export class SocketService {
 
   // Broadcast to all connected users
   static broadcast(event: string, data: any, room?: string): void {
-    if (this.io) {
+    const io = this.getIO();
+    if (io) {
       if (room) {
-        this.io.to(room).emit(event, data);
+        io.to(room).emit(event, data);
       } else {
-        this.io.emit(event, data);
+        io.emit(event, data);
       }
     }
   }
 
   // Broadcast to all members of a group
   static broadcastToGroup(groupId: number, event: string, data: any): void {
-    if (this.io) {
-      this.io.to(`group_${groupId}`).emit(event, data);
+    const io = this.getIO();
+    if (io) {
+      io.to(`group_${groupId}`).emit(event, data);
       console.log(`📢 Broadcasting to group ${groupId}: ${event}`);
+    }
+  }
+
+  // Broadcast system message to group members
+  static broadcastSystemMessage(groupId: number, message: any): void {
+    const io = this.getIO();
+    if (io) {
+      const roomName = `group_${groupId}`;
+      console.log(`📢 Broadcasting system message to room "${roomName}"`);
+      console.log(`📢 Message details:`, { id: message.id, content: message.content, type: message.message_type });
+      
+      // Get the room info to see who's in it
+      const room = io.sockets.adapter.rooms.get(roomName);
+      console.log(`📢 Room "${roomName}" has ${room ? room.size : 0} members:`, room ? Array.from(room) : []);
+      
+      io.to(roomName).emit('new_message', message);
+      console.log(`📢 Broadcast sent to room "${roomName}"`);
+    } else {
+      console.error('❌ Socket.io instance not available for broadcast');
     }
   }
 
   // Notify all members when a group is deleted
   static broadcastGroupDeleted(groupId: number, deletedBy: { id: number; username: string }): void {
-    if (this.io) {
+    const io = this.getIO();
+    if (io) {
       // Broadcast to all connected users instead of just the group room
       // This ensures everyone receives the event even if they're not in the room
       // or if the room is no longer accessible
-      this.io.emit('group_deleted', { 
+      io.emit('group_deleted', { 
         group_id: groupId,
         deleted_by: deletedBy
       });

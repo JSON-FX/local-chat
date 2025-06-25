@@ -1,5 +1,7 @@
 import { getDatabase } from './database';
 import { Group, CreateGroupData, GroupMember } from './models';
+import { MessageService } from './messages';
+import { SocketService } from './socket';
 
 export class GroupService {
   
@@ -38,13 +40,23 @@ export class GroupService {
         [groupId, groupData.created_by, 'admin']
       );
 
-      // Add initial members
+      // Add initial members and create system messages
       for (const userId of initialMemberIds) {
         if (userId !== groupData.created_by) { // Don't add creator twice
           await db.run(
             'INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
             [groupId, userId, 'member']
           );
+
+          // Get username for system message
+          const member = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
+          if (member) {
+            const systemMessage = `${member.username} joined the group`;
+            const message = await MessageService.createSystemMessage(groupId, systemMessage);
+            
+            // Broadcast system message to group members
+            SocketService.broadcastSystemMessage(groupId, message);
+          }
         }
       }
 
@@ -117,18 +129,26 @@ export class GroupService {
         throw new Error('Only admins and moderators can add members');
       }
 
+      // Get username of the new member
+      const newMember = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
+      if (!newMember) {
+        throw new Error('User not found');
+      }
+
       // Check if user is already a member
       const existingMember = await db.get(
         'SELECT id FROM group_members WHERE group_id = ? AND user_id = ?',
         [groupId, userId]
       );
 
+      let isRejoining = false;
       if (existingMember) {
         // Reactivate if they were previously removed
         await db.run(
           'UPDATE group_members SET is_active = 1, role = ? WHERE group_id = ? AND user_id = ?',
           [role, groupId, userId]
         );
+        isRejoining = true;
       } else {
         // Add as new member
         await db.run(
@@ -136,6 +156,19 @@ export class GroupService {
           [groupId, userId, role]
         );
       }
+
+      // Create system message
+      const systemMessage = isRejoining 
+        ? `${newMember.username} rejoined the group`
+        : `${newMember.username} joined the group`;
+      
+      console.log(`📢 Creating system message for group ${groupId}: ${systemMessage}`);
+      const message = await MessageService.createSystemMessage(groupId, systemMessage);
+      console.log(`📢 System message created:`, message);
+      
+      // Broadcast system message to group members
+      SocketService.broadcastSystemMessage(groupId, message);
+      console.log(`📢 System message broadcasted to group ${groupId}`);
     } catch (error) {
       throw error;
     }
@@ -162,11 +195,24 @@ export class GroupService {
         throw new Error('Cannot remove the group creator');
       }
 
+      // Get username of the removed member
+      const removedMember = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
+      if (!removedMember) {
+        throw new Error('User not found');
+      }
+
       // Remove member (soft delete)
       await db.run(
         'UPDATE group_members SET is_active = 0 WHERE group_id = ? AND user_id = ?',
         [groupId, userId]
       );
+
+      // Create system message
+      const systemMessage = `${removedMember.username} was removed from the group`;
+      const message = await MessageService.createSystemMessage(groupId, systemMessage);
+      
+      // Broadcast system message to group members
+      SocketService.broadcastSystemMessage(groupId, message);
     } catch (error) {
       throw error;
     }
@@ -320,9 +366,84 @@ export class GroupService {
     await db.run('UPDATE group_members SET is_active = 0 WHERE group_id = ?', [groupId]);
   }
 
-  // Leave a group (non-owners)
-  static async leaveGroup(groupId: number, userId: number): Promise<void> {
+  // Leave a group with ownership transfer if owner leaves
+  static async leaveGroup(groupId: number, userId: number): Promise<{ ownershipTransferred?: boolean; newOwnerId?: number; newOwnerUsername?: string }> {
     const db = await getDatabase();
-    await db.run('UPDATE group_members SET is_active = 0 WHERE group_id = ? AND user_id = ?', [groupId, userId]);
+    
+    try {
+      // Get username of the leaving user
+      const leavingUser = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
+      if (!leavingUser) {
+        throw new Error('User not found');
+      }
+
+      // Check if user is the group owner
+      const group = await db.get('SELECT created_by FROM groups WHERE id = ? AND is_active = 1', [groupId]);
+      if (!group) {
+        throw new Error('Group not found');
+      }
+      
+      const isOwner = group.created_by === userId;
+      let result: { ownershipTransferred?: boolean; newOwnerId?: number; newOwnerUsername?: string } = {};
+      
+      if (isOwner) {
+        // Find the first member (by joined_at) who is not the owner to transfer ownership to
+        const firstMember = await db.get(
+          `SELECT gm.user_id, u.username 
+           FROM group_members gm
+           JOIN users u ON gm.user_id = u.id
+           WHERE gm.group_id = ? 
+             AND gm.user_id != ? 
+             AND gm.is_active = 1 
+             AND u.status = 'active'
+           ORDER BY gm.joined_at ASC 
+           LIMIT 1`,
+          [groupId, userId]
+        );
+        
+        if (firstMember) {
+          // Transfer ownership to the first member
+          await db.run(
+            'UPDATE groups SET created_by = ? WHERE id = ?',
+            [firstMember.user_id, groupId]
+          );
+          
+          // Make the new owner an admin if they aren't already
+          await db.run(
+            'UPDATE group_members SET role = ? WHERE group_id = ? AND user_id = ?',
+            ['admin', groupId, firstMember.user_id]
+          );
+          
+          result.ownershipTransferred = true;
+          result.newOwnerId = firstMember.user_id;
+          result.newOwnerUsername = firstMember.username;
+
+          // Create system message for ownership transfer
+          const ownershipMessage = `${leavingUser.username} left the group. ${firstMember.username} is now the group owner.`;
+          const message = await MessageService.createSystemMessage(groupId, ownershipMessage);
+          
+          // Broadcast system message to group members
+          SocketService.broadcastSystemMessage(groupId, message);
+        } else {
+          // No members left to transfer ownership to, delete the group
+          await this.deleteGroup(groupId);
+          return result; // Don't create system message if group is deleted
+        }
+      } else {
+        // Create system message for regular member leaving
+        const systemMessage = `${leavingUser.username} left the group`;
+        const message = await MessageService.createSystemMessage(groupId, systemMessage);
+        
+        // Broadcast system message to group members
+        SocketService.broadcastSystemMessage(groupId, message);
+      }
+      
+      // Remove the user from the group
+      await db.run('UPDATE group_members SET is_active = 0 WHERE group_id = ? AND user_id = ?', [groupId, userId]);
+      
+      return result;
+    } catch (error) {
+      throw error;
+    }
   }
 } 

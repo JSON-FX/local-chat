@@ -70,7 +70,7 @@ export const initializeDatabase = async (): Promise<void> => {
         recipient_id INTEGER,
         group_id INTEGER,
         content TEXT NOT NULL,
-        message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'file', 'image')),
+        message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'file', 'image', 'system')),
         file_path VARCHAR(500),
         file_name VARCHAR(255),
         file_size INTEGER,

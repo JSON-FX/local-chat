@@ -491,6 +491,25 @@ export function ChatWindow({
       <ScrollArea className="flex-1 px-6 overflow-y-auto h-full" ref={scrollAreaRef}>
         <div className="py-4 space-y-4">
           {messages.map((message, index) => {
+            // System messages should be displayed differently
+            if (message.message_type === 'system') {
+              return (
+                <div
+                  key={message.id}
+                  className="flex justify-center w-full mb-2"
+                >
+                  <div className="bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-2 text-center max-w-md">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                      {message.content}
+                    </p>
+                    <span className="text-xs text-gray-500 dark:text-gray-500 opacity-70">
+                      {formatMessageTime(message.timestamp)}
+                    </span>
+                  </div>
+                </div>
+              );
+            }
+
             const isCurrentUser = message.sender_id === currentUser?.id;
             const showAvatar = !isCurrentUser && (
               index === 0 || 

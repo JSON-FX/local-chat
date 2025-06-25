@@ -17,6 +17,7 @@ export interface SocketClientEvents {
   onGroupMessage: (message: Message) => void;
   onGroupDeleted: (data: { group_id: number; deleted_by: { id: number; username: string } }) => void;
   onMemberLeftGroup: (data: { group_id: number; user_id: number; username: string }) => void;
+  onOwnershipTransferred: (data: { group_id: number; former_owner: { id: number; username: string }; new_owner: { id: number; username: string } }) => void;
   onError: (error: { error: string }) => void;
   onAuthError: (error: { error: string }) => void;
 }
@@ -169,6 +170,11 @@ class SocketClient {
   private setupEventHandlers() {
     if (!this.socket) return;
 
+    // Log all incoming events for debugging
+    this.socket.onAny((eventName, ...args) => {
+      console.log(`🔍 Socket received event: ${eventName}`, args);
+    });
+
     this.socket.on('disconnect', (reason) => {
       console.log('❌ Socket disconnected:', reason);
       this.handlers.onDisconnected?.();
@@ -187,7 +193,8 @@ class SocketClient {
     });
 
     this.socket.on('new_message', (message: Message) => {
-      console.log('📨 New message received:', message);
+      console.log('📨 Socket client received new_message:', message);
+      console.log('📨 Message type:', message.message_type, 'Sender ID:', message.sender_id, 'Group ID:', message.group_id);
       this.handlers.onNewMessage?.(message);
     });
 
@@ -233,6 +240,11 @@ class SocketClient {
     this.socket.on('member_left_group', (data) => {
       console.log('👥 Member left group:', data.username);
       this.handlers.onMemberLeftGroup?.(data);
+    });
+
+    this.socket.on('ownership_transferred', (data) => {
+      console.log('👑 Ownership transferred:', `${data.former_owner.username} → ${data.new_owner.username}`);
+      this.handlers.onOwnershipTransferred?.(data);
     });
 
     this.socket.on('error', (error) => {

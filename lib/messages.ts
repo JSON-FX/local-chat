@@ -3,6 +3,47 @@ import { Message, CreateMessageData } from './models';
 
 export class MessageService {
   
+  // Create a system message (for group membership changes)
+  static async createSystemMessage(groupId: number, content: string): Promise<Message> {
+    console.log(`🔧 Creating system message - Group: ${groupId}, Content: ${content}`);
+    const db = await getDatabase();
+
+    try {
+      // Create system message with sender_id 0 to indicate system message
+      console.log(`🔧 Inserting system message into database...`);
+      const result = await db.run(
+        `INSERT INTO messages (sender_id, group_id, content, message_type) 
+         VALUES (0, ?, ?, 'system')`,
+        [groupId, content]
+      );
+      console.log(`🔧 Database insert result:`, result);
+
+      // Get the created message ID
+      let messageId;
+      if (result && typeof result === 'object') {
+        messageId = (result as any).lastID || (result as any).lastId || (result as any).insertId;
+      }
+      
+      if (!messageId) {
+        // Fallback: get the last system message for this group
+        const message = await db.get(
+          'SELECT * FROM messages WHERE group_id = ? AND message_type = "system" ORDER BY id DESC LIMIT 1',
+          [groupId]
+        );
+        return message;
+      }
+      
+      const message = await db.get('SELECT * FROM messages WHERE id = ?', [messageId]);
+      if (!message) {
+        throw new Error('Failed to retrieve created system message');
+      }
+      
+      return message;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Send a new message
   static async sendMessage(messageData: CreateMessageData): Promise<Message> {
     const db = await getDatabase();
@@ -14,7 +55,7 @@ export class MessageService {
         throw new Error('Message must have either recipient_id or group_id, but not both');
       }
 
-      // For group messages, check if the group exists and user is a member
+      // For group messages, check if the group exists and user is a member (skip check for system messages)
       if (messageData.group_id) {
         const group = await db.get(
           'SELECT id FROM groups WHERE id = ? AND is_active = 1',
@@ -25,13 +66,16 @@ export class MessageService {
           throw new Error('Group not found or has been deleted');
         }
         
-        const membership = await db.get(
-          'SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND is_active = 1',
-          [messageData.group_id, messageData.sender_id]
-        );
-        
-        if (!membership) {
-          throw new Error('You are not a member of this group');
+        // Skip membership check for system messages (sender_id = 0)
+        if (messageData.sender_id !== 0) {
+          const membership = await db.get(
+            'SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND is_active = 1',
+            [messageData.group_id, messageData.sender_id]
+          );
+          
+          if (!membership) {
+            throw new Error('You are not a member of this group');
+          }
         }
       }
 
@@ -437,10 +481,12 @@ export class MessageService {
     }
   }
 
-  // Leave a group (non-owners)
+  // Leave a group - this method is deprecated, use GroupService.leaveGroup instead
   static async leaveGroup(groupId: number, userId: number): Promise<void> {
-    const db = await getDatabase();
-    await db.run('UPDATE group_members SET is_active = 0 WHERE group_id = ? AND user_id = ?', [groupId, userId]);
+    console.warn('MessageService.leaveGroup is deprecated, use GroupService.leaveGroup instead');
+    const { GroupService } = await import('./groups');
+    // Call the new method but don't return the result to maintain interface compatibility
+    await GroupService.leaveGroup(groupId, userId);
   }
 
   // Clear group conversation for a user (mark messages as deleted for this user only)

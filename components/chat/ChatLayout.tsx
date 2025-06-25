@@ -399,6 +399,8 @@ export function ChatLayout() {
       socketClient.off('onMessageSent');
       socketClient.off('onGroupMessage');
       socketClient.off('onGroupDeleted');
+      socketClient.off('onMemberLeftGroup');
+      socketClient.off('onOwnershipTransferred');
       socketClient.off('onUserOnline');
       socketClient.off('onUserOffline');
       socketClient.off('onUserTyping');
@@ -470,12 +472,14 @@ export function ChatLayout() {
     });
 
     socketClient.on('onNewMessage', (message) => {
+      console.log('📨 Processing new message:', message);
+      
       // Check if this message is for the currently opened conversation
       let isRelevantMessage = false;
       
       if (selectedConversation) {
         if (selectedConversationType === 'group' && message.group_id) {
-          // Group message: check if it's for the selected group
+          // Group message (including system messages): check if it's for the selected group
           isRelevantMessage = message.group_id === selectedConversation.group_id;
         } else if (selectedConversationType === 'direct' && !message.group_id) {
           // Direct message: check if it's between current user and selected user
@@ -489,16 +493,23 @@ export function ChatLayout() {
       }
       
       if (isRelevantMessage) {
+        console.log('📨 Message is relevant, adding to current chat');
         setMessages(prev => {
           // Prevent duplicates by checking if message already exists
           const exists = prev.some(m => m.id === message.id);
-          if (exists) return prev;
+          if (exists) {
+            console.log('📨 Message already exists, skipping');
+            return prev;
+          }
+          console.log('📨 Adding new message to chat');
           return [...prev, message];
         });
+      } else {
+        console.log('📨 Message not relevant for current conversation');
       }
 
-      // Handle notifications for direct messages
-      if (!message.group_id && message.recipient_id === currentUser?.id) {
+      // Handle notifications for direct messages (but not system messages)
+      if (!message.group_id && message.recipient_id === currentUser?.id && message.sender_id !== 0) {
         // Find sender information
         const senderName = conversations.find(c => 
           c.conversation_type === 'direct' && c.other_user_id === message.sender_id
@@ -560,6 +571,30 @@ export function ChatLayout() {
       ));
       
       // Also refresh from server
+      loadConversations();
+    });
+
+    socketClient.on('onMemberLeftGroup', (data) => {
+      console.log('Member left group:', data);
+      
+      // Show notification if it's the current group
+      if (selectedConversation && 
+          selectedConversationType === 'group' && 
+          selectedConversation.group_id === data.group_id) {
+        toast.info(`${data.username} left the group`);
+      }
+      
+      // Refresh conversations to update member count if needed
+      loadConversations();
+    });
+
+    socketClient.on('onOwnershipTransferred', (data) => {
+      console.log('Ownership transferred:', data);
+      
+      // Show notification
+      toast.info(`Group ownership transferred from ${data.former_owner.username} to ${data.new_owner.username}`);
+      
+      // Refresh conversations to update ownership status
       loadConversations();
     });
 

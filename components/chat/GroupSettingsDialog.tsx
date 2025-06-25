@@ -472,25 +472,47 @@ export function GroupSettingsDialog({
 
         <div className="flex justify-end pt-4">
           {isAdmin && (
-            <Button 
-              variant="destructive" 
-              onClick={async () => {
-                try {
-                  await apiService.deleteGroup(group.id);
-                  toast.success('Group deleted successfully');
-                  onClose();
-                  if (onGroupUpdated) {
-                    // Pass a special flag to indicate group deletion
-                    onGroupUpdated({ deleted: true, groupId: group.id });
+            <div className="flex gap-2 mr-auto">
+              <Button 
+                variant="destructive" 
+                onClick={async () => {
+                  try {
+                    await apiService.deleteGroup(group.id);
+                    toast.success('Group deleted successfully');
+                    onClose();
+                    if (onGroupUpdated) {
+                      // Pass a special flag to indicate group deletion
+                      onGroupUpdated({ deleted: true, groupId: group.id });
+                    }
+                  } catch (error: any) {
+                    toast.error(error.message || 'Failed to delete group');
                   }
-                } catch (error: any) {
-                  toast.error(error.message || 'Failed to delete group');
-                }
-              }}
-              className="mr-auto"
-            >
-              Delete Group
-            </Button>
+                }}
+              >
+                Delete Group
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={async () => {
+                  try {
+                    const response = await apiService.leaveGroup(group.id);
+                    toast.success('You have left the group');
+                    onClose();
+                    if (onGroupUpdated) {
+                      // Pass a special flag to indicate the user left the group
+                      onGroupUpdated({ left: true, groupId: group.id });
+                    }
+                  } catch (error: any) {
+                    toast.error(error.message || 'Failed to leave group');
+                  }
+                }}
+                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+              >
+                <UserMinus className="h-4 w-4 mr-2" />
+                Leave Group
+              </Button>
+            </div>
           )}
           {!isAdmin && (
             <Button 
