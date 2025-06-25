@@ -4,15 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Card } from '@/components/ui/card';
 import { 
   MessageSquare, 
-  Users, 
-  Settings, 
   LogOut, 
-  Wifi, 
-  WifiOff,
   Circle,
   PanelLeftClose,
   PanelLeftOpen,
@@ -27,6 +22,7 @@ import { ChatWindow } from './ChatWindow';
 import { NewChatDialog } from './NewChatDialog';
 import { User, Conversation, Message } from '@/lib/types';
 import { incrementUnreadCount, clearUnreadCount } from '@/lib/hooks/useReadStatus';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Debounce utility function
 function debounce<T extends (...args: any[]) => any>(
@@ -1130,145 +1126,185 @@ export function ChatLayout() {
   }
 
   return (
-    <div className="h-screen flex bg-background">
-      {/* Sidebar */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-80'} border-r border-border flex flex-col h-full transition-all duration-300 ease-in-out`}>
-        {/* Header */}
-        <div className="h-16 px-4 flex items-center justify-between border-b border-border">
-          {!sidebarCollapsed ? (
-            <>
-              <div className="flex items-center space-x-2">
-                <MessageSquare className="h-6 w-6 text-primary" />
-                <span className="font-semibold">LocalChat</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                {/* Notification Status */}
+    <TooltipProvider>
+      <div className="h-screen flex bg-background">
+        {/* Sidebar */}
+        <div className={`${sidebarCollapsed ? 'w-16' : 'w-80'} border-r border-border flex flex-col h-full transition-all duration-300 ease-in-out`}>
+          {/* Header */}
+          <div className="h-16 px-4 flex items-center justify-between border-b border-border">
+            {!sidebarCollapsed ? (
+              <>
+                <div className="flex items-center space-x-2">
+                  <MessageSquare className="h-6 w-6 text-primary" />
+                  <span className="font-semibold">LocalChat</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {/* Notification Status */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setupNotifications()}
+                    className="text-muted-foreground hover:text-foreground p-1"
+                    title={notificationPermission === 'granted' ? 'Notifications enabled - you will receive alerts for new messages' : 
+                           notificationPermission === 'denied' ? 'Notifications blocked - check your browser settings or site permissions' : 
+                           'Click to enable desktop notifications for new messages'}
+                  >
+                    {notificationPermission === 'granted' ? (
+                      <Bell className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <BellOff className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                  
+                  {/* Connection Status */}
+                  {isConnected ? (
+                    <Badge variant="secondary" className="text-xs">
+                      <Circle className="h-2 w-2 mr-1 fill-green-500 text-green-500" />
+                      Online
+                    </Badge>
+                  ) : (
+                    <Badge variant="destructive" className="text-xs">
+                      <Circle className="h-2 w-2 mr-1 fill-red-500 text-red-500" />
+                      Offline
+                    </Badge>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center w-full space-y-1">
+                <div className="relative">
+                  <MessageSquare className="h-6 w-6 text-primary" />
+                  {isConnected ? (
+                    <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-green-500 text-green-500" />
+                  ) : (
+                    <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-red-500 text-red-500" />
+                  )}
+                </div>
+                {/* Notification status in collapsed view */}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setupNotifications()}
-                  className="text-muted-foreground hover:text-foreground p-1"
+                  className="p-1 h-6"
                   title={notificationPermission === 'granted' ? 'Notifications enabled - you will receive alerts for new messages' : 
                          notificationPermission === 'denied' ? 'Notifications blocked - check your browser settings or site permissions' : 
                          'Click to enable desktop notifications for new messages'}
                 >
                   {notificationPermission === 'granted' ? (
-                    <Bell className="h-4 w-4 text-green-600" />
+                    <Bell className="h-3 w-3 text-green-600" />
                   ) : (
-                    <BellOff className="h-4 w-4 text-muted-foreground" />
+                    <BellOff className="h-3 w-3 text-muted-foreground" />
                   )}
                 </Button>
-                
-                {/* Connection Status */}
-                {isConnected ? (
-                  <Badge variant="secondary" className="text-xs">
-                    <Circle className="h-2 w-2 mr-1 fill-green-500 text-green-500" />
-                    Online
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive" className="text-xs">
-                    <Circle className="h-2 w-2 mr-1 fill-red-500 text-red-500" />
-                    Offline
-                  </Badge>
-                )}
               </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center w-full space-y-1">
-              <div className="relative">
-                <MessageSquare className="h-6 w-6 text-primary" />
-                {isConnected ? (
-                  <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-green-500 text-green-500" />
-                ) : (
-                  <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-red-500 text-red-500" />
-                )}
+            )}
+          </div>
+
+          {/* Toggle Button */}
+          <div className="px-2 py-2 border-b border-border">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className={`w-full ${sidebarCollapsed ? 'justify-center' : 'justify-start'} space-x-2`}
+              title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeftOpen className="h-4 w-4" />
+              ) : (
+                <>
+                  <PanelLeftClose className="h-4 w-4" />
+                  <span className="text-xs">Hide</span>
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* New Chat Button */}
+          <div className="p-2 border-b border-border">
+            <NewChatDialog
+              onlineUsers={onlineUsers}
+              onStartChat={handleStartChat}
+              onGroupCreated={handleGroupCreated}
+              collapsed={sidebarCollapsed}
+            />
+          </div>
+
+          {/* Chat List */}
+          <div className="flex-1 overflow-hidden">
+            <ChatList
+              conversations={conversations}
+              selectedConversation={selectedConversation ? 
+                (selectedConversation.conversation_type === 'direct' ? 
+                  selectedConversation.other_user_id : 
+                  selectedConversation.group_id || 0) : null}
+              onSelectConversation={handleConversationSelect}
+              onlineUsers={onlineUsers}
+              typingUsers={typingUsers}
+              collapsed={sidebarCollapsed}
+              currentUser={currentUser}
+            />
+          </div>
+
+          {/* User Info - Moved to Bottom */}
+          {!sidebarCollapsed && (
+            <div className="p-4 border-t border-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{currentUser?.username}</p>
+                  <p className="text-sm text-muted-foreground capitalize">{currentUser?.role}</p>
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleLogout}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Sign out</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
-              {/* Notification status in collapsed view */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setupNotifications()}
-                className="p-1 h-6"
-                title={notificationPermission === 'granted' ? 'Notifications enabled - you will receive alerts for new messages' : 
-                       notificationPermission === 'denied' ? 'Notifications blocked - check your browser settings or site permissions' : 
-                       'Click to enable desktop notifications for new messages'}
-              >
-                {notificationPermission === 'granted' ? (
-                  <Bell className="h-3 w-3 text-green-600" />
-                ) : (
-                  <BellOff className="h-3 w-3 text-muted-foreground" />
-                )}
-              </Button>
+            </div>
+          )}
+
+          {/* Collapsed User Info */}
+          {sidebarCollapsed && (
+            <div className="p-2 border-t border-border flex justify-center">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleLogout}
+                    className="text-muted-foreground hover:text-foreground p-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Sign out</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+
+          {/* Signature */}
+          {!sidebarCollapsed && (
+            <div className="px-4 py-3 border-t border-border">
+              <p className="text-xs text-muted-foreground text-center leading-relaxed">
+                Developed By Management Information System Section (MISS)<br />
+                Municipality Of Quezon Bukidnon 8715 Philippines<br />
+                All Rights Reserved 2025
+              </p>
             </div>
           )}
         </div>
-
-        {/* Toggle Button */}
-        <div className="px-2 py-2 border-b border-border">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className={`w-full ${sidebarCollapsed ? 'justify-center' : 'justify-start'} space-x-2`}
-            title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-          >
-            {sidebarCollapsed ? (
-              <PanelLeftOpen className="h-4 w-4" />
-            ) : (
-              <>
-                <PanelLeftClose className="h-4 w-4" />
-                <span className="text-xs">Hide</span>
-              </>
-            )}
-          </Button>
-        </div>
-
-        {/* User Info */}
-        {!sidebarCollapsed && (
-          <div className="p-4 border-b border-border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">{currentUser?.username}</p>
-                <p className="text-sm text-muted-foreground capitalize">{currentUser?.role}</p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* New Chat Button */}
-        <div className="p-2 border-b border-border">
-          <NewChatDialog
-            onlineUsers={onlineUsers}
-            onStartChat={handleStartChat}
-            onGroupCreated={handleGroupCreated}
-            collapsed={sidebarCollapsed}
-          />
-        </div>
-
-        {/* Chat List */}
-        <div className="flex-1 overflow-hidden">
-          <ChatList
-            conversations={conversations}
-            selectedConversation={selectedConversation ? 
-              (selectedConversation.conversation_type === 'direct' ? 
-                selectedConversation.other_user_id : 
-                selectedConversation.group_id || 0) : null}
-            onSelectConversation={handleConversationSelect}
-            onlineUsers={onlineUsers}
-            typingUsers={typingUsers}
-            collapsed={sidebarCollapsed}
-            currentUser={currentUser}
-          />
-        </div>
-      </div>
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
@@ -1309,6 +1345,7 @@ export function ChatLayout() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 } 
