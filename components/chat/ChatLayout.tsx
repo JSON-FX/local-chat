@@ -26,6 +26,7 @@ import { ChatList } from './ChatList';
 import { ChatWindow } from './ChatWindow';
 import { NewChatDialog } from './NewChatDialog';
 import { User, Conversation, Message } from '@/lib/types';
+import { incrementUnreadCount, clearUnreadCount } from '@/lib/hooks/useReadStatus';
 
 // Debounce utility function
 function debounce<T extends (...args: any[]) => any>(
@@ -567,6 +568,15 @@ export function ChatLayout() {
         
         handleMessageNotification(message, senderName, false);
       }
+
+      // Update unread count for direct messages (only if we're not currently viewing this conversation)
+      if (!message.group_id && message.recipient_id === currentUser?.id && message.sender_id !== 0) {
+        // Only increment if this conversation is not currently selected or if it's selected but we're not looking at it
+        const isCurrentlyViewing = selectedConversation?.other_user_id === message.sender_id && selectedConversationType === 'direct';
+        if (!isCurrentlyViewing) {
+          incrementUnreadCount(message.sender_id, false);
+        }
+      }
       
       // Update conversation list (debounced)
       debouncedLoadConversations();
@@ -594,6 +604,15 @@ export function ChatLayout() {
         // Find sender and group information
         const senderName = message.sender_username || 'Unknown User';
         handleMessageNotification(message, senderName, true);
+      }
+
+      // Update unread count for group messages (only if we're not currently viewing this group)
+      if (message.group_id && message.sender_id !== currentUser?.id) {
+        // Only increment if this group is not currently selected or if it's selected but we're not looking at it
+        const isCurrentlyViewing = selectedConversation?.group_id === message.group_id && selectedConversationType === 'group';
+        if (!isCurrentlyViewing) {
+          incrementUnreadCount(message.group_id, true);
+        }
       }
       
       // Update conversation list (debounced)

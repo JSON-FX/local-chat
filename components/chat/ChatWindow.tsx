@@ -89,9 +89,12 @@ export function ChatWindow({
     return () => clearTimeout(timer);
   }, [selectedConversation]);
 
-  // Auto-mark messages as read when viewing conversation
+  // Auto-mark messages as read when viewing conversation - use refs to prevent infinite loops
+  const lastProcessedMessageCountRef = useRef(0);
+  const processingRef = useRef(false);
+  
   useEffect(() => {
-    if (!currentUser || !messages.length) return;
+    if (!currentUser || !selectedConversation || processingRef.current) return;
     
     // Find unread messages from other users
     const unreadMessages = messages.filter(message => 
@@ -100,17 +103,32 @@ export function ChatWindow({
       message.message_type !== 'system'
     );
     
-    if (unreadMessages.length > 0) {
+    // Only process if we have new unread messages
+    if (unreadMessages.length > 0 && unreadMessages.length !== lastProcessedMessageCountRef.current) {
+      lastProcessedMessageCountRef.current = unreadMessages.length;
+      processingRef.current = true;
+      
       // Mark messages as read after a short delay to ensure they're actually visible
       const timer = setTimeout(() => {
         const messageIds = unreadMessages.map(m => m.id);
-        console.log(`📖 Auto-marking ${messageIds.length} messages as read for conversation ${selectedConversation}`);
-        markMessagesAsRead(messageIds, selectedConversation, selectedConversationType === 'group');
-      }, 1000); // Increased delay to reduce API calls
+        // Auto-mark unread messages as read
+        markMessagesAsRead(messageIds, selectedConversation, selectedConversationType === 'group').finally(() => {
+          processingRef.current = false;
+        });
+      }, 1000);
       
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        processingRef.current = false;
+      };
     }
-  }, [selectedConversation, selectedConversationType, currentUser?.id, markMessagesAsRead, messages.filter(m => !m.is_read && m.sender_id !== currentUser?.id).length]); // More specific dependencies
+  }, [selectedConversation, selectedConversationType, currentUser?.id, messages.length, markMessagesAsRead]);
+  
+  // Reset counters when conversation changes
+  useEffect(() => {
+    lastProcessedMessageCountRef.current = 0;
+    processingRef.current = false;
+  }, [selectedConversation, selectedConversationType]);
 
   // Add scroll event listener to detect when user has scrolled up
   useEffect(() => {
