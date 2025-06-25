@@ -313,6 +313,23 @@ export function ChatLayout() {
       toast.success(`You were added to group "${data.group.name}" by ${data.added_by.username}`);
     });
 
+    socketClient.on('onMemberLeftGroup', (data) => {
+      // If this is about the current user, it's handled elsewhere
+      if (data.user_id === currentUser?.id) {
+        return;
+      }
+      
+      // Show notification if this is for the currently selected group
+      if (selectedConversation && 
+          selectedConversationType === 'group' && 
+          selectedConversation.group_id === data.group_id) {
+        toast.info(`${data.username} has left the group`);
+      }
+      
+      // Refresh conversations to update member counts
+      loadConversations();
+    });
+
     socketClient.on('onError', (error) => {
       toast.error(error.error || 'Socket error occurred');
     });
@@ -376,11 +393,47 @@ export function ChatLayout() {
   };
 
   const handleStartChat = async (userId: number) => {
-    // Select the conversation (this will create one if it doesn't exist when first message is sent)
-    await handleConversationSelect(userId, false);
-    
-    // Reload conversations to show the new chat in the sidebar
-    await loadConversations();
+    try {
+      // Get user information first
+      const usersResponse = await apiService.getUsers();
+      if (usersResponse.success && usersResponse.data) {
+        const user = usersResponse.data.find(u => u.id === userId);
+        
+        if (user) {
+          // Create a temporary conversation with the user's information
+          const tempConversation: Conversation = {
+            other_user_id: user.id,
+            other_username: user.username,
+            last_message: '',
+            last_message_time: new Date().toISOString(),
+            conversation_type: 'direct',
+            group_id: undefined,
+            group_name: undefined,
+            avatar_path: undefined
+          };
+          
+          // Set the selected conversation with the user information
+          setSelectedConversation(tempConversation);
+          setSelectedConversationType('direct');
+          setMessages([]);
+          
+          // Save to localStorage
+          localStorage.setItem('selectedConversation', JSON.stringify({
+            id: userId,
+            type: 'direct'
+          }));
+          
+          // Reload conversations to show the new chat in the sidebar
+          await loadConversations();
+        } else {
+          // User not found
+          toast.error('User not found');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to start chat:', error);
+      toast.error('Failed to start chat');
+    }
   };
 
   const handleGroupCreated = async (groupData: any) => {

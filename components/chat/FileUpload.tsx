@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { apiService } from '../../lib/api';
 import { toast } from 'sonner';
 import { Upload, X, File, Image, FileText, FileSpreadsheet, FileBox, FileJson } from 'lucide-react';
-import path from 'path';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 interface FileUploadProps {
   isOpen: boolean;
@@ -68,6 +68,30 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
     
     return null;
+  };
+
+  // Truncate filename for display
+  const truncateFilename = (filename: string, maxLength: number = 30): string => {
+    if (filename.length <= maxLength) return filename;
+    
+    // Get the extension
+    const lastDotIndex = filename.lastIndexOf('.');
+    const extension = lastDotIndex !== -1 ? filename.slice(lastDotIndex) : '';
+    
+    // Calculate how many characters we can keep from the name
+    const nameLength = maxLength - extension.length - 3; // 3 for the ellipsis
+    
+    // If the name is too short, just truncate from the end
+    if (nameLength <= 0) {
+      return filename.slice(0, maxLength - 3) + '...';
+    }
+    
+    // Otherwise, keep the start and end of the name
+    const baseName = filename.slice(0, lastDotIndex);
+    const start = baseName.slice(0, Math.ceil(nameLength / 2));
+    const end = baseName.slice(-(Math.floor(nameLength / 2)));
+    
+    return start + '...' + end + extension;
   };
 
   // Get file icon based on file type
@@ -223,7 +247,18 @@ const FileUpload: React.FC<FileUploadProps> = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-center space-x-2">
                   {getFileIcon(selectedFile)}
-                  <span className="font-medium text-sm">{selectedFile.name}</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="font-medium text-sm max-w-[200px] truncate">
+                          {truncateFilename(selectedFile.name, 30)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{selectedFile.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 <p className="text-xs text-gray-500">
                   {formatFileSize(selectedFile.size)}

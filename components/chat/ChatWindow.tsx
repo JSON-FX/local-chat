@@ -108,15 +108,31 @@ export function ChatWindow({
   };
 
   const getConversationPartner = () => {
-    const conversation = conversations.find(c => 
-      (selectedConversationType === 'direct' && c.other_user_id === selectedConversation) || 
-      (selectedConversationType === 'group' && c.group_id === selectedConversation)
-    );
+    // First check if selectedConversation is a number (normal case) or an object (new chat case)
+    const isConversationObject = typeof selectedConversation === 'object';
     
-    if (selectedConversationType === 'group') {
-      return conversation?.group_name || 'Unknown Group';
+    // If it's a regular conversation ID, find it in the conversations list
+    if (!isConversationObject) {
+      const conversation = conversations.find(c => 
+        (selectedConversationType === 'direct' && c.other_user_id === selectedConversation) || 
+        (selectedConversationType === 'group' && c.group_id === selectedConversation)
+      );
+      
+      if (selectedConversationType === 'group') {
+        return conversation?.group_name || 'Unknown Group';
+      }
+      
+      return conversation?.other_username || 'Unknown User';
+    } 
+    // If it's already a Conversation object (happens with new chats)
+    else {
+      // Cast to any to access properties safely
+      const conv = selectedConversation as any;
+      if (conv.other_username) {
+        return conv.other_username;
+      }
+      return 'Unknown User';
     }
-    return conversation?.other_username || 'Unknown User';
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -318,8 +334,8 @@ export function ChatWindow({
   return (
     <div className="flex flex-col h-full">
       <div className="h-16 px-6 flex items-center justify-between border-b border-border">
-        <div className="flex items-center space-x-3">
-          <Avatar className={cn("h-8 w-8", selectedConversationType === 'group' && "bg-blue-500/10")}>
+        <div className="flex items-center space-x-3 min-w-0 overflow-hidden">
+          <Avatar className={cn("h-8 w-8 shrink-0", selectedConversationType === 'group' && "bg-blue-500/10")}>
             {selectedConversationType === 'group' && conversations.find(c => c.group_id === selectedConversation)?.avatar_path ? (
               <AvatarImage 
                 src={`/api/files/download/${conversations.find(c => c.group_id === selectedConversation)?.avatar_path?.split('/').pop()}`} 
@@ -336,10 +352,10 @@ export function ChatWindow({
               </AvatarFallback>
             )}
           </Avatar>
-          <div>
+          <div className="min-w-0 overflow-hidden">
             <h2 className="font-semibold flex items-center gap-2">
-              {selectedConversationType === 'group' && <span className="text-blue-600">#</span>}
-              {getConversationPartner()}
+              {selectedConversationType === 'group' && <span className="text-blue-600 shrink-0">#</span>}
+              <span className="truncate">{getConversationPartner()}</span>
             </h2>
             {typingUsers[selectedConversation] ? (
               <p className="text-xs text-muted-foreground italic">typing...</p>
@@ -350,7 +366,7 @@ export function ChatWindow({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0 ml-1">
           {selectedConversationType === 'group' && (
             <>
               <Button
@@ -399,12 +415,19 @@ export function ChatWindow({
             </Button>
           )}
 
-          <Badge variant={isConnected ? 'secondary' : 'destructive'} className="text-xs">
+          <Badge variant={isConnected ? 'secondary' : 'destructive'} className="text-xs hidden sm:flex">
             <Circle className={cn(
               "h-2 w-2 mr-1",
               isConnected ? "fill-green-500 text-green-500" : "fill-red-500 text-red-500"
             )} />
             {isConnected ? 'Connected' : 'Disconnected'}
+          </Badge>
+          
+          <Badge variant={isConnected ? 'secondary' : 'destructive'} className="w-2 h-2 sm:hidden p-0">
+            <Circle className={cn(
+              "h-2 w-2",
+              isConnected ? "fill-green-500 text-green-500" : "fill-red-500 text-red-500"
+            )} />
           </Badge>
         </div>
       </div>
@@ -478,7 +501,7 @@ export function ChatWindow({
               <div
                 key={message.id}
                 className={cn(
-                  "flex items-end space-x-2 mb-2",
+                  "flex items-end space-x-2 mb-2 w-full",
                   isCurrentUser ? "justify-end" : "justify-start"
                 )}
               >
@@ -496,7 +519,7 @@ export function ChatWindow({
 
                 <div
                   className={cn(
-                    "max-w-[70%] rounded-lg px-3 py-2",
+                    "max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-2 break-words",
                     isCurrentUser
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted"
@@ -511,10 +534,11 @@ export function ChatWindow({
                   {/* Message content based on type */}
                   {message.message_type === 'image' && message.file_path ? (
                     <div className="space-y-2">
-                      <img
+                                              <img
                         src={`/api/files/download/${message.file_path?.split('/').pop()}`}
                         alt={message.file_name || 'Image'}
-                        className="max-w-64 max-h-64 rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        className="max-w-full rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        style={{ maxHeight: '200px', maxWidth: '100%' }}
                         onClick={() => {
                           const imageSrc = `/api/files/download/${message.file_path?.split('/').pop()}`;
                           const imageAlt = message.file_name || 'Image';
@@ -522,33 +546,43 @@ export function ChatWindow({
                         }}
                       />
                       {message.content && message.content !== `Shared image: ${message.file_name}` && (
-                        <p className="text-sm">{message.content}</p>
+                        <p className="text-sm break-words">{message.content}</p>
                       )}
                     </div>
                   ) : message.message_type === 'file' && message.file_path ? (
                     <div className="space-y-2">
-                      <div className="flex items-center space-x-2 p-2 bg-background/50 rounded border">
-                        {getFileIcon(message.file_name || '')}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{message.file_name}</p>
+                      <div className="flex items-center space-x-2 p-2 bg-background/50 rounded border flex-wrap">
+                        <div className="flex items-center w-full mb-1">
+                          {getFileIcon(message.file_name || '')}
+                          <div className="flex-1 min-w-0 mx-1">
+                            <p className="text-sm font-medium break-all line-clamp-2" title={message.file_name}>
+                              {message.file_name && message.file_name.length > 25 
+                                ? message.file_name.substring(0, 12) + '...' + 
+                                  message.file_name.substring(message.file_name.lastIndexOf('.') - 5)
+                                : message.file_name}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex justify-between w-full items-center">
                           <p className="text-xs opacity-70">
                             {message.file_size ? `${Math.round(message.file_size / 1024)} KB` : 'File'}
                           </p>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="shrink-0 ml-auto"
+                            onClick={() => message.file_path && window.open(`/api/files/download/${message.file_path.split('/').pop()}`, '_blank')}
+                          >
+                            <Download className="w-3 h-3" />
+                          </Button>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => message.file_path && window.open(`/api/files/download/${message.file_path.split('/').pop()}`, '_blank')}
-                        >
-                          <Download className="w-3 h-3" />
-                        </Button>
                       </div>
                       {message.content && message.content !== `Shared file: ${message.file_name}` && (
-                        <p className="text-sm">{message.content}</p>
+                        <p className="text-sm break-words">{message.content}</p>
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm">{message.content}</p>
+                    <p className="text-sm break-words whitespace-pre-wrap">{message.content}</p>
                   )}
                   <div className="flex items-center justify-between mt-1">
                     <span className={cn(
@@ -668,7 +702,16 @@ export function ChatWindow({
               if (onDeleteConversation) {
                 onDeleteConversation(selectedConversation, true);
               }
-            } else {
+            } 
+            // Check if the user left the group
+            else if (updatedGroup.left && updatedGroup.groupId === selectedConversation) {
+              // Handle leaving group - similar to deletion from user's perspective
+              if (onDeleteConversation) {
+                onDeleteConversation(selectedConversation, true);
+                toast.success('You have left the group');
+              }
+            }
+            else {
               // Refresh conversations or handle group updates
               if (onRefreshMessages) {
                 onRefreshMessages();

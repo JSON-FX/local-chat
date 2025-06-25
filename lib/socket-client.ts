@@ -16,6 +16,7 @@ export interface SocketClientEvents {
   onMemberAddedToGroup: (data: { group: any; added_by: { id: number; username: string } }) => void;
   onGroupMessage: (message: Message) => void;
   onGroupDeleted: (data: { group_id: number; deleted_by: { id: number; username: string } }) => void;
+  onMemberLeftGroup: (data: { group_id: number; user_id: number; username: string }) => void;
   onError: (error: { error: string }) => void;
   onAuthError: (error: { error: string }) => void;
 }
@@ -220,6 +221,11 @@ class SocketClient {
     this.socket.on('group_deleted', (data) => {
       console.log('👥 Group deleted:', data.group_id);
       this.handlers.onGroupDeleted?.(data);
+    });
+
+    this.socket.on('member_left_group', (data) => {
+      console.log('👥 Member left group:', data.username);
+      this.handlers.onMemberLeftGroup?.(data);
     });
 
     this.socket.on('error', (error) => {

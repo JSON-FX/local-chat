@@ -492,6 +492,28 @@ export function GroupSettingsDialog({
               Delete Group
             </Button>
           )}
+          {!isAdmin && (
+            <Button 
+              variant="destructive" 
+              onClick={async () => {
+                try {
+                  await apiService.leaveGroup(group.id);
+                  toast.success('You have left the group');
+                  onClose();
+                  if (onGroupUpdated) {
+                    // Pass a special flag to indicate the user left the group
+                    onGroupUpdated({ left: true, groupId: group.id });
+                  }
+                } catch (error: any) {
+                  toast.error(error.message || 'Failed to leave group');
+                }
+              }}
+              className="mr-auto"
+            >
+              <UserMinus className="h-4 w-4 mr-2" />
+              Leave Group
+            </Button>
+          )}
           <Button onClick={onClose}>Close</Button>
         </div>
       </DialogContent>
