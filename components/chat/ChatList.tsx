@@ -46,9 +46,9 @@ export function ChatList({
     }
   };
 
-  const truncateMessage = (message: string, maxLength: number = 50) => {
+  const truncateMessage = (message: string, maxLength: number = 35) => {
     if (message.length <= maxLength) return message;
-    return message.substring(0, maxLength) + '...';
+    return message.substring(0, maxLength).trim() + '...';
   };
 
   if (conversations.length === 0) {
@@ -121,31 +121,33 @@ export function ChatList({
                 {/* Conversation details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center space-x-1">
-                      <p className="text-sm font-medium truncate">
+                    <div className="flex items-center space-x-1 flex-1 min-w-0 max-w-[calc(100%-50px)] pr-2">
+                      <p className="text-sm font-medium text-truncate-ellipsis">
                         {displayName || (isGroup ? 'Unknown Group' : 'Unknown User')}
                       </p>
                       {isGroup && (
-                        <Badge variant="secondary" className="text-[10px] h-4 px-1">
+                        <Badge variant="secondary" className="text-[10px] h-4 px-1 flex-shrink-0">
                           Group
                         </Badge>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground flex-shrink-0 min-w-[45px] text-right">
                       {conversation.last_message_time ? formatLastMessageTime(conversation.last_message_time) : ''}
                     </span>
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground truncate">
-                      {!isGroup && typingUsers[conversation.other_user_id] ? (
-                        <span className="italic text-primary">typing...</span>
-                      ) : (
-                        truncateMessage(conversation.last_message || (isGroup ? 'Group created' : 'No messages yet'))
-                      )}
-                    </p>
+                    <div className="flex-1 min-w-0 max-w-[calc(100%-60px)] pr-2">
+                      <p className="text-xs text-muted-foreground text-truncate-ellipsis">
+                        {!isGroup && typingUsers[conversation.other_user_id] ? (
+                          <span className="italic text-primary">typing...</span>
+                        ) : (
+                          truncateMessage(conversation.last_message || (isGroup ? 'Group created' : 'No messages yet'))
+                        )}
+                      </p>
+                    </div>
                     {(conversation.unread_count || 0) > 0 && (
-                      <Badge variant="destructive" className="text-xs h-5 min-w-[20px] rounded-full">
+                      <Badge variant="destructive" className="text-xs h-5 min-w-[20px] rounded-full flex-shrink-0">
                         {(conversation.unread_count || 0) > 99 ? '99+' : (conversation.unread_count || 0)}
                       </Badge>
                     )}
