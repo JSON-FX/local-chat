@@ -84,6 +84,19 @@ export const initializeDatabase = async (): Promise<void> => {
       )
     `);
 
+    // Message read status table - tracks who has read which messages
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS message_reads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        read_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(message_id, user_id)
+      )
+    `);
+
     // Run migrations for existing databases
     await runMigrations();
 
@@ -97,6 +110,8 @@ export const initializeDatabase = async (): Promise<void> => {
     await db.run('CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_group_members_group_id ON group_members(group_id)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_group_members_user_id ON group_members(user_id)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_message_reads_message_id ON message_reads(message_id)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_message_reads_user_id ON message_reads(user_id)');
 
     console.log('Database schema initialized successfully');
   } catch (error) {

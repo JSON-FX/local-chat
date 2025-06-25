@@ -350,6 +350,32 @@ class ApiService {
       throw new Error(data.error || 'Failed to clear group conversation');
     }
   }
+
+  // Message read status endpoints
+  async markMessagesAsRead(data: {
+    message_ids: number[];
+    conversation_id: number;
+    is_group: boolean;
+  }): Promise<ApiResponse<any>> {
+    return this.fetchApi('/api/messages/read', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getUnreadCounts(): Promise<ApiResponse<Record<string, number>>> {
+    const response = await this.fetchApi<{ unread_counts: Record<string, number> }>('/api/messages/read');
+    if (response.success && response.data?.unread_counts) {
+      return {
+        success: true,
+        data: response.data.unread_counts
+      };
+    }
+    return {
+      success: false,
+      error: response.error || 'Failed to get unread counts'
+    };
+  }
 }
 
 // Export singleton instance

@@ -18,6 +18,7 @@ export interface SocketClientEvents {
   onGroupDeleted: (data: { group_id: number; deleted_by: { id: number; username: string } }) => void;
   onMemberLeftGroup: (data: { group_id: number; user_id: number; username: string }) => void;
   onOwnershipTransferred: (data: { group_id: number; former_owner: { id: number; username: string }; new_owner: { id: number; username: string } }) => void;
+  onMessagesRead: (data: { message_ids: number[]; reader_id: number; reader_username: string; conversation_id: number; is_group: boolean }) => void;
   onError: (error: { error: string }) => void;
   onAuthError: (error: { error: string }) => void;
 }
@@ -29,6 +30,7 @@ class SocketClient {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
+  private joinedRooms = new Set<string>();
 
   // Event handlers
   private handlers: Partial<SocketClientEvents> = {};
@@ -222,6 +224,11 @@ class SocketClient {
       this.handlers.onUserTyping?.(data);
     });
 
+    this.socket.on('messages_read', (data: { message_ids: number[]; reader_id: number; reader_username: string; conversation_id: number; is_group: boolean }) => {
+      console.log('📖 Messages read status received:', data);
+      this.handlers.onMessagesRead?.(data);
+    });
+
     this.socket.on('group_created', (data) => {
       console.log('👥 Group created:', data.group.name);
       this.handlers.onGroupCreated?.(data);
@@ -332,13 +339,29 @@ class SocketClient {
   // Join a specific room
   joinRoom(roomName: string) {
     if (!this.socket?.connected) return;
+    if (this.joinedRooms.has(roomName)) {
+      console.log(`🏠 Already in room: ${roomName}, skipping join`);
+      return;
+    }
+    console.log(`🏠 Joining room: ${roomName}`);
     this.socket.emit('join_room', { room: roomName });
+    this.joinedRooms.add(roomName);
   }
 
   // Leave a group
   leaveGroup(groupId: number) {
     if (!this.socket?.connected) return;
     this.socket.emit('leave_group', { group_id: groupId });
+  }
+
+  // Mark messages as read
+  markMessagesAsRead(messageIds: number[], conversationId: number, isGroup: boolean) {
+    if (!this.socket?.connected) return;
+    this.socket.emit('mark_messages_read', { 
+      message_ids: messageIds,
+      conversation_id: conversationId,
+      is_group: isGroup
+    });
   }
 
   // Disconnect from socket
@@ -349,6 +372,7 @@ class SocketClient {
     }
     this.isConnecting = false;
     this.reconnectAttempts = 0;
+    this.joinedRooms.clear();
   }
 
   // Check if connected

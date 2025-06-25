@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,18 @@ import { ChatWindow } from './ChatWindow';
 import { NewChatDialog } from './NewChatDialog';
 import { User, Conversation, Message } from '@/lib/types';
 
+// Debounce utility function
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: NodeJS.Timeout | null = null;
+  return (...args: Parameters<T>) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+}
+
 export function ChatLayout() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -43,6 +55,20 @@ export function ChatLayout() {
   const [isPageVisible, setIsPageVisible] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [serviceWorkerRegistration, setServiceWorkerRegistration] = useState<ServiceWorkerRegistration | null>(null);
+
+  // Debounced conversation loading to prevent excessive API calls
+  const debouncedLoadConversations = useCallback(debounce(async () => {
+    try {
+      const response = await apiService.getConversations();
+      if (response.success && response.data) {
+        setConversations(response.data);
+      } else {
+        console.error('Failed to load conversations:', response.error);
+      }
+    } catch (error) {
+      console.error('Load conversations error:', error);
+    }
+  }, 1000), []); // 1000ms debounce to prevent excessive calls
 
   // Initialize user and socket connection
   useEffect(() => {
@@ -404,6 +430,9 @@ export function ChatLayout() {
       socketClient.off('onUserOnline');
       socketClient.off('onUserOffline');
       socketClient.off('onUserTyping');
+      socketClient.off('onGroupCreated');
+      socketClient.off('onMemberAddedToGroup');
+      socketClient.off('onMessagesRead');
       socketClient.off('onError');
       socketClient.off('onAuthError');
     };
@@ -427,13 +456,7 @@ export function ChatLayout() {
 
       setCurrentUser(userResponse.data);
 
-      // Load conversations and online users
-      await Promise.all([
-        loadConversations(),
-        loadOnlineUsers()
-      ]);
-
-      // Connect to socket if we have a token
+      // Connect to socket first (handlers will be set up by the useEffect)
       const token = apiService.getToken();
       if (token) {
         try {
@@ -448,6 +471,12 @@ export function ChatLayout() {
           toast.error('Real-time connection failed');
         }
       }
+
+      // Load conversations and online users after socket connection
+      await Promise.all([
+        loadConversations(),
+        loadOnlineUsers()
+      ]);
 
     } catch (error) {
       console.error('App initialization error:', error);
@@ -466,9 +495,30 @@ export function ChatLayout() {
       setIsConnected(false);
     });
 
-    socketClient.on('onAuthenticated', (data) => {
+    socketClient.on('onAuthenticated', async (data) => {
       setIsConnected(true);
       toast.success(`Connected as ${data.username}`);
+      
+      // Auto-join all group rooms after authentication
+      setTimeout(async () => {
+        try {
+          // Load conversations if not already loaded
+          if (conversations.length === 0) {
+            await loadConversations();
+          }
+          
+          // Join all group rooms
+          const groupConversations = conversations.filter(c => c.conversation_type === 'group');
+          for (const conv of groupConversations) {
+            if (conv.group_id) {
+              socketClient.joinRoom(`group_${conv.group_id}`);
+            }
+          }
+          console.log(`🏠 Auto-joined ${groupConversations.length} group rooms after authentication`);
+        } catch (error) {
+          console.error('Failed to auto-join group rooms:', error);
+        }
+      }, 1000); // Small delay to ensure socket is fully ready
     });
 
     socketClient.on('onNewMessage', (message) => {
@@ -518,8 +568,8 @@ export function ChatLayout() {
         handleMessageNotification(message, senderName, false);
       }
       
-      // Update conversation list
-      loadConversations();
+      // Update conversation list (debounced)
+      debouncedLoadConversations();
     });
 
     socketClient.on('onGroupMessage', (message) => {
@@ -546,8 +596,8 @@ export function ChatLayout() {
         handleMessageNotification(message, senderName, true);
       }
       
-      // Update conversation list
-      loadConversations();
+      // Update conversation list (debounced)
+      debouncedLoadConversations();
     });
 
     socketClient.on('onGroupDeleted', (data) => {
@@ -570,8 +620,8 @@ export function ChatLayout() {
         !(c.conversation_type === 'group' && c.group_id === data.group_id)
       ));
       
-      // Also refresh from server
-      loadConversations();
+      // Also refresh from server (debounced)
+      debouncedLoadConversations();
     });
 
     socketClient.on('onMemberLeftGroup', (data) => {
@@ -584,8 +634,8 @@ export function ChatLayout() {
         toast.info(`${data.username} left the group`);
       }
       
-      // Refresh conversations to update member count if needed
-      loadConversations();
+      // Refresh conversations to update member count if needed (debounced)
+      debouncedLoadConversations();
     });
 
     socketClient.on('onOwnershipTransferred', (data) => {
@@ -594,8 +644,8 @@ export function ChatLayout() {
       // Show notification
       toast.info(`Group ownership transferred from ${data.former_owner.username} to ${data.new_owner.username}`);
       
-      // Refresh conversations to update ownership status
-      loadConversations();
+      // Refresh conversations to update ownership status (debounced)
+      debouncedLoadConversations();
     });
 
     socketClient.on('onMessageSent', (message) => {
@@ -621,8 +671,8 @@ export function ChatLayout() {
         });
       }
       
-      // Update conversation list
-      loadConversations();
+      // Update conversation list (debounced)
+      debouncedLoadConversations();
     });
 
     socketClient.on('onUserOnline', (data) => {
@@ -691,6 +741,63 @@ export function ChatLayout() {
       
       // Refresh conversations to update member counts
       loadConversations();
+    });
+
+    socketClient.on('onMessagesRead', (data) => {
+      
+      // Update read status for messages in the current conversation
+      if (selectedConversation) {
+        let isRelevantForCurrentConversation = false;
+        
+        if (data.is_group && selectedConversationType === 'group') {
+          isRelevantForCurrentConversation = selectedConversation.group_id === data.conversation_id;
+        } else if (!data.is_group && selectedConversationType === 'direct') {
+          // For direct messages, check if this event is about the current conversation
+          // The event is relevant if the reader or conversation involves the selected user
+          isRelevantForCurrentConversation = 
+            selectedConversation.other_user_id === data.reader_id || 
+            selectedConversation.other_user_id === data.conversation_id;
+        }
+        
+        if (isRelevantForCurrentConversation) {
+          setMessages(prev => prev.map(message => {
+            // Only update the specific messages that were read
+            if (data.message_ids.includes(message.id)) {
+              if (data.is_group) {
+                // For group messages, add to read_by array
+                const existingRead = message.read_by?.find(r => r.user_id === data.reader_id);
+                if (!existingRead) {
+                  return {
+                    ...message,
+                    read_by: [
+                      ...(message.read_by || []),
+                      {
+                        user_id: data.reader_id,
+                        username: data.reader_username,
+                        read_at: new Date().toISOString()
+                      }
+                    ]
+                  };
+                }
+              } else {
+                // For direct messages, only mark as read if the reader is NOT the current user
+                // (This means the OTHER person read our messages)
+                if (data.reader_id !== currentUser?.id) {
+                  return {
+                    ...message,
+                    is_read: true,
+                    read_at: new Date().toISOString()
+                  };
+                }
+              }
+            }
+            return message;
+          }));
+        }
+      }
+      
+      // Note: Unread counts are now handled by the useReadStatus hook
+      // No need to reload conversations as this causes race conditions
     });
 
     socketClient.on('onError', (error) => {
@@ -872,6 +979,14 @@ export function ChatLayout() {
       setSelectedConversation(conversation);
       setSelectedConversationType(isGroup ? 'group' : 'direct');
       
+      // Join the appropriate room for real-time messaging
+      if (socketClient.isConnected()) {
+        if (isGroup) {
+          socketClient.joinRoom(`group_${conversationId}`);
+        }
+        // For direct messages, no specific room joining needed
+      }
+      
       // Fetch messages for this conversation
       const response = isGroup
         ? await apiService.getGroupMessages(conversationId)
@@ -947,8 +1062,8 @@ export function ChatLayout() {
       });
     }
     
-    // Update conversation list to show latest activity
-    loadConversations();
+    // Update conversation list to show latest activity (debounced)
+    debouncedLoadConversations();
   };
 
   const handleLogout = async () => {
@@ -980,8 +1095,8 @@ export function ChatLayout() {
       }
     }
     
-    // Refresh conversations list
-    loadConversations();
+    // Refresh conversations list (debounced)
+    debouncedLoadConversations();
   };
 
   if (isLoading) {
@@ -1131,6 +1246,7 @@ export function ChatLayout() {
             onlineUsers={onlineUsers}
             typingUsers={typingUsers}
             collapsed={sidebarCollapsed}
+            currentUser={currentUser}
           />
         </div>
       </div>

@@ -127,7 +127,17 @@ export class MessageService {
 
     try {
       const messages = await db.all(
-        `SELECT m.*, u.username as sender_username 
+        `SELECT m.*, u.username as sender_username,
+         (
+           SELECT COUNT(*) > 0 
+           FROM message_reads mr 
+           WHERE mr.message_id = m.id AND mr.user_id = ?
+         ) as is_read,
+         (
+           SELECT mr.read_at 
+           FROM message_reads mr 
+           WHERE mr.message_id = m.id AND mr.user_id = ?
+         ) as read_at
          FROM messages m
          JOIN users u ON m.sender_id = u.id
          WHERE m.is_deleted = 0 
@@ -135,7 +145,7 @@ export class MessageService {
          AND (m.user_deleted_by IS NULL OR m.user_deleted_by = '' OR NOT m.user_deleted_by LIKE '%,' || ? || ',%')
          ORDER BY m.timestamp DESC
          LIMIT ? OFFSET ?`,
-        [userId1, userId2, userId2, userId1, userId1, limit, offset]
+        [userId2, userId2, userId1, userId2, userId2, userId1, userId1, limit, offset]
       );
 
       return messages.reverse(); // Return in chronological order
@@ -176,7 +186,7 @@ export class MessageService {
         WHERE m.group_id = ? AND m.is_deleted = 0
       `;
       
-      const params = [groupId];
+      const params: any[] = [groupId];
       
       // Only filter by user_deleted_by if a userId is provided
       if (userId) {
@@ -188,6 +198,18 @@ export class MessageService {
       params.push(Number(limit), Number(offset));
       
       const messages = await db.all(query, params);
+
+      // Get read status for each message for group chats
+      if (messages.length > 0) {
+        const { MessageReadService } = await import('./messageReads');
+        const messageIds = messages.map(m => m.id);
+        const readStatus = await MessageReadService.getMessageReadStatus(messageIds);
+        
+        // Add read_by information to each message
+        messages.forEach(message => {
+          message.read_by = readStatus[message.id] || [];
+        });
+      }
 
       return messages.reverse();
     } catch (error) {

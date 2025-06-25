@@ -351,6 +351,46 @@ export class SocketService {
         console.log(`👥 User ${userSession.username} left group ${data.group_id}`);
       });
 
+      // Handle marking messages as read
+      socket.on('mark_messages_read', async (data: { message_ids: number[]; conversation_id: number; is_group: boolean }) => {
+        const userSession = socketSessions.get(socket.id);
+        if (!userSession) return;
+
+        try {
+          const { MessageReadService } = await import('./messageReads');
+          
+          // Mark messages as read in database
+          await MessageReadService.markMessagesAsRead(data.message_ids, userSession.userId);
+          
+          // Broadcast read status to other participants
+          const readData = {
+            message_ids: data.message_ids,
+            reader_id: userSession.userId,
+            reader_username: userSession.username,
+            conversation_id: data.conversation_id,
+            is_group: data.is_group
+          };
+
+          if (data.is_group) {
+            // For groups, broadcast to all group members except the reader
+            socket.to(`group_${data.conversation_id}`).emit('messages_read', readData);
+          } else {
+            // For direct messages, broadcast to the other participant
+            const recipientSocketId = connectedUsers.get(data.conversation_id);
+            if (recipientSocketId) {
+              this.io?.to(recipientSocketId).emit('messages_read', readData);
+            }
+
+
+          }
+
+          console.log(`📖 User ${userSession.username} marked ${data.message_ids.length} messages as read`);
+        } catch (error) {
+          console.error('Error marking messages as read:', error);
+          socket.emit('error', { error: 'Failed to mark messages as read' });
+        }
+      });
+
       // Handle disconnection
       socket.on('disconnect', () => {
         const userSession = socketSessions.get(socket.id);

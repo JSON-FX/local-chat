@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { apiService } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import path from 'path';
+import { useReadStatus } from '@/lib/hooks/useReadStatus';
 
 interface ChatWindowProps {
   messages: Message[];
@@ -66,6 +67,9 @@ export function ChatWindow({
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isConfirmingLeave, setIsConfirmingLeave] = useState(false);
+  
+  // Read status hook
+  const { markMessagesAsRead } = useReadStatus(currentUser);
 
   useEffect(() => {
     // Use setTimeout to ensure the DOM is fully updated before scrolling
@@ -84,6 +88,29 @@ export function ChatWindow({
     
     return () => clearTimeout(timer);
   }, [selectedConversation]);
+
+  // Auto-mark messages as read when viewing conversation
+  useEffect(() => {
+    if (!currentUser || !messages.length) return;
+    
+    // Find unread messages from other users
+    const unreadMessages = messages.filter(message => 
+      message.sender_id !== currentUser.id && 
+      !message.is_read &&
+      message.message_type !== 'system'
+    );
+    
+    if (unreadMessages.length > 0) {
+      // Mark messages as read after a short delay to ensure they're actually visible
+      const timer = setTimeout(() => {
+        const messageIds = unreadMessages.map(m => m.id);
+        console.log(`📖 Auto-marking ${messageIds.length} messages as read for conversation ${selectedConversation}`);
+        markMessagesAsRead(messageIds, selectedConversation, selectedConversationType === 'group');
+      }, 1000); // Increased delay to reduce API calls
+      
+      return () => clearTimeout(timer);
+    }
+  }, [selectedConversation, selectedConversationType, currentUser?.id, markMessagesAsRead, messages.filter(m => !m.is_read && m.sender_id !== currentUser?.id).length]); // More specific dependencies
 
   // Add scroll event listener to detect when user has scrolled up
   useEffect(() => {
@@ -519,107 +546,163 @@ export function ChatWindow({
               messages[index - 1]?.sender_id !== message.sender_id
             );
 
-            return (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex items-end space-x-2 mb-2 w-full",
-                  isCurrentUser ? "justify-end" : "justify-start"
-                )}
-              >
-                {!isCurrentUser && (
-                  <div className="w-8">
-                    {showAvatar ? (
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-primary/10">
-                          {(message.sender_username || 'U').charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    ) : null}
-                  </div>
-                )}
+            // Check if this is the last message from current user and if it should show read status
+            const isLastUserMessage = isCurrentUser && (
+              index === messages.length - 1 || 
+              (index < messages.length - 1 && messages.slice(index + 1).every(m => m.sender_id !== currentUser?.id || m.message_type === 'system'))
+            );
 
+            return (
+              <div key={message.id}>
                 <div
                   className={cn(
-                    "max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-2 break-words",
-                    isCurrentUser
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
+                    "flex items-end space-x-2 mb-2 w-full",
+                    isCurrentUser ? "justify-end" : "justify-start"
                   )}
                 >
-                  {!isCurrentUser && showAvatar && (
-                    <p className="text-xs font-medium mb-1 opacity-70">
-                      {message.sender_username}
-                    </p>
-                  )}
-                  
-                  {/* Message content based on type */}
-                  {message.message_type === 'image' && message.file_path ? (
-                    <div className="space-y-2">
-                                              <img
-                        src={`/api/files/download/${message.file_path?.split('/').pop()}`}
-                        alt={message.file_name || 'Image'}
-                        className="max-w-full rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        style={{ maxHeight: '200px', maxWidth: '100%' }}
-                        onClick={() => {
-                          const imageSrc = `/api/files/download/${message.file_path?.split('/').pop()}`;
-                          const imageAlt = message.file_name || 'Image';
-                          openImageModal(imageSrc, imageAlt, message.file_name);
-                        }}
-                      />
-                      {message.content && message.content !== `Shared image: ${message.file_name}` && (
-                        <p className="text-sm break-words">{message.content}</p>
-                      )}
+                  {!isCurrentUser && (
+                    <div className="w-8">
+                      {showAvatar ? (
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-primary/10">
+                            {(message.sender_username || 'U').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      ) : null}
                     </div>
-                  ) : message.message_type === 'file' && message.file_path ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2 p-2 bg-background/50 rounded border flex-wrap">
-                        <div className="flex items-center w-full mb-1">
-                          {getFileIcon(message.file_name || '')}
-                          <div className="flex-1 min-w-0 mx-1">
-                            <p className="text-sm font-medium break-all line-clamp-2" title={message.file_name}>
-                              {message.file_name && message.file_name.length > 25 
-                                ? message.file_name.substring(0, 12) + '...' + 
-                                  message.file_name.substring(message.file_name.lastIndexOf('.') - 5)
-                                : message.file_name}
+                  )}
+
+                  <div
+                    className={cn(
+                      "max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-2 break-words",
+                      isCurrentUser
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                    )}
+                  >
+                    {!isCurrentUser && showAvatar && (
+                      <p className="text-xs font-medium mb-1 opacity-70">
+                        {message.sender_username}
+                      </p>
+                    )}
+                    
+                    {/* Message content based on type */}
+                    {message.message_type === 'image' && message.file_path ? (
+                      <div className="space-y-2">
+                                                <img
+                          src={`/api/files/download/${message.file_path?.split('/').pop()}`}
+                          alt={message.file_name || 'Image'}
+                          className="max-w-full rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          style={{ maxHeight: '200px', maxWidth: '100%' }}
+                          onClick={() => {
+                            const imageSrc = `/api/files/download/${message.file_path?.split('/').pop()}`;
+                            const imageAlt = message.file_name || 'Image';
+                            openImageModal(imageSrc, imageAlt, message.file_name);
+                          }}
+                        />
+                        {message.content && message.content !== `Shared image: ${message.file_name}` && (
+                          <p className="text-sm break-words">{message.content}</p>
+                        )}
+                      </div>
+                    ) : message.message_type === 'file' && message.file_path ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2 p-2 bg-background/50 rounded border flex-wrap">
+                          <div className="flex items-center w-full mb-1">
+                            {getFileIcon(message.file_name || '')}
+                            <div className="flex-1 min-w-0 mx-1">
+                              <p className="text-sm font-medium break-all line-clamp-2" title={message.file_name}>
+                                {message.file_name && message.file_name.length > 25 
+                                  ? message.file_name.substring(0, 12) + '...' + 
+                                    message.file_name.substring(message.file_name.lastIndexOf('.') - 5)
+                                  : message.file_name}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex justify-between w-full items-center">
+                            <p className="text-xs opacity-70">
+                              {message.file_size ? `${Math.round(message.file_size / 1024)} KB` : 'File'}
                             </p>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="shrink-0 ml-auto"
+                              onClick={() => message.file_path && window.open(`/api/files/download/${message.file_path.split('/').pop()}`, '_blank')}
+                            >
+                              <Download className="w-3 h-3" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex justify-between w-full items-center">
-                          <p className="text-xs opacity-70">
-                            {message.file_size ? `${Math.round(message.file_size / 1024)} KB` : 'File'}
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="shrink-0 ml-auto"
-                            onClick={() => message.file_path && window.open(`/api/files/download/${message.file_path.split('/').pop()}`, '_blank')}
-                          >
-                            <Download className="w-3 h-3" />
-                          </Button>
-                        </div>
+                        {message.content && message.content !== `Shared file: ${message.file_name}` && (
+                          <p className="text-sm break-words">{message.content}</p>
+                        )}
                       </div>
-                      {message.content && message.content !== `Shared file: ${message.file_name}` && (
-                        <p className="text-sm break-words">{message.content}</p>
+                    ) : (
+                      <p className="text-sm break-words whitespace-pre-wrap">{message.content}</p>
+                    )}
+                    <div className="flex items-center justify-between mt-1">
+                      <span className={cn(
+                        "text-xs opacity-70",
+                        isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
+                      )}>
+                        {formatMessageTime(message.timestamp)}
+                      </span>
+                      {message.queued && (
+                        <Badge variant="outline" className="text-xs ml-2">
+                          Queued
+                        </Badge>
                       )}
                     </div>
-                  ) : (
-                    <p className="text-sm break-words whitespace-pre-wrap">{message.content}</p>
-                  )}
-                  <div className="flex items-center justify-between mt-1">
-                    <span className={cn(
-                      "text-xs opacity-70",
-                      isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
-                    )}>
-                      {formatMessageTime(message.timestamp)}
-                    </span>
-                    {message.queued && (
-                      <Badge variant="outline" className="text-xs ml-2">
-                        Queued
-                      </Badge>
-                    )}
                   </div>
                 </div>
+
+                {/* Show "seen" indicator right after the last message from current user */}
+                {(() => {
+                  // Only show "seen" for messages sent BY the current user that have been read by the recipient
+                  const shouldShow = isLastUserMessage && selectedConversationType === 'direct' && isCurrentUser && message.is_read;
+                  
+                  return shouldShow ? (
+                    <div className={cn(
+                      "flex mb-2 w-full",
+                      "justify-end pr-10" // Always align right since this is for current user's messages
+                    )}>
+                      <div className="text-xs text-muted-foreground">
+                        Seen by {(() => {
+                          const otherUser = conversations.find(c => 
+                            c.conversation_type === 'direct' && c.other_user_id === selectedConversation
+                          );
+                          return otherUser?.other_username || 'User';
+                        })()} {message.read_at ? ` ${formatMessageTime(message.read_at)}` : ''}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+                
+                {isLastUserMessage && selectedConversationType === 'group' && message.read_by && message.read_by.length > 0 && (
+                  <div className={cn(
+                    "flex mb-2 w-full",
+                    isCurrentUser ? "justify-end pr-10" : "justify-start pl-10"
+                  )}>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-muted-foreground">Seen by</span>
+                      <div className="flex -space-x-1">
+                        {message.read_by.filter(reader => reader.user_id !== currentUser?.id).slice(0, 3).map((reader) => (
+                          <Avatar key={reader.user_id} className="h-4 w-4 border border-background" title={`${reader.username} - ${formatMessageTime(reader.read_at)}`}>
+                            <AvatarFallback className="bg-primary/10 text-xs">
+                              {reader.username.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        ))}
+                        {message.read_by.filter(reader => reader.user_id !== currentUser?.id).length > 3 ? (
+                          <div className="h-4 w-4 rounded-full bg-gray-300 dark:bg-gray-600 border border-background flex items-center justify-center" title={`+${message.read_by.filter(reader => reader.user_id !== currentUser?.id).length - 3} more`}>
+                            <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                              +{message.read_by.filter(reader => reader.user_id !== currentUser?.id).length - 3}
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

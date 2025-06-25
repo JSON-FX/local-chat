@@ -6,8 +6,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Circle, MessageSquare, Users } from 'lucide-react';
-import { Conversation } from '@/lib/types';
+import { Conversation, User } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { NotificationBadge } from '@/components/ui/notification-badge';
+import { useReadStatus } from '@/lib/hooks/useReadStatus';
 
 interface ChatListProps {
   conversations: Conversation[];
@@ -16,6 +18,7 @@ interface ChatListProps {
   onlineUsers: number[];
   typingUsers: { [userId: number]: boolean };
   collapsed?: boolean;
+  currentUser: User | null;
 }
 
 export function ChatList({
@@ -24,9 +27,11 @@ export function ChatList({
   onSelectConversation,
   onlineUsers,
   typingUsers,
-  collapsed = false
+  collapsed = false,
+  currentUser
 }: ChatListProps) {
   const selectedConversationRef = useRef<HTMLDivElement>(null);
+  const { getUnreadCount } = useReadStatus(currentUser);
 
   useEffect(() => {
     if (selectedConversation && selectedConversationRef.current) {
@@ -87,6 +92,7 @@ export function ChatList({
             const conversationId = isGroup ? conversation.group_id! : conversation.other_user_id;
             const isSelected = selectedConversation === conversationId;
             const displayName = isGroup ? conversation.group_name : conversation.other_username;
+            const unreadCount = getUnreadCount(conversationId, isGroup);
             
             return (
               <div 
@@ -130,13 +136,7 @@ export function ChatList({
                         <span className="text-[6px] text-white font-bold">#</span>
                       </div>
                     )}
-                    {(conversation.unread_count || 0) > 0 && (
-                      <div className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full flex items-center justify-center">
-                        <span className="text-[8px] text-destructive-foreground font-bold">
-                          {(conversation.unread_count || 0) > 9 ? '9+' : (conversation.unread_count || 0)}
-                        </span>
-                      </div>
-                    )}
+                    <NotificationBadge count={unreadCount} />
                   </div>
                 </Button>
               </div>
@@ -155,6 +155,7 @@ export function ChatList({
           const conversationId = isGroup ? conversation.group_id! : conversation.other_user_id;
           const isSelected = selectedConversation === conversationId;
           const displayName = isGroup ? conversation.group_name : conversation.other_username;
+          const unreadCount = getUnreadCount(conversationId, isGroup);
           
           return (
           <div 
@@ -201,7 +202,7 @@ export function ChatList({
                 </div>
 
                 {/* Conversation details */}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 relative">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center space-x-1 flex-1 min-w-0 max-w-[calc(100%-50px)] pr-2">
                       <p className="text-sm font-medium text-truncate-ellipsis">
@@ -219,7 +220,7 @@ export function ChatList({
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0 max-w-[calc(100%-60px)] pr-2">
+                    <div className="flex-1 min-w-0 pr-2">
                       <p className="text-xs text-muted-foreground text-truncate-ellipsis">
                         {!isGroup && typingUsers[conversation.other_user_id] ? (
                           <span className="italic text-primary">typing...</span>
@@ -228,12 +229,8 @@ export function ChatList({
                         )}
                       </p>
                     </div>
-                    {(conversation.unread_count || 0) > 0 && (
-                      <Badge variant="destructive" className="text-xs h-5 min-w-[20px] rounded-full flex-shrink-0">
-                        {(conversation.unread_count || 0) > 99 ? '99+' : (conversation.unread_count || 0)}
-                      </Badge>
-                    )}
                   </div>
+                  <NotificationBadge count={unreadCount} className="top-0 right-0" />
                 </div>
               </div>
             </Button>

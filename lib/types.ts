@@ -21,6 +21,16 @@ export interface Message {
   sender_username?: string;
   queued?: boolean;
   queuedAt?: number;
+  // Read status information
+  read_by?: MessageRead[]; // Users who have read this message
+  is_read?: boolean; // For direct messages - if the recipient has read it
+  read_at?: string; // When the message was read (for direct messages)
+}
+
+export interface MessageRead {
+  user_id: number;
+  username: string;
+  read_at: string;
 }
 
 export interface Conversation {
@@ -83,6 +93,7 @@ export interface SocketEvents {
   typing_stop: { recipient_id?: number; group_id?: number };
   join_group: { group_id: number };
   leave_group: { group_id: number };
+  mark_messages_read: { message_ids: number[]; conversation_id: number; is_group: boolean };
 
   // Incoming events
   authenticated: { userId: number; username: string; message: string };
@@ -91,6 +102,7 @@ export interface SocketEvents {
   user_online: { userId: number; username: string };
   user_offline: { userId: number; username: string };
   user_typing: { userId: number; username: string; isTyping: boolean };
+  messages_read: { message_ids: number[]; reader_id: number; reader_username: string; conversation_id: number; is_group: boolean };
   auth_error: { error: string };
   error: { error: string };
 } 
