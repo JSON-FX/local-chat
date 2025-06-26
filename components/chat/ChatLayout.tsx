@@ -15,6 +15,7 @@ import {
   BellOff,
   Settings
 } from 'lucide-react';
+import Image from 'next/image';
 import { toast } from 'sonner';
 import { apiService } from '@/lib/api';
 import { socketClient } from '@/lib/socket-client';
@@ -112,7 +113,7 @@ export function ChatLayout() {
         if (permission === 'default') {
           // Show a user-friendly prompt first (Chrome requires user gesture)
           const userWantsNotifications = window.confirm(
-            'LocalChat would like to send you notifications when you receive new messages. Allow notifications?'
+            'LGU-Chat would like to send you notifications when you receive new messages. Allow notifications?'
           );
           
           if (userWantsNotifications) {
@@ -130,9 +131,9 @@ export function ChatLayout() {
           
           // Test notification on first enable
           try {
-            const testNotification = new Notification('LocalChat Notifications Enabled', {
+            const testNotification = new Notification('LGU-Chat Notifications Enabled', {
               body: 'You will now receive notifications for new messages.',
-              icon: '/favicon.ico',
+              icon: '/lgu-seal.png',
               tag: 'test-notification',
               requireInteraction: false
             });
@@ -252,9 +253,9 @@ export function ChatLayout() {
           // Use service worker for persistent system notifications
           const notificationOptions: any = {
             body,
-            icon: icon || '/favicon.ico',
-            badge: '/favicon.ico',
-            tag: 'localchat-message',
+            icon: icon || '/lgu-seal.png',
+            badge: '/lgu-seal.png',
+            tag: 'lgu-chat-message',
             requireInteraction: false,
             silent: false,
             data: data || {},
@@ -271,9 +272,9 @@ export function ChatLayout() {
           // Fallback to regular notification
           const notification = new Notification(title, {
             body,
-            icon: icon || '/favicon.ico',
-            badge: '/favicon.ico',
-            tag: 'localchat-message',
+            icon: icon || '/lgu-seal.png',
+            badge: '/lgu-seal.png',
+            tag: 'lgu-chat-message',
             requireInteraction: false,
             silent: false
           });
@@ -373,7 +374,7 @@ export function ChatLayout() {
         timestamp: new Date().toISOString()
       };
 
-      showNotification(title, body, '/favicon.ico', notificationData);
+      showNotification(title, body, '/lgu-seal.png', notificationData);
     }
   };
 
@@ -1183,7 +1184,7 @@ export function ChatLayout() {
       <div className="h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading LocalChat...</p>
+                      <p className="mt-2 text-muted-foreground">Loading LGU-Chat...</p>
         </div>
       </div>
     );
@@ -1199,8 +1200,16 @@ export function ChatLayout() {
             {!sidebarCollapsed ? (
               <>
                 <div className="flex items-center space-x-2">
-                  <MessageSquare className="h-6 w-6 text-primary" />
-                  <span className="font-semibold">LocalChat</span>
+                  <div className="h-8 w-8 rounded-lg bg-white shadow-sm flex items-center justify-center">
+                    <Image 
+                      src="/lgu-seal.png" 
+                      alt="LGU Seal" 
+                      width={24} 
+                      height={24}
+                      className="object-contain"
+                    />
+                  </div>
+                  <span className="font-semibold">LGU-Chat</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   {/* Notification Status */}
@@ -1237,7 +1246,15 @@ export function ChatLayout() {
             ) : (
               <div className="flex flex-col items-center justify-center w-full space-y-1">
                 <div className="relative">
-                  <MessageSquare className="h-6 w-6 text-primary" />
+                  <div className="h-6 w-6 rounded bg-white shadow-sm flex items-center justify-center">
+                    <Image 
+                      src="/lgu-seal.png" 
+                      alt="LGU Seal" 
+                      width={16} 
+                      height={16}
+                      className="object-contain"
+                    />
+                  </div>
                   {isConnected ? (
                     <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-green-500 text-green-500" />
                   ) : (
@@ -1484,8 +1501,16 @@ export function ChatLayout() {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <Card className="p-8 text-center max-w-md">
-              <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">Welcome to LocalChat</h3>
+              <div className="h-12 w-12 mx-auto mb-4 rounded-lg bg-white shadow-md flex items-center justify-center">
+                <Image 
+                  src="/lgu-seal.png" 
+                  alt="LGU Seal" 
+                  width={32} 
+                  height={32}
+                  className="object-contain"
+                />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Welcome to LGU-Chat</h3>
               <p className="text-muted-foreground">
                 Select a conversation from the sidebar to start messaging
               </p>

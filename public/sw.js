@@ -1,17 +1,17 @@
-// Service Worker for LocalChat notifications
+// Service Worker for LGU-Chat notifications
 // This provides better system-level notification support
 
-const CACHE_NAME = 'localchat-v1';
+const CACHE_NAME = 'lgu-chat-v1';
 
 // Install event
 self.addEventListener('install', (event) => {
-  console.log('LocalChat Service Worker installed');
+  console.log('LGU-Chat Service Worker installed');
   self.skipWaiting();
 });
 
 // Activate event
 self.addEventListener('activate', (event) => {
-  console.log('LocalChat Service Worker activated');
+  console.log('LGU-Chat Service Worker activated');
   event.waitUntil(self.clients.claim());
 });
 
@@ -29,7 +29,7 @@ self.addEventListener('notificationclick', (event) => {
     }).then((clients) => {
       // If app is already open, focus it
       const appClient = clients.find(client => 
-        client.url.includes('/chat') || client.url.includes('localhost:3000')
+        client.url.includes('/chat') || client.url.includes('/')
       );
       
       if (appClient) {
@@ -52,22 +52,55 @@ self.addEventListener('notificationclose', (event) => {
 // Handle messages from the main thread
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
-    const { title, body, icon, data } = event.data.payload;
+    const { title, options } = event.data;
     
-    self.registration.showNotification(title, {
-      body,
-      icon: icon || '/favicon.ico',
-      badge: '/favicon.ico',
-      tag: 'localchat-message',
+    // Set default options for better system integration
+    const notificationOptions = {
+      ...options,
+      icon: options.icon || '/lgu-seal.png',
+      badge: '/lgu-seal.png',
+      tag: 'lgu-chat-message',
       requireInteraction: false,
       silent: false,
-      data: data || {},
+      data: options.data || {},
       actions: [
         {
           action: 'view',
           title: 'Open Chat'
         }
       ]
-    });
+    };
+    
+    self.registration.showNotification(title, notificationOptions);
   }
+});
+
+// Handle notification action clicks
+self.addEventListener('notificationclick', (event) => {
+  const action = event.action;
+  const notification = event.notification;
+  
+  if (action === 'view') {
+    // Same behavior as clicking the notification
+    event.notification.close();
+    
+    event.waitUntil(
+      self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true
+      }).then((clients) => {
+        for (const client of clients) {
+          if (client.url.includes('/chat') || client.url.includes('/')) {
+            return client.focus();
+          }
+        }
+        
+        if (self.clients.openWindow) {
+          return self.clients.openWindow('/chat');
+        }
+      })
+    );
+  }
+  
+  notification.close();
 }); 

@@ -1,4 +1,4 @@
-// Frontend types for the LocalChat application
+// Frontend types for the LGU-Chat application
 
 export interface User {
   id: number;

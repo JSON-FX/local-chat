@@ -1,4 +1,4 @@
-// Client-side API service for LocalChat
+// Client-side API service for LGU-Chat
 
 import { AuthResponse, ApiResponse, User, Message, Conversation, OnlineUser } from './types';
 

@@ -1,4 +1,4 @@
-// Socket.io client service for LocalChat
+// Socket.io client service for LGU-Chat
 
 import { io, Socket } from 'socket.io-client';
 import { Message, OnlineUser } from './types';

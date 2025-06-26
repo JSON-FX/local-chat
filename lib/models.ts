@@ -1,4 +1,4 @@
-// Core data models for LocalChat
+// Core data models for LGU-Chat
 
 export interface User {
   id: number;

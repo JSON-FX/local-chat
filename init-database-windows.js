@@ -4,7 +4,7 @@ const sqlite3 = require('sqlite3').verbose();
 
 async function initializeDatabase() {
   try {
-    console.log('🔄 Initializing LocalChat database...');
+    console.log('🔄 Initializing LGU-Chat database...');
     
     // Create data directory if it doesn't exist
     const dataDir = path.join(process.cwd(), 'data');

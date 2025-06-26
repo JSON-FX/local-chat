@@ -2,7 +2,7 @@
 
 const { networkInterfaces } = require('os');
 
-console.log('🌐 Network IP Detection for LocalChat\n');
+console.log('🌐 Network IP Detection for LGU-Chat\n');
 
 const networks = networkInterfaces();
 const networkIPs = [];

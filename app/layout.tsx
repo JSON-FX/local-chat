@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LocalChat - Secure Internal Messaging",
-  description: "Secure, private messaging for organizations requiring air-gapped communication.",
+  title: "LGU-Chat - Secure Internal Messaging",
+  description: "Secure, private messaging for Local Government Units requiring air-gapped communication.",
 };
 
 export default function RootLayout({

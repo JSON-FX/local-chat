@@ -5,7 +5,7 @@ import { closeDatabase } from '../lib/database';
 
 async function initDb() {
   try {
-    console.log('🔄 Initializing LocalChat database...');
+    console.log('🔄 Initializing LGU-Chat database...');
     
     // Initialize database schema
     await initializeDatabase();

@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, MessageSquare } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { apiService } from '@/lib/api';
+import Image from 'next/image';
 
 interface LoginFormProps {
   onLoginSuccess?: () => void;
@@ -86,11 +87,17 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-              <MessageSquare className="h-6 w-6 text-primary-foreground" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-white shadow-md">
+              <Image 
+                src="/lgu-seal.png" 
+                alt="LGU Seal" 
+                width={56} 
+                height={56}
+                className="object-contain"
+              />
             </div>
           </div>
-          <CardTitle className="text-2xl">Welcome to LocalChat</CardTitle>
+          <CardTitle className="text-2xl">Welcome to LGU-Chat</CardTitle>
           <CardDescription>
             {isRegisterMode 
               ? 'Create a new account to start messaging' 
