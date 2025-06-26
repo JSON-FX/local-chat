@@ -44,6 +44,51 @@ export interface CreateMessageData {
   file_size?: number;
 }
 
+// Audit Log for comprehensive activity tracking
+export interface AuditLog {
+  id: number;
+  user_id?: number;
+  username?: string;
+  action: string;
+  entity_type: 'user' | 'message' | 'group' | 'file' | 'session' | 'system';
+  entity_id?: number;
+  details?: string; // JSON string for additional details
+  ip_address?: string;
+  user_agent?: string;
+  timestamp: string;
+  severity: 'info' | 'warning' | 'error' | 'critical';
+}
+
+export interface CreateAuditLogData {
+  user_id?: number;
+  username?: string;
+  action: string;
+  entity_type: 'user' | 'message' | 'group' | 'file' | 'session' | 'system';
+  entity_id?: number;
+  details?: any; // Will be JSON stringified
+  ip_address?: string;
+  user_agent?: string;
+  severity?: 'info' | 'warning' | 'error' | 'critical';
+}
+
+// System Metrics for performance monitoring
+export interface SystemMetrics {
+  id: number;
+  metric_name: string;
+  metric_value: number;
+  metric_type: 'counter' | 'gauge' | 'histogram';
+  labels?: string; // JSON string for metric labels
+  timestamp: string;
+}
+
+export interface CreateSystemMetricsData {
+  metric_name: string;
+  metric_value: number;
+  metric_type: 'counter' | 'gauge' | 'histogram';
+  labels?: any; // Will be JSON stringified
+}
+
+// Enhanced Session model
 export interface Session {
   id: string;
   user_id: number;
@@ -52,6 +97,7 @@ export interface Session {
   ip_address?: string;
   user_agent?: string;
   is_active: boolean;
+  last_activity?: string;
 }
 
 export interface CreateSessionData {
@@ -89,7 +135,7 @@ export interface GroupMember {
 
 // Response types for API
 export interface AuthResponse {
-  user: Omit<User, 'password_hash'>;
+  user: User;
   token: string;
   expires_at: string;
 }

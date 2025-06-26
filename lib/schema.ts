@@ -5,7 +5,7 @@ export const initializeDatabase = async (): Promise<void> => {
   const db = await getDatabase();
 
   try {
-    // Users table
+    // Users table with enhanced admin fields
     await db.run(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY,
@@ -15,11 +15,23 @@ export const initializeDatabase = async (): Promise<void> => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         last_login DATETIME,
         status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'banned')),
+        name VARCHAR(100),
+        last_name VARCHAR(100),
+        middle_name VARCHAR(100),
+        position VARCHAR(100),
+        department VARCHAR(100),
+        email VARCHAR(255),
+        mobile_number VARCHAR(20),
+        avatar_path VARCHAR(500),
+        ban_reason TEXT,
+        banned_until DATETIME,
+        failed_login_attempts INTEGER DEFAULT 0,
+        last_failed_login DATETIME,
         profile_data TEXT
       )
     `);
 
-    // Sessions table
+    // Sessions table with enhanced tracking
     await db.run(`
       CREATE TABLE IF NOT EXISTS sessions (
         id VARCHAR(255) PRIMARY KEY,
@@ -29,6 +41,7 @@ export const initializeDatabase = async (): Promise<void> => {
         ip_address VARCHAR(45),
         user_agent TEXT,
         is_active BOOLEAN DEFAULT 1,
+        last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
@@ -62,30 +75,32 @@ export const initializeDatabase = async (): Promise<void> => {
       )
     `);
 
-    // Messages table
+    // Messages table with enhanced fields
     await db.run(`
       CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sender_id INTEGER NOT NULL,
+        sender_id INTEGER,
         recipient_id INTEGER,
         group_id INTEGER,
-        content TEXT NOT NULL,
+        content TEXT,
         message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'file', 'image', 'system')),
         file_path VARCHAR(500),
-        file_name VARCHAR(255),
         file_size INTEGER,
+        file_type VARCHAR(100),
+        original_filename VARCHAR(255),
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        edited_at DATETIME,
         is_deleted BOOLEAN DEFAULT 0,
+        is_read BOOLEAN DEFAULT 0,
+        read_at DATETIME,
+        queued BOOLEAN DEFAULT 0,
         user_deleted_by TEXT,
-        FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
-        CHECK ((recipient_id IS NOT NULL AND group_id IS NULL) OR (recipient_id IS NULL AND group_id IS NOT NULL))
+        FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
       )
     `);
 
-    // Message read status table - tracks who has read which messages
+    // Message reads table for tracking read status
     await db.run(`
       CREATE TABLE IF NOT EXISTS message_reads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,28 +113,103 @@ export const initializeDatabase = async (): Promise<void> => {
       )
     `);
 
-    // Run migrations for existing databases
-    await runMigrations();
+    // Audit Log table - optimized for high-volume logging
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        username VARCHAR(50),
+        action VARCHAR(100) NOT NULL,
+        entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('user', 'message', 'group', 'file', 'session', 'system')),
+        entity_id INTEGER,
+        details TEXT,
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        severity VARCHAR(20) DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'error', 'critical')),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+      )
+    `);
 
-    // Create system user for system messages
-    await createSystemUser();
+    // System Metrics table for performance monitoring
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS system_metrics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        metric_name VARCHAR(100) NOT NULL,
+        metric_value REAL NOT NULL,
+        metric_type VARCHAR(20) NOT NULL CHECK (metric_type IN ('counter', 'gauge', 'histogram')),
+        labels TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
-    // Create indexes for better performance
+    // Create indexes for optimal performance in high-volume environment
+    console.log('Creating performance indexes...');
+    
+    // User indexes
     await db.run('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_users_status ON users(status)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+
+    // Session indexes
     await db.run('CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_sessions_active ON sessions(is_active)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_sessions_last_activity ON sessions(last_activity)');
+
+    // Message indexes for admin search and monitoring
     await db.run('CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_messages_group_id ON messages(group_id)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(message_type)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_messages_deleted ON messages(is_deleted)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_messages_content_search ON messages(content)'); // For text search
+
+    // Group indexes
+    await db.run('CREATE INDEX IF NOT EXISTS idx_groups_created_by ON groups(created_by)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_groups_active ON groups(is_active)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_groups_created_at ON groups(created_at)');
+
+    // Group member indexes
     await db.run('CREATE INDEX IF NOT EXISTS idx_group_members_group_id ON group_members(group_id)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_group_members_user_id ON group_members(user_id)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_group_members_role ON group_members(role)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_group_members_active ON group_members(is_active)');
+
+    // Message reads indexes
     await db.run('CREATE INDEX IF NOT EXISTS idx_message_reads_message_id ON message_reads(message_id)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_message_reads_user_id ON message_reads(user_id)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_message_reads_read_at ON message_reads(read_at)');
 
-    console.log('Database schema initialized successfully');
+    // Audit log indexes - critical for admin performance
+    await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_username ON audit_logs(username)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_type ON audit_logs(entity_type)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_id ON audit_logs(entity_id)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_severity ON audit_logs(severity)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_ip_address ON audit_logs(ip_address)');
+
+    // System metrics indexes
+    await db.run('CREATE INDEX IF NOT EXISTS idx_system_metrics_name ON system_metrics(metric_name)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_system_metrics_type ON system_metrics(metric_type)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_system_metrics_timestamp ON system_metrics(timestamp)');
+
+    // Composite indexes for common admin queries
+    await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_user_timestamp ON audit_logs(user_id, timestamp)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_timestamp ON audit_logs(entity_type, entity_id, timestamp)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_messages_sender_timestamp ON messages(sender_id, timestamp)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_messages_group_timestamp ON messages(group_id, timestamp)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_system_metrics_name_timestamp ON system_metrics(metric_name, timestamp)');
+
+    console.log('✅ Database schema and indexes created successfully');
+
   } catch (error) {
-    console.error('Error initializing database schema:', error);
+    console.error('Database initialization error:', error);
     throw error;
   }
 };
