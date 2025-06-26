@@ -1,36 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiService } from '../api';
 import { socketClient } from '../socket-client';
 import { User } from '../types';
+import { MessageReadService } from '@/lib/messageReads';
 
 interface UnreadCounts {
   [key: string]: number; // Format: "direct_123" or "group_456"
 }
 
-// Global state for unread counts - shared across all hook instances
+// Global state for unread counts
 let globalUnreadCounts: UnreadCounts = {};
-let globalSubscribers: Set<(counts: UnreadCounts) => void> = new Set();
 let isGloballyInitialized = false;
+const globalSubscribers = new Set<(counts: UnreadCounts) => void>();
 
-// Function to update global state and notify all subscribers
 const updateGlobalUnreadCounts = (newCounts: UnreadCounts) => {
-  globalUnreadCounts = { ...newCounts };
+  globalUnreadCounts = { ...globalUnreadCounts, ...newCounts };
   globalSubscribers.forEach(callback => callback(globalUnreadCounts));
 };
 
-// Function to update a specific conversation's unread count
 const updateConversationCount = (key: string, count: number) => {
-  const oldCount = globalUnreadCounts[key] || 0;
-  console.log(`🔄 updateConversationCount: ${key} ${oldCount} -> ${count}, subscribers: ${globalSubscribers.size}`);
-  globalUnreadCounts = { ...globalUnreadCounts, [key]: count };
+  globalUnreadCounts[key] = count;
   globalSubscribers.forEach(callback => callback(globalUnreadCounts));
 };
 
-// Global functions that can be called from anywhere to update unread counts
 export const incrementUnreadCount = (conversationId: number, isGroup: boolean) => {
   const key = isGroup ? `group_${conversationId}` : `direct_${conversationId}`;
-  const currentCount = globalUnreadCounts[key] || 0;
-  updateConversationCount(key, currentCount + 1);
+  updateConversationCount(key, (globalUnreadCounts[key] || 0) + 1);
 };
 
 export const clearUnreadCount = (conversationId: number, isGroup: boolean) => {
@@ -38,9 +33,25 @@ export const clearUnreadCount = (conversationId: number, isGroup: boolean) => {
   updateConversationCount(key, 0);
 };
 
-export function useReadStatus(currentUser: User | null) {
+interface UseReadStatusProps {
+  messages: any[];
+  currentUser: any;
+  selectedConversation: number;
+  selectedConversationType: 'direct' | 'group';
+  isConnected: boolean;
+}
+
+export function useReadStatus({
+  messages,
+  currentUser,
+  selectedConversation,
+  selectedConversationType,
+  isConnected
+}: UseReadStatusProps) {
   const [unreadCounts, setUnreadCounts] = useState<UnreadCounts>(globalUnreadCounts);
   const [loading, setLoading] = useState(!isGloballyInitialized);
+  const lastMarkedRef = useRef<Set<number>>(new Set());
+  const throttleRef = useRef<NodeJS.Timeout | null>(null);
 
   // Subscribe to global state changes
   useEffect(() => {
@@ -64,17 +75,17 @@ export function useReadStatus(currentUser: User | null) {
       }
       
       try {
-        console.log('🔄 Loading initial unread counts for user:', currentUser?.username);
+        console.log('🔄 DEBUG: Loading initial unread counts for user:', currentUser?.username);
         const response = await apiService.getUnreadCounts();
         if (response.success && response.data) {
-          console.log('📊 Initial unread counts loaded:', response.data);
+          console.log('📊 DEBUG: Initial unread counts loaded:', response.data);
           updateGlobalUnreadCounts(response.data);
         } else {
-          console.log('❌ Failed to load unread counts:', response.error);
+          console.log('❌ DEBUG: Failed to load unread counts:', response.error);
         }
         isGloballyInitialized = true;
       } catch (error) {
-        console.error('Failed to load unread counts:', error);
+        console.error('❌ DEBUG: Failed to load unread counts:', error);
       } finally {
         setLoading(false);
       }
@@ -97,14 +108,14 @@ export function useReadStatus(currentUser: User | null) {
       is_group: boolean;
     }) => {
       const key = data.is_group ? `group_${data.conversation_id}` : `direct_${data.conversation_id}`;
-      console.log(`🔔 Socket messages_read event: ${key}, reader: ${data.reader_username} (${data.reader_id}), currentUser: ${currentUser?.id}`);
+      console.log(`🔔 DEBUG: Socket messages_read event: ${key}, reader: ${data.reader_username} (${data.reader_id}), currentUser: ${currentUser?.id}`);
       
       // Only clear unread counts when WE read messages (not when others read our messages)  
       if (data.reader_id === currentUser?.id) {
-        console.log(`🔔 Socket: Clearing ${key} unread count due to our read action`);
+        console.log(`🔔 DEBUG: Socket: Clearing ${key} unread count due to our read action`);
         updateConversationCount(key, 0);
       } else {
-        console.log(`🔔 Socket: Ignoring read event from other user`);
+        console.log(`🔔 DEBUG: Socket: Ignoring read event from other user`);
       }
     };
 
@@ -115,7 +126,97 @@ export function useReadStatus(currentUser: User | null) {
     };
   }, [currentUser]);
 
-  const markMessagesAsRead = useCallback(async (
+  // Auto-mark messages as read when user is actively viewing conversation
+  useEffect(() => {
+    if (!currentUser || !selectedConversation || !isConnected) {
+      console.log('🚫 DEBUG: Auto-mark - Skipping due to missing requirements:', {
+        hasUser: !!currentUser,
+        hasConversation: !!selectedConversation,
+        isConnected
+      });
+      return;
+    }
+
+    // Find unread messages from other users that haven't been marked yet
+    const unreadMessages = messages.filter(msg => {
+      const isFromCurrentUser = msg.sender_id === currentUser.id;
+      const alreadyMarked = lastMarkedRef.current.has(msg.id);
+      
+      if (selectedConversationType === 'direct') {
+        const shouldMark = !isFromCurrentUser && !msg.is_read && !alreadyMarked;
+        console.log(`📖 DEBUG: Message ${msg.id} - Direct check:`, {
+          isFromCurrentUser,
+          isRead: msg.is_read,
+          alreadyMarked,
+          shouldMark
+        });
+        return shouldMark;
+      } else {
+        // For group messages, check if current user is in read_by list
+        const isReadByCurrentUser = msg.read_by?.some((reader: any) => reader.user_id === currentUser.id);
+        const shouldMark = !isFromCurrentUser && !isReadByCurrentUser && !alreadyMarked;
+        console.log(`📖 DEBUG: Message ${msg.id} - Group check:`, {
+          isFromCurrentUser,
+          isReadByCurrentUser,
+          hasReadBy: !!msg.read_by,
+          readByCount: msg.read_by?.length || 0,
+          alreadyMarked,
+          shouldMark
+        });
+        return shouldMark;
+      }
+    });
+
+    if (unreadMessages.length === 0) {
+      console.log('📖 DEBUG: Auto-mark - No unread messages to mark');
+      return;
+    }
+
+    console.log(`📖 DEBUG: Auto-mark - Found ${unreadMessages.length} unread messages to mark:`, 
+      unreadMessages.map(m => `ID:${m.id}`));
+
+    // Clear any existing throttle
+    if (throttleRef.current) {
+      clearTimeout(throttleRef.current);
+    }
+
+    // Throttle the marking to prevent excessive API calls
+    throttleRef.current = setTimeout(async () => {
+      const messageIds = unreadMessages.map(msg => msg.id);
+      
+      console.log(`📖 DEBUG: Auto-mark - Attempting to mark messages as read:`, messageIds);
+      
+      try {
+        // Use the manual markMessagesAsRead function
+        await manualMarkMessagesAsRead(messageIds, selectedConversation, selectedConversationType === 'group');
+        
+        // Add to marked set to prevent re-marking
+        messageIds.forEach(id => lastMarkedRef.current.add(id));
+        
+        console.log(`✅ DEBUG: Auto-mark - Successfully marked ${messageIds.length} messages as read`);
+        console.log(`📊 DEBUG: Auto-mark - Total marked messages count: ${lastMarkedRef.current.size}`);
+        
+      } catch (error) {
+        console.error('❌ DEBUG: Auto-mark - Error marking messages as read:', error);
+      }
+    }, 2000); // 2 second throttle
+
+    // Cleanup on unmount
+    return () => {
+      if (throttleRef.current) {
+        clearTimeout(throttleRef.current);
+      }
+    };
+  }, [messages, currentUser, selectedConversation, selectedConversationType, isConnected]);
+
+  // Reset marked messages when conversation changes
+  useEffect(() => {
+    console.log(`🔄 DEBUG: Auto-mark - Conversation changed to ${selectedConversation} (${selectedConversationType}), resetting marked messages`);
+    lastMarkedRef.current.clear();
+  }, [selectedConversation, selectedConversationType]);
+
+  // Manual mark messages as read function
+  const manualMarkMessagesAsRead = useCallback(async (
     messageIds: number[],
     conversationId: number,
     isGroup: boolean
@@ -124,7 +225,9 @@ export function useReadStatus(currentUser: User | null) {
       const key = isGroup ? `group_${conversationId}` : `direct_${conversationId}`;
       const currentCount = globalUnreadCounts[key] || 0;
       
-      console.log(`📖 markMessagesAsRead: ${key}, messageIds: ${messageIds.length}, currentCount: ${currentCount}`);
+      console.log(`📖 DEBUG: Manual mark - ${key}, messageIds: ${messageIds.length}, currentCount: ${currentCount}`);
+      console.log(`🔍 DEBUG: Manual mark - messageIds: [${messageIds.join(', ')}]`);
+      console.log(`🔍 DEBUG: Manual mark - Conversation: ${conversationId}, isGroup: ${isGroup}`);
       
       const response = await apiService.markMessagesAsRead({
         message_ids: messageIds,
@@ -133,17 +236,17 @@ export function useReadStatus(currentUser: User | null) {
       });
 
       if (response.success) {
-        // Emit socket event
-        socketClient.markMessagesAsRead(messageIds, conversationId, isGroup);
+        console.log(`🔍 DEBUG: Manual mark - API call successful`);
         
         // Update global state immediately
-        console.log(`📖 Clearing unread count for ${key}: ${currentCount} -> 0`);
+        console.log(`📖 DEBUG: Manual mark - Clearing unread count for ${key}: ${currentCount} -> 0`);
         updateConversationCount(key, 0);
       } else {
-        console.error('API call failed:', response.error);
+        console.error('Failed to mark messages as read:', response.error);
       }
     } catch (error) {
-      console.error('Failed to mark messages as read:', error);
+      console.error('Error marking messages as read:', error);
+      throw error;
     }
   }, []);
 
@@ -162,14 +265,15 @@ export function useReadStatus(currentUser: User | null) {
         is_group: isGroup
       });
 
-      if (response.success && response.data) {
-        console.log(`📖 markAllUnreadAsRead success: marked ${response.data.marked_count} messages`);
+      if (response.success) {
+        const markedCount = response.data?.marked_count || 0;
+        console.log(`📖 markAllUnreadAsRead success: marked ${markedCount} messages`);
         
         // Update global state immediately
         console.log(`📖 Clearing unread count for ${key}: ${currentCount} -> 0`);
         updateConversationCount(key, 0);
       } else {
-        console.error('API call failed:', response.error);
+        console.error('API call failed:', response.error || 'Unknown error');
       }
     } catch (error) {
       console.error('Failed to mark all unread messages as read:', error);
@@ -188,7 +292,7 @@ export function useReadStatus(currentUser: User | null) {
   return {
     unreadCounts,
     loading,
-    markMessagesAsRead,
+    markMessagesAsRead: manualMarkMessagesAsRead,
     markAllUnreadAsRead,
     getUnreadCount,
     getTotalUnreadCount

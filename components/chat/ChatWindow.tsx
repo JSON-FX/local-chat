@@ -69,7 +69,19 @@ export function ChatWindow({
   const [isConfirmingLeave, setIsConfirmingLeave] = useState(false);
   
   // Read status hook
-  const { markAllUnreadAsRead, markMessagesAsRead } = useReadStatus(currentUser);
+  const { markAllUnreadAsRead, markMessagesAsRead } = useReadStatus({
+    messages,
+    currentUser,
+    selectedConversation,
+    selectedConversationType,
+    isConnected
+  });
+
+  // Add new state and refs for tracking visible messages - USE REF FOR PERSISTENCE
+  const markedAsReadRef = useRef<Set<number>>(new Set()); // Persistent across renders
+  const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const intersectionObserver = useRef<IntersectionObserver | null>(null);
+  const isProcessingReadRef = useRef<Set<number>>(new Set()); // Track processing messages
 
   useEffect(() => {
     // Use setTimeout to ensure the DOM is fully updated before scrolling
@@ -93,34 +105,36 @@ export function ChatWindow({
   const processingRef = useRef(false);
   const lastConversationRef = useRef<string>('');
   
+  // DISABLED: Simplified auto-mark for initial conversation entry only
   useEffect(() => {
-    if (!currentUser || !selectedConversation || processingRef.current) return;
-    
-    const conversationKey = `${selectedConversationType}_${selectedConversation}`;
-    
-    // Only process when we switch to a new conversation (not on every message update)
-    if (conversationKey !== lastConversationRef.current) {
-      lastConversationRef.current = conversationKey;
-      processingRef.current = true;
-      
-      // Mark ALL unread messages in this conversation as read after a short delay
-      const timer = setTimeout(() => {
-        console.log(`📖 ChatWindow: Auto-marking all unread messages as read in ${conversationKey}`);
-        markAllUnreadAsRead(selectedConversation, selectedConversationType === 'group').finally(() => {
-          processingRef.current = false;
-        });
-      }, 1000);
-      
-      return () => {
-        clearTimeout(timer);
-        processingRef.current = false;
-      };
-    }
+    // DISABLED TO STOP INFINITE LOOP - just return early
+    console.log(`🔍 DEBUG: Auto-mark useEffect DISABLED to prevent infinite loop`);
+    return;
   }, [selectedConversation, selectedConversationType, currentUser?.id, markAllUnreadAsRead]);
-  
-  // Reset processing state when conversation changes
+
+  // DISABLED: Add real-time message visibility detection for group chats
+  useEffect(() => {
+    // DISABLED TO STOP INFINITE LOOP - just return early
+    console.log(`🔍 DEBUG: Intersection observer DISABLED to prevent infinite loop`);
+    return;
+  }, [selectedConversation, selectedConversationType, currentUser, messages]);
+
+  // DISABLED: Observe messages when they're added/updated
+  useEffect(() => {
+    // DISABLED TO STOP INFINITE LOOP - just return early
+    console.log(`🔍 DEBUG: Message observation DISABLED to prevent infinite loop`);
+    return;
+  }, [messages, selectedConversationType]);
+
+  // Reset processing state when conversation changes (put this back)
   useEffect(() => {
     processingRef.current = false;
+    console.log(`🔍 DEBUG: Reset processing state for conversation change`);
+    
+    // CRITICAL: Clear BOTH tracking sets when switching conversations
+    markedAsReadRef.current.clear();
+    isProcessingReadRef.current.clear();
+    console.log(`🔍 DEBUG: Cleared both tracking sets for new conversation`);
   }, [selectedConversation, selectedConversationType]);
 
   // Add scroll event listener to detect when user has scrolled up
@@ -574,6 +588,14 @@ export function ChatWindow({
             return (
               <div key={message.id}>
                 <div
+                  ref={(el) => {
+                    if (el && selectedConversationType === 'group') {
+                      messageRefs.current.set(message.id, el);
+                      console.log(`🔍 DEBUG: Set ref for message ${message.id}`);
+                    }
+                  }}
+                  data-message-id={message.id}
+                  data-sender-id={message.sender_id}
                   className={cn(
                     "flex items-end space-x-2 mb-2 w-full",
                     isCurrentUser ? "justify-end" : "justify-start"
@@ -677,66 +699,106 @@ export function ChatWindow({
                         </Badge>
                       )}
                     </div>
+                    
+                    {/* Group "Seen" indicator - show below timestamp for the very last message */}
+                    {(() => {
+                      if (selectedConversationType !== 'group') return null;
+                      
+                      // Check if this is the very last message in the conversation
+                      const isAbsoluteLastMessage = index === messages.length - 1;
+                      if (!isAbsoluteLastMessage) return null;
+                      
+                      // Check if this message has read_by data
+                      if (!message.read_by || message.read_by.length === 0) return null;
+                      
+                      // Filter out current user from readers
+                      const otherReaders = message.read_by.filter(reader => reader.user_id !== currentUser?.id);
+                      if (otherReaders.length === 0) return null;
+                      
+                      console.log(`🔍 DEBUG: Showing group seen indicator inside message ${message.id} wrapper with ${otherReaders.length} readers`);
+                      
+                      return (
+                        <div className="flex items-center space-x-2 mt-2 pt-1 border-t border-border/30">
+                          <span className={cn(
+                            "text-xs opacity-70",
+                            isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
+                          )}>Seen by</span>
+                          <div className="flex -space-x-1">
+                            {otherReaders.slice(0, 3).map((reader) => {
+                              console.log(`🔍 DEBUG: Rendering seen avatar for user ${reader.username} (${reader.user_id}) inside message ${message.id}`);
+                              return (
+                                <Avatar key={reader.user_id} className="h-4 w-4 border border-background" title={`${reader.username} - ${formatMessageTime(reader.read_at)}`}>
+                                  {reader.avatar_path && typeof reader.avatar_path === 'string' ? (
+                                    <AvatarImage 
+                                      src={`/api/files/download/${reader.avatar_path}`} 
+                                      alt={reader.username ?? 'User'} 
+                                    />
+                                  ) : null}
+                                  <AvatarFallback className="bg-primary/10 text-xs">
+                                    {(reader.username || 'U').charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                              );
+                            })}
+                            {otherReaders.length > 3 ? (
+                              <div className="h-4 w-4 rounded-full bg-gray-300 dark:bg-gray-600 border border-background flex items-center justify-center" title={`+${otherReaders.length - 3} more`}>
+                                <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                                  +{otherReaders.length - 3}
+                                </span>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    
+                    {/* Direct Message "Seen" indicator - exact same style as group chat */}
+                    {(() => {
+                      if (selectedConversationType !== 'direct') return null;
+                      
+                      // Only show for messages from current user that have been read
+                      if (!isCurrentUser || !message.is_read) return null;
+                      
+                      // Check if this is the last message from current user (same logic as group)
+                      if (!isLastUserMessage) return null;
+                      
+                      // Get the other user info for avatar
+                      const otherUser = conversations.find(c => 
+                        c.conversation_type === 'direct' && c.other_user_id === selectedConversation
+                      );
+                      
+                      if (!otherUser) return null;
+                      
+                      console.log(`🔍 DEBUG: Showing direct seen indicator inside message ${message.id} for user ${otherUser.other_username}`);
+                      
+                      return (
+                        <div className="flex items-center space-x-2 mt-2 pt-1 border-t border-border/30">
+                          <span className={cn(
+                            "text-xs opacity-70",
+                            isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
+                          )}>Seen by</span>
+                          <div className="flex -space-x-1">
+                                                         <Avatar className="h-4 w-4 border border-background" title={`${otherUser.other_username ?? 'User'}${message.read_at ? ` - ${formatMessageTime(message.read_at)}` : ''}`}>
+                               {otherUser.avatar_path && typeof otherUser.avatar_path === 'string' ? (
+                                 <AvatarImage 
+                                   src={`/api/files/download/${otherUser.avatar_path}`} 
+                                   alt={otherUser.other_username ?? 'User'} 
+                                 />
+                               ) : null}
+                              <AvatarFallback className="bg-primary/10 text-xs">
+                                {(otherUser.other_username ?? 'U').charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
-
-                {/* Show "seen" indicator right after the last message from current user */}
-                {(() => {
-                  // Only show "seen" for messages sent BY the current user that have been read by the recipient
-                  const shouldShow = isLastUserMessage && selectedConversationType === 'direct' && isCurrentUser && message.is_read;
-                  
-                  return shouldShow ? (
-                    <div className={cn(
-                      "flex mb-2 w-full",
-                      "justify-end pr-10" // Always align right since this is for current user's messages
-                    )}>
-                      <div className="text-xs text-muted-foreground">
-                        Seen by {(() => {
-                          const otherUser = conversations.find(c => 
-                            c.conversation_type === 'direct' && c.other_user_id === selectedConversation
-                          );
-                          return otherUser?.other_username || 'User';
-                        })()} {message.read_at ? ` ${formatMessageTime(message.read_at)}` : ''}
-                      </div>
-                    </div>
-                  ) : null;
-                })()}
-                
-                {isLastUserMessage && selectedConversationType === 'group' && message.read_by && message.read_by.length > 0 && (
-                  <div className={cn(
-                    "flex mb-2 w-full",
-                    isCurrentUser ? "justify-end pr-10" : "justify-start pl-10"
-                  )}>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs text-muted-foreground">Seen by</span>
-                      <div className="flex -space-x-1">
-                        {message.read_by.filter(reader => reader.user_id !== currentUser?.id).slice(0, 3).map((reader) => (
-                          <Avatar key={reader.user_id} className="h-4 w-4 border border-background" title={`${reader.username} - ${formatMessageTime(reader.read_at)}`}>
-                            {reader.avatar_path && typeof reader.avatar_path === 'string' ? (
-                              <AvatarImage 
-                                src={`/api/files/download/${reader.avatar_path}`} 
-                                alt={reader.username || 'User'} 
-                              />
-                            ) : null}
-                            <AvatarFallback className="bg-primary/10 text-xs">
-                              {reader.username.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                        ))}
-                        {message.read_by.filter(reader => reader.user_id !== currentUser?.id).length > 3 ? (
-                          <div className="h-4 w-4 rounded-full bg-gray-300 dark:bg-gray-600 border border-background flex items-center justify-center" title={`+${message.read_by.filter(reader => reader.user_id !== currentUser?.id).length - 3} more`}>
-                            <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
-                              +{message.read_by.filter(reader => reader.user_id !== currentUser?.id).length - 3}
-                            </span>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })}
+          
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
@@ -827,7 +889,7 @@ export function ChatWindow({
             id: selectedConversation,
             name: getConversationPartner(),
             description: '',
-            avatar_path: conversations.find(c => c.group_id === selectedConversation)?.avatar_path,
+            avatar_path: conversations.find(c => c.group_id === selectedConversation)?.avatar_path || undefined,
             created_by: 0 // This will be populated when the dialog loads members
           }}
           currentUser={currentUser}

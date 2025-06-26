@@ -31,7 +31,13 @@ export function ChatList({
   currentUser
 }: ChatListProps) {
   const selectedConversationRef = useRef<HTMLDivElement>(null);
-  const { getUnreadCount } = useReadStatus(currentUser);
+  const { getUnreadCount } = useReadStatus({
+    messages: [],
+    currentUser,
+    selectedConversation: 0,
+    selectedConversationType: 'direct',
+    isConnected: true
+  });
 
   useEffect(() => {
     if (selectedConversation && selectedConversationRef.current) {

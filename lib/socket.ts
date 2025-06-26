@@ -353,40 +353,51 @@ export class SocketService {
 
       // Handle marking messages as read
       socket.on('mark_messages_read', async (data: { message_ids: number[]; conversation_id: number; is_group: boolean }) => {
-        const userSession = socketSessions.get(socket.id);
-        if (!userSession) return;
-
+        console.log(`📖 DEBUG: Socket mark_messages_read event from user ${data.userId}:`, data);
+        
         try {
-          const { MessageReadService } = await import('./messageReads');
+          // Prevent duplicate processing using deduplication cache
+          const cacheKey = `mark_${data.userId}_${data.conversation_id}_${data.is_group}_${data.message_ids.sort().join(',')}`;
           
-          // Mark messages as read in database
-          await MessageReadService.markMessagesAsRead(data.message_ids, userSession.userId);
+          if (processedEvents.has(cacheKey)) {
+            console.log(`📖 DEBUG: Socket mark_messages_read - Duplicate event detected, skipping:`, cacheKey);
+            return;
+          }
           
-          // Broadcast read status to other participants
-          const readData = {
+          processedEvents.add(cacheKey);
+          
+          // Set expiry for cache cleanup (30 seconds)
+          setTimeout(() => {
+            processedEvents.delete(cacheKey);
+            console.log(`📖 DEBUG: Socket - Cleaned up cache key:`, cacheKey);
+          }, 30000);
+          
+          await MessageReadService.markMessagesAsRead(data.message_ids, data.userId);
+          console.log(`📖 DEBUG: Socket - User ${data.userId} marked ${data.message_ids.length} messages as read`);
+          
+          // Broadcast to other clients
+          const broadcastData = {
             message_ids: data.message_ids,
-            reader_id: userSession.userId,
-            reader_username: userSession.username,
+            reader_id: data.userId,
+            reader_username: users.get(data.userId)?.username || 'Unknown',
+            reader_avatar: users.get(data.userId)?.avatar_path || null,
             conversation_id: data.conversation_id,
             is_group: data.is_group
           };
-
+          
+          console.log(`📖 DEBUG: Socket - Broadcasting messages_read event:`, broadcastData);
+          
           if (data.is_group) {
-            // For groups, broadcast to all group members except the reader
-            socket.to(`group_${data.conversation_id}`).emit('messages_read', readData);
+            io.to(`group_${data.conversation_id}`).emit('messages_read', broadcastData);
           } else {
-            // For direct messages, broadcast to the other participant
-            const recipientSocketId = connectedUsers.get(data.conversation_id);
-            if (recipientSocketId) {
-              this.io?.to(recipientSocketId).emit('messages_read', readData);
-            }
-
-
+            // For direct messages, emit to both participants
+            io.emit('messages_read', broadcastData);
           }
-
-          console.log(`📖 User ${userSession.username} marked ${data.message_ids.length} messages as read`);
+          
+          console.log(`📖 DEBUG: Socket - messages_read broadcast completed`);
+          
         } catch (error) {
-          console.error('Error marking messages as read:', error);
+          console.error('📖 DEBUG: Socket - Error in mark_messages_read:', error);
           socket.emit('error', { error: 'Failed to mark messages as read' });
         }
       });

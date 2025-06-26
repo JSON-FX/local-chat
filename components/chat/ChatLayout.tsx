@@ -25,7 +25,8 @@ import { NewChatDialog } from './NewChatDialog';
 import { UserSettingsDialog } from './UserSettingsDialog';
 import { User, Conversation, Message } from '@/lib/types';
 import { incrementUnreadCount, clearUnreadCount } from '@/lib/hooks/useReadStatus';
-  import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useReadStatus } from '@/lib/hooks/useReadStatus';
 
 // Debounce utility function
 function debounce<T extends (...args: any[]) => any>(
@@ -55,6 +56,27 @@ export function ChatLayout() {
   const [isPageVisible, setIsPageVisible] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [serviceWorkerRegistration, setServiceWorkerRegistration] = useState<ServiceWorkerRegistration | null>(null);
+
+  // Read status management (including badge counts)
+  const selectedConversationId = selectedConversation 
+    ? (selectedConversationType === 'group' 
+        ? selectedConversation.group_id || 0
+        : selectedConversation.other_user_id || 0)
+    : 0;
+    
+  const {
+    unreadCounts,
+    loading: unreadLoading,
+    markMessagesAsRead,
+    getUnreadCount,
+    getTotalUnreadCount
+  } = useReadStatus({
+    messages,
+    currentUser,
+    selectedConversation: selectedConversationId,
+    selectedConversationType,
+    isConnected
+  });
 
   // Debounced conversation loading to prevent excessive API calls
   const debouncedLoadConversations = useCallback(debounce(async () => {
@@ -823,6 +845,8 @@ export function ChatLayout() {
     });
 
     socketClient.on('onMessagesRead', (data) => {
+      console.log(`🔍 DEBUG: onMessagesRead socket event received:`, data);
+      console.log(`🔍 DEBUG: Current conversation: ${selectedConversation?.group_id || selectedConversation?.other_user_id}, type: ${selectedConversationType}`);
       
       // Update read status for messages in the current conversation
       if (selectedConversation) {
@@ -830,22 +854,29 @@ export function ChatLayout() {
         
         if (data.is_group && selectedConversationType === 'group') {
           isRelevantForCurrentConversation = selectedConversation.group_id === data.conversation_id;
+          console.log(`🔍 DEBUG: Group chat - checking if ${selectedConversation.group_id} === ${data.conversation_id}: ${isRelevantForCurrentConversation}`);
         } else if (!data.is_group && selectedConversationType === 'direct') {
           // For direct messages, check if this event is about the current conversation
           // The event is relevant if the reader or conversation involves the selected user
           isRelevantForCurrentConversation = 
             selectedConversation.other_user_id === data.reader_id || 
             selectedConversation.other_user_id === data.conversation_id;
+          console.log(`🔍 DEBUG: Direct chat - checking relevance: ${isRelevantForCurrentConversation}`);
         }
         
         if (isRelevantForCurrentConversation) {
+          console.log(`🔍 DEBUG: This read event is relevant for current conversation, updating ${data.message_ids.length} messages`);
+          
           setMessages(prev => prev.map(message => {
             // Only update the specific messages that were read
             if (data.message_ids.includes(message.id)) {
+              console.log(`🔍 DEBUG: Updating read status for message ${message.id}`);
+              
               if (data.is_group) {
                 // For group messages, add to read_by array
                 const existingRead = message.read_by?.find(r => r.user_id === data.reader_id);
                 if (!existingRead) {
+                  console.log(`🔍 DEBUG: Adding ${data.reader_username} (${data.reader_id}) to read_by for message ${message.id}`);
                   return {
                     ...message,
                     read_by: [
@@ -858,11 +889,14 @@ export function ChatLayout() {
                       }
                     ]
                   };
+                } else {
+                  console.log(`🔍 DEBUG: User ${data.reader_username} already in read_by for message ${message.id}`);
                 }
               } else {
                 // For direct messages, only mark as read if the reader is NOT the current user
                 // (This means the OTHER person read our messages)
                 if (data.reader_id !== currentUser?.id) {
+                  console.log(`🔍 DEBUG: Marking direct message ${message.id} as read`);
                   return {
                     ...message,
                     is_read: true,
@@ -873,7 +907,11 @@ export function ChatLayout() {
             }
             return message;
           }));
+        } else {
+          console.log(`🔍 DEBUG: Read event not relevant for current conversation`);
         }
+      } else {
+        console.log(`🔍 DEBUG: No selected conversation, ignoring read event`);
       }
       
       // Note: Unread counts are now handled by the useReadStatus hook
@@ -1003,6 +1041,10 @@ export function ChatLayout() {
   const handleConversationSelect = async (conversationId: number, isGroup: boolean = false) => {
     try {
       setIsLoadingMessages(true);
+      
+      // IMMEDIATELY clear badge count for real-time response
+      console.log(`📖 DEBUG: Immediately clearing badge for ${isGroup ? 'group' : 'direct'}_${conversationId}`);
+      clearUnreadCount(conversationId, isGroup);
       
       // Save selected conversation to localStorage
       localStorage.setItem('selectedConversation', JSON.stringify({
