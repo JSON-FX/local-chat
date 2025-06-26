@@ -3,9 +3,9 @@
 
 param(
     [string]$SiteName = "LGU-Chat",
-    [string]$SitePath = "C:\inetpub\wwwroot\lgu-chat",
+    [string]$SitePath = "C:\inetpub\wwwroot\Github\local-chat",
     [string]$Port = "80",
-    [string]$DomainName = "lgu-chat.lguquezon.com.local"
+    [string]$DomainName = "lgu-chat.lguquezon.local"
 )
 
 Write-Host "Configuring IIS for LGU Chat Application..." -ForegroundColor Green
@@ -33,8 +33,8 @@ try {
 }
 
 # Create new IIS site using WebAdministration cmdlets
-New-Website -Name $SiteName -PhysicalPath $SitePath -Port $Port
-Write-Host "Created IIS site: $SiteName" -ForegroundColor Green
+New-Website -Name $SiteName -PhysicalPath $SitePath -Port $Port -HostHeader $DomainName
+Write-Host "Created IIS site: $SiteName with hostname: $DomainName" -ForegroundColor Green
 
 # Set application pool to use No Managed Code
 Set-ItemProperty -Path "IIS:\AppPools\$SiteName" -Name "managedRuntimeVersion" -Value ""

@@ -1,5 +1,5 @@
 @echo off
-echo Configuring DNS for lgu-chat.lguquezon.com.local...
+echo Configuring DNS for lgu-chat.lguquezon.local...
 
 REM Check if running as administrator
 net session >nul 2>&1
@@ -17,22 +17,18 @@ set SERVER_IP=192.168.32.6
 
 echo Server IP configured: %SERVER_IP%
 
-REM Create DNS A record using dnscmd for existing domain
-echo Creating DNS A record for lgu-chat in lguquezon.com.local zone...
-dnscmd /recordadd lguquezon.com.local lgu-chat A %SERVER_IP%
-
-REM Also create a record in the local zone if it exists
-dnscmd /recordadd lguquezon.local lgu-chat A %SERVER_IP% 2>nul
+REM Create DNS A record using dnscmd for the .local domain
+echo Creating DNS A record for lgu-chat in lguquezon.local zone...
+dnscmd /recordadd lguquezon.local lgu-chat A %SERVER_IP%
 
 REM Alternative: Add to hosts file for local testing
 echo.
 echo Adding entry to hosts file for local access...
-echo %SERVER_IP% lgu-chat.lguquezon.com.local >> C:\Windows\System32\drivers\etc\hosts
 echo %SERVER_IP% lgu-chat.lguquezon.local >> C:\Windows\System32\drivers\etc\hosts
 
 echo.
 echo DNS configuration completed!
-echo Users can now access the application at: http://lgu-chat.lguquezon.com.local
+echo Users can now access the application at: http://lgu-chat.lguquezon.local
 echo.
 echo Note: For network-wide access, ensure:
 echo 1. DNS server is properly configured
