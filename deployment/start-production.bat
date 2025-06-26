@@ -16,7 +16,15 @@ if not exist "server-production.js" (
 REM Set production environment
 set NODE_ENV=production
 
-REM Load environment variables from production.env
+REM Set default production environment variables
+set NODE_ENV=production
+set PORT=3000
+set SERVER_HOST=0.0.0.0
+set DB_PATH=./data/localchat.db
+set UPLOAD_PATH=./uploads
+set JWT_SECRET=LGU-Chat-Production-Secret-Key-2024-Very-Secure-Change-This
+
+REM Load environment variables from production.env if it exists
 if exist ".env.production" (
     echo Loading production environment variables...
     for /f "usebackq tokens=1,2 delims==" %%i in (".env.production") do (

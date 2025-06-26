@@ -7,8 +7,21 @@ const fs = require('fs').promises;
 const { existsSync } = require('fs');
 const jwt = require('jsonwebtoken');
 
-// Load environment variables
-require('dotenv').config({ path: './deployment/production.env' });
+// Load environment variables from .env.production if it exists
+try {
+  const fs = require('fs');
+  if (fs.existsSync('.env.production')) {
+    const envContent = fs.readFileSync('.env.production', 'utf8');
+    envContent.split('\n').forEach(line => {
+      const [key, value] = line.split('=');
+      if (key && value && !key.startsWith('#')) {
+        process.env[key.trim()] = value.trim();
+      }
+    });
+  }
+} catch (error) {
+  console.log('Note: Could not load .env.production file, using defaults');
+}
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.SERVER_HOST || '0.0.0.0';
