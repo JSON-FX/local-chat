@@ -45,18 +45,30 @@ echo 6. Initializing database...
 npx tsx scripts/init-db.ts
 if %ERRORLEVEL% neq 0 (
     echo Error: Database initialization failed
+    echo Please check if TypeScript and required dependencies are installed
+    echo Try running: npm install typescript tsx @types/node
     pause
     exit /b 1
 )
+echo Database initialized successfully
 
 REM Clean up demo users and secure admin account
 echo 7. Cleaning up demo users and securing admin account...
 node scripts/manage-users.js cleanup
-echo Demo users removed successfully
+if %ERRORLEVEL% neq 0 (
+    echo Warning: Demo cleanup failed - continuing anyway
+) else (
+    echo Demo users removed successfully
+)
 
 echo Setting admin password to secure password...
 node scripts/manage-users.js password admin adminmm0m!s
-echo Admin password updated successfully
+if %ERRORLEVEL% neq 0 (
+    echo Warning: Password change failed - you may need to change it manually
+    echo Run: node scripts/manage-users.js password admin adminmm0m!s
+) else (
+    echo Admin password updated successfully
+)
 
 REM Copy production server
 echo 8. Deploying production server...
