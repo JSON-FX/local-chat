@@ -1,42 +1,44 @@
 @echo off
 echo ========================================
-echo   Starting Node.js Server for Public Access
+echo   Starting LGU Chat Server (Public)
 echo ========================================
 
 set TARGET_DIR=C:\inetpub\wwwroot\Github\local-chat
+set SERVER_PORT=3001
 
-echo.
-echo Stopping any existing Node.js processes...
-taskkill /f /im node.exe 2>nul
-timeout /t 2
-
-echo.
-echo Setting environment for public access...
-set NODE_ENV=production
-set SERVER_HOST=0.0.0.0
-set PORT=3000
-set DOMAIN_NAME=lgu-chat.lguquezon.local
-
-echo.
-echo Environment settings:
-echo NODE_ENV=%NODE_ENV%
-echo SERVER_HOST=%SERVER_HOST%
-echo PORT=%PORT%
-echo DOMAIN_NAME=%DOMAIN_NAME%
-
-echo.
-echo Starting server...
+echo Switching to project directory...
 cd /d "%TARGET_DIR%"
-echo Current directory: %CD%
+
+echo.
+echo Current server info:
+echo - Laravel apps: Running on port 80 (IIS)
+echo - LGU Chat: Will run on port %SERVER_PORT%
+echo - Access URL: http://192.168.32.6:%SERVER_PORT%
 echo.
 
-echo Starting Node.js server with public binding...
+echo Checking if port %SERVER_PORT% is available...
+netstat -an | findstr :%SERVER_PORT%
+if not errorlevel 1 (
+    echo WARNING: Port %SERVER_PORT% appears to be in use
+    echo Killing any existing processes...
+    for /f "tokens=5" %%a in ('netstat -ano ^| findstr :%SERVER_PORT%') do taskkill /f /pid %%a 2>nul
+)
+
+echo.
+echo Setting environment variables...
+set NODE_ENV=production
+set PORT=%SERVER_PORT%
+set HOST=0.0.0.0
+
+echo Starting LGU Chat server...
+echo.
 echo Server will be accessible at:
-echo - http://localhost:3000
-echo - http://192.168.32.6:3000
-echo - http://%DOMAIN_NAME%:3000 (if DNS works)
+echo - Local: http://localhost:%SERVER_PORT%
+echo - Network: http://192.168.32.6:%SERVER_PORT%
 echo.
 echo Press Ctrl+C to stop the server
-echo ========================================
+echo.
 
-node server.js 
+node server.js
+
+pause 
