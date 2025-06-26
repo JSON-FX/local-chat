@@ -5,7 +5,8 @@ import { SocketService } from './lib/socket';
 import { FileService } from './lib/files';
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = 'localhost';
+// Use environment variables for production deployment
+const hostname = process.env.SERVER_HOST || (dev ? 'localhost' : '0.0.0.0');
 const port = parseInt(process.env.PORT || '3000', 10);
 
 const app = next({ dev, hostname, port });
@@ -33,9 +34,13 @@ app.prepare().then(() => {
     console.error('Error initializing file storage:', err);
   });
 
-  server.listen(port, () => {
+  server.listen(port, hostname, () => {
     console.log(`> Ready on http://${hostname}:${port}`);
     console.log('> Socket.io server is running');
+    if (!dev) {
+      console.log('> Running in production mode');
+      console.log(`> Access via: http://${process.env.DOMAIN_NAME || hostname}${port !== 80 ? ':' + port : ''}`);
+    }
   });
 }).catch((err) => {
   console.error('Error starting server:', err);
