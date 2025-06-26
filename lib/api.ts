@@ -192,6 +192,10 @@ class ApiService {
     description?: string;
     initial_members?: number[];
   }): Promise<ApiResponse<any>> {
+    console.log('DEBUG: API createGroup called with data:', JSON.stringify(data));
+    console.log('DEBUG: initial_members type:', data.initial_members ? typeof data.initial_members : 'undefined', 
+                'isArray:', data.initial_members ? Array.isArray(data.initial_members) : false);
+    
     return this.fetchApi('/api/groups/create', {
       method: 'POST',
       body: JSON.stringify(data),

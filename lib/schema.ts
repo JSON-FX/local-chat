@@ -8,10 +8,10 @@ export const initializeDatabase = async (): Promise<void> => {
     // Users table
     await db.run(`
       CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INTEGER PRIMARY KEY,
         username VARCHAR(50) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
-        role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('admin', 'moderator', 'user')),
+        role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('admin', 'moderator', 'user', 'system')),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         last_login DATETIME,
         status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'banned')),
@@ -77,6 +77,7 @@ export const initializeDatabase = async (): Promise<void> => {
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         edited_at DATETIME,
         is_deleted BOOLEAN DEFAULT 0,
+        user_deleted_by TEXT,
         FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
@@ -99,6 +100,9 @@ export const initializeDatabase = async (): Promise<void> => {
 
     // Run migrations for existing databases
     await runMigrations();
+
+    // Create system user for system messages
+    await createSystemUser();
 
     // Create indexes for better performance
     await db.run('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)');
@@ -157,6 +161,16 @@ const runMigrations = async (): Promise<void> => {
         console.log(`✅ ${column.name} column added to users table`);
       }
     }
+
+    // Check and add user_deleted_by column to messages table
+    const messageTableInfo = await db.all("PRAGMA table_info(messages)");
+    const messageColumns = messageTableInfo.map((column: any) => column.name);
+    
+    if (!messageColumns.includes('user_deleted_by')) {
+      console.log('Adding user_deleted_by column to messages table...');
+      await db.run('ALTER TABLE messages ADD COLUMN user_deleted_by TEXT');
+      console.log('✅ user_deleted_by column added to messages table');
+    }
   } catch (error) {
     console.error('Error running migrations:', error);
     // Don't throw here, as the table might not exist yet
@@ -173,6 +187,29 @@ export const cleanupExpiredSessions = async (): Promise<void> => {
     );
   } catch (error) {
     console.error('Error cleaning up expired sessions:', error);
+    throw error;
+  }
+};
+
+// Create system user for system messages
+export const createSystemUser = async (): Promise<void> => {
+  const db = await getDatabase();
+  
+  try {
+    // Check if system user exists
+    const systemUser = await db.get('SELECT id FROM users WHERE id = 0');
+    
+    if (!systemUser) {
+      // Insert system user with ID 0
+      await db.run(
+        'INSERT INTO users (id, username, password_hash, role, status) VALUES (0, ?, ?, ?, ?)',
+        ['SYSTEM', 'N/A', 'system', 'active']
+      );
+      
+      console.log('System user created for system messages');
+    }
+  } catch (error) {
+    console.error('Error creating system user:', error);
     throw error;
   }
 };

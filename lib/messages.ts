@@ -5,18 +5,22 @@ export class MessageService {
   
   // Create a system message (for group membership changes)
   static async createSystemMessage(groupId: number, content: string): Promise<Message> {
-    console.log(`🔧 Creating system message - Group: ${groupId}, Content: ${content}`);
     const db = await getDatabase();
 
     try {
+      // Verify group exists
+      const groupExists = await db.get('SELECT id FROM groups WHERE id = ?', [groupId]);
+      
+      if (!groupExists) {
+        throw new Error(`Group with ID ${groupId} does not exist`);
+      }
+      
       // Create system message with sender_id 0 to indicate system message
-      console.log(`🔧 Inserting system message into database...`);
       const result = await db.run(
         `INSERT INTO messages (sender_id, group_id, content, message_type) 
          VALUES (0, ?, ?, 'system')`,
         [groupId, content]
       );
-      console.log(`🔧 Database insert result:`, result);
 
       // Get the created message ID
       let messageId;

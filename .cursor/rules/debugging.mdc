@@ -43,6 +43,7 @@ When entering **Debugger Mode**, follow this exact sequence:
 6. **Deep Analysis:** Reflect deeply on what could be wrong and produce a comprehensive analysis of the issue.
 7. **Additional Logging:** Suggest additional logs if the issue persists or if the source is not yet clear.
 8. **Cleanup:** Once a fix is implemented, ask for approval to remove the previously added logs.
+9. **Kil Process** Kill all running npm run dev processes and start a new one. 
 
 ---
 

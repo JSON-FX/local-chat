@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '../../../../lib/auth';
 import { GroupService } from '../../../../lib/groups';
 import { SocketService } from '../../../../lib/socket';
+import { getDatabase } from '../../../../lib/database';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,9 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json();
     const { name, description, initial_members } = body;
+
+    console.log('DEBUG: Group creation request body:', JSON.stringify(body));
+    console.log('DEBUG: Initial members before processing:', JSON.stringify(initial_members));
 
     // Validate input
     if (!name || name.trim() === '') {
@@ -34,6 +38,21 @@ export async function POST(request: NextRequest) {
         .filter(id => typeof id === 'number' || (typeof id === 'string' && !isNaN(parseInt(id))))
         .map(id => typeof id === 'number' ? id : parseInt(id))
         .filter(id => id > 0 && id !== user.id); // Exclude invalid IDs and creator
+
+      console.log('DEBUG: Initial member IDs after processing:', JSON.stringify(initialMemberIds));
+
+      // Validate that all member IDs exist in the database
+      if (initialMemberIds.length > 0) {
+        const db = await getDatabase();
+        const placeholders = initialMemberIds.map(() => '?').join(',');
+        const validMembers = await db.all(`SELECT id FROM users WHERE id IN (${placeholders})`, initialMemberIds);
+        const validMemberIds = validMembers.map(m => m.id);
+        
+        console.log(`DEBUG: Valid member IDs from database:`, JSON.stringify(validMemberIds));
+        
+        // Keep only valid member IDs
+        initialMemberIds = validMemberIds;
+      }
 
       // Limit to reasonable number of initial members
       if (initialMemberIds.length > 50) {

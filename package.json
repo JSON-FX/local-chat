@@ -12,6 +12,7 @@
     "lint": "next lint",
     "init-db": "tsx scripts/init-db.ts",
     "fresh-db": "tsx scripts/fresh-db.ts",
+    "db-reset": "tsx scripts/fresh-db.ts --force",
     "get-ip": "node scripts/get-ip.js"
   },
   "dependencies": {

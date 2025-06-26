@@ -73,6 +73,8 @@ const NewGroupDialog: React.FC<NewGroupDialogProps> = ({
     setCreating(true);
     
     try {
+      console.log('DEBUG: Creating group with selected members:', selectedMembers);
+      
       const response = await apiService.createGroup({
         name: groupName.trim(),
         description: description.trim() || undefined,
