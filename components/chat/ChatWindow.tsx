@@ -174,6 +174,24 @@ export function ChatWindow({
         return conversation?.group_name || 'Unknown Group';
       }
       
+      // For direct conversations, build full name with middle initial if available
+      if (conversation?.other_user_name) {
+        let fullName = conversation.other_user_name;
+        
+        // Add middle initial if middle_name exists
+        if (conversation.other_user_middle_name) {
+          fullName += ` ${conversation.other_user_middle_name.charAt(0).toUpperCase()}.`;
+        }
+        
+        // Add last name if it exists
+        if (conversation.other_user_last_name) {
+          fullName += ` ${conversation.other_user_last_name}`;
+        }
+        
+        return fullName;
+      }
+      
+      // Fallback to username if no first name
       return conversation?.other_username || 'Unknown User';
     } 
     // If it's already a Conversation object (happens with new chats)
@@ -185,6 +203,29 @@ export function ChatWindow({
       }
       return 'Unknown User';
     }
+  };
+
+  // Helper function to format sender name with same logic as sidebar and conversation list
+  const formatSenderName = (message: Message) => {
+    // Build full name with middle initial if available
+    if (message.sender_name) {
+      let fullName = message.sender_name;
+      
+      // Add middle initial if middle_name exists
+      if (message.sender_middle_name) {
+        fullName += ` ${message.sender_middle_name.charAt(0).toUpperCase()}.`;
+      }
+      
+      // Add last name if it exists
+      if (message.sender_last_name) {
+        fullName += ` ${message.sender_last_name}`;
+      }
+      
+      return fullName;
+    }
+    
+    // Fallback to username if no first name
+    return message.sender_username || 'Unknown User';
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -608,11 +649,11 @@ export function ChatWindow({
                           {(message.sender_avatar && message.sender_avatar !== null) ? (
                             <AvatarImage 
                               src={`/api/files/download/${message.sender_avatar}`} 
-                              alt={message.sender_username || 'User'} 
+                              alt={formatSenderName(message)} 
                             />
                           ) : null}
                           <AvatarFallback className="bg-primary/10">
-                            {(message.sender_username || 'U').charAt(0).toUpperCase()}
+                            {formatSenderName(message).charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                       ) : null}
@@ -629,7 +670,7 @@ export function ChatWindow({
                   >
                     {!isCurrentUser && showAvatar && (
                       <p className="text-xs font-medium mb-1 opacity-70">
-                        {message.sender_username}
+                        {formatSenderName(message)}
                       </p>
                     )}
                     

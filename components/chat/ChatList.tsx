@@ -67,6 +67,33 @@ export function ChatList({
     return message.substring(0, maxLength).trim() + '...';
   };
 
+  // Helper function to format display name with same logic as sidebar
+  const formatDisplayName = (conversation: Conversation) => {
+    if (conversation.conversation_type === 'group') {
+      return conversation.group_name || 'Unknown Group';
+    }
+    
+    // For direct conversations, build full name with middle initial if available
+    if (conversation.other_user_name) {
+      let fullName = conversation.other_user_name;
+      
+      // Add middle initial if middle_name exists
+      if (conversation.other_user_middle_name) {
+        fullName += ` ${conversation.other_user_middle_name.charAt(0).toUpperCase()}.`;
+      }
+      
+      // Add last name if it exists
+      if (conversation.other_user_last_name) {
+        fullName += ` ${conversation.other_user_last_name}`;
+      }
+      
+      return fullName;
+    }
+    
+    // Fallback to username if no first name
+    return conversation.other_username || 'Unknown User';
+  };
+
   if (conversations.length === 0) {
     if (collapsed) {
       return (
@@ -97,7 +124,7 @@ export function ChatList({
             const isGroup = conversation.conversation_type === 'group';
             const conversationId = isGroup ? conversation.group_id! : conversation.other_user_id;
             const isSelected = selectedConversation === conversationId;
-            const displayName = isGroup ? conversation.group_name : conversation.other_username;
+            const displayName = formatDisplayName(conversation);
             const unreadCount = getUnreadCount(conversationId, isGroup);
             
             return (
@@ -113,7 +140,7 @@ export function ChatList({
                     isSelected && "bg-accent"
                   )}
                   onClick={() => onSelectConversation(conversationId, isGroup)}
-                  title={displayName || (isGroup ? 'Unknown Group' : 'Unknown User')}
+                  title={displayName}
                 >
                   <div className="relative">
                                       <Avatar className="h-8 w-8">
@@ -165,7 +192,7 @@ export function ChatList({
           const isGroup = conversation.conversation_type === 'group';
           const conversationId = isGroup ? conversation.group_id! : conversation.other_user_id;
           const isSelected = selectedConversation === conversationId;
-          const displayName = isGroup ? conversation.group_name : conversation.other_username;
+          const displayName = formatDisplayName(conversation);
           const unreadCount = getUnreadCount(conversationId, isGroup);
           
           return (
@@ -223,7 +250,7 @@ export function ChatList({
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center space-x-1 flex-1 min-w-0 max-w-[calc(100%-50px)] pr-2">
                       <p className="text-sm font-medium text-truncate-ellipsis">
-                        {displayName || (isGroup ? 'Unknown Group' : 'Unknown User')}
+                        {displayName}
                       </p>
                       {isGroup && (
                         <Badge variant="secondary" className="text-[10px] h-4 px-1 flex-shrink-0">

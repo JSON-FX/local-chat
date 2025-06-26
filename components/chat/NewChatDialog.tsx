@@ -44,9 +44,13 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
   useEffect(() => {
     // Filter users based on search query
     if (searchQuery.trim()) {
-      const filtered = users.filter(user =>
-        user.username.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const filtered = users.filter(user => {
+        const fullName = formatUserDisplayName(user).toLowerCase();
+        const username = user.username.toLowerCase();
+        const query = searchQuery.toLowerCase();
+        
+        return fullName.includes(query) || username.includes(query);
+      });
       setFilteredUsers(filtered);
     } else {
       setFilteredUsers(users);
@@ -90,9 +94,32 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
     if (aOnline && !bOnline) return -1;
     if (!aOnline && bOnline) return 1;
     
-    // Then sort alphabetically
-    return a.username.localeCompare(b.username);
+    // Then sort alphabetically by display name
+    return formatUserDisplayName(a).localeCompare(formatUserDisplayName(b));
   });
+
+  // Helper function to format user display name with same logic as sidebar and conversation list
+  const formatUserDisplayName = (user: User) => {
+    // Build full name with middle initial if available
+    if (user.name) {
+      let fullName = user.name;
+      
+      // Add middle initial if middle_name exists
+      if (user.middle_name) {
+        fullName += ` ${user.middle_name.charAt(0).toUpperCase()}.`;
+      }
+      
+      // Add last name if it exists
+      if (user.last_name) {
+        fullName += ` ${user.last_name}`;
+      }
+      
+      return fullName;
+    }
+    
+    // Fallback to username if no first name
+    return user.username;
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -181,11 +208,11 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
                           {user.avatar_path ? (
                             <AvatarImage 
                               src={`/api/files/download/${user.avatar_path}`} 
-                              alt={user.username} 
+                              alt={formatUserDisplayName(user)} 
                             />
                           ) : null}
                           <AvatarFallback className="bg-primary/10">
-                            {user.username.charAt(0).toUpperCase()}
+                            {formatUserDisplayName(user).charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         {onlineUsers.includes(user.id) && (
@@ -196,7 +223,7 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
                       {/* User details */}
                       <div className="flex-1 text-left">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">{user.username}</p>
+                          <p className="text-sm font-medium">{formatUserDisplayName(user)}</p>
                           {onlineUsers.includes(user.id) && (
                             <Badge variant="secondary" className="text-xs">
                               Online

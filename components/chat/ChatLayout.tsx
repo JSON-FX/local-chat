@@ -582,10 +582,31 @@ export function ChatLayout() {
 
       // Handle notifications for direct messages (but not system messages)
       if (!message.group_id && message.recipient_id === currentUser?.id && message.sender_id !== 0) {
-        // Find sender information
-        const senderName = conversations.find(c => 
+        // Find sender information and format display name
+        const conversation = conversations.find(c => 
           c.conversation_type === 'direct' && c.other_user_id === message.sender_id
-        )?.other_username || 'Unknown User';
+        );
+        
+        let senderName = 'Unknown User';
+        if (conversation) {
+          // Build full name with middle initial if available
+          if (conversation.other_user_name) {
+            senderName = conversation.other_user_name;
+            
+            // Add middle initial if middle_name exists
+            if (conversation.other_user_middle_name) {
+              senderName += ` ${conversation.other_user_middle_name.charAt(0).toUpperCase()}.`;
+            }
+            
+            // Add last name if it exists
+            if (conversation.other_user_last_name) {
+              senderName += ` ${conversation.other_user_last_name}`;
+            }
+          } else {
+            // Fallback to username if no first name
+            senderName = conversation.other_username || 'Unknown User';
+          }
+        }
         
         handleMessageNotification(message, senderName, false);
       }
@@ -622,8 +643,25 @@ export function ChatLayout() {
 
       // Handle notifications for group messages
       if (message.group_id && message.sender_id !== currentUser?.id) {
-        // Find sender and group information
-        const senderName = message.sender_username || 'Unknown User';
+        // Format sender name using the same logic as everywhere else
+        let senderName = 'Unknown User';
+        if (message.sender_name) {
+          senderName = message.sender_name;
+          
+          // Add middle initial if middle_name exists
+          if (message.sender_middle_name) {
+            senderName += ` ${message.sender_middle_name.charAt(0).toUpperCase()}.`;
+          }
+          
+          // Add last name if it exists
+          if (message.sender_last_name) {
+            senderName += ` ${message.sender_last_name}`;
+          }
+        } else {
+          // Fallback to username if no first name
+          senderName = message.sender_username || 'Unknown User';
+        }
+        
         handleMessageNotification(message, senderName, true);
       }
 
@@ -1389,9 +1427,27 @@ export function ChatLayout() {
                   </div>
                   <div>
                     <p className="font-medium">
-                      {currentUser?.name && currentUser?.last_name 
-                        ? `${currentUser.name} ${currentUser.last_name}` 
-                        : currentUser?.name || currentUser?.username}
+                      {(() => {
+                        // Build full name with middle initial if available
+                        if (currentUser?.name) {
+                          let fullName = currentUser.name;
+                          
+                          // Add middle initial if middle_name exists
+                          if (currentUser?.middle_name) {
+                            fullName += ` ${currentUser.middle_name.charAt(0).toUpperCase()}.`;
+                          }
+                          
+                          // Add last name if it exists
+                          if (currentUser?.last_name) {
+                            fullName += ` ${currentUser.last_name}`;
+                          }
+                          
+                          return fullName;
+                        }
+                        
+                        // Fallback to username if no first name
+                        return currentUser?.username;
+                      })()}
                     </p>
                     {currentUser?.position && (
                       <p className="text-sm text-muted-foreground">{currentUser.position}</p>

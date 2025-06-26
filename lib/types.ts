@@ -27,6 +27,9 @@ export interface Message {
   file_size?: number;
   timestamp: string;
   sender_username?: string;
+  sender_name?: string;
+  sender_last_name?: string;
+  sender_middle_name?: string;
   sender_avatar?: string | null;
   queued?: boolean;
   queuedAt?: number;
@@ -46,6 +49,9 @@ export interface MessageRead {
 export interface Conversation {
   other_user_id: number;
   other_username: string;
+  other_user_name?: string;
+  other_user_last_name?: string;
+  other_user_middle_name?: string;
   last_message: string;
   last_message_time: string;
   conversation_type: 'direct' | 'group';

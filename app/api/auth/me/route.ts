@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     // Get full user profile data from database
     const db = await getDatabase();
     const fullUser = await db.get(
-      'SELECT id, username, role, created_at, name, middle_name, position, department, email, avatar_path FROM users WHERE id = ?',
+      'SELECT id, username, role, created_at, name, last_name, middle_name, position, department, email, mobile_number, avatar_path FROM users WHERE id = ?',
       [user.id]
     );
 
