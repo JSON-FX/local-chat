@@ -244,7 +244,12 @@ const runMigrations = async (): Promise<void> => {
       { name: 'department', type: 'VARCHAR(100)' },
       { name: 'email', type: 'VARCHAR(255)' },
       { name: 'mobile_number', type: 'VARCHAR(20)' },
-      { name: 'avatar_path', type: 'VARCHAR(500)' }
+      { name: 'avatar_path', type: 'VARCHAR(500)' },
+      { name: 'ban_reason', type: 'TEXT' },
+      { name: 'banned_until', type: 'DATETIME' },
+      { name: 'failed_login_attempts', type: 'INTEGER' },
+      { name: 'last_failed_login', type: 'DATETIME' },
+      { name: 'profile_data', type: 'TEXT' }
     ];
 
     for (const column of profileColumns) {
@@ -252,6 +257,11 @@ const runMigrations = async (): Promise<void> => {
         console.log(`Adding ${column.name} column to users table...`);
         await db.run(`ALTER TABLE users ADD COLUMN ${column.name} ${column.type}`);
         console.log(`✅ ${column.name} column added to users table`);
+        
+        // Set default values for specific columns that need them
+        if (column.name === 'failed_login_attempts') {
+          await db.run('UPDATE users SET failed_login_attempts = 0 WHERE failed_login_attempts IS NULL');
+        }
       }
     }
 
