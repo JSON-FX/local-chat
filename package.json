@@ -13,7 +13,8 @@
     "init-db": "tsx scripts/init-db.ts",
     "fresh-db": "tsx scripts/fresh-db.ts",
     "db-reset": "tsx scripts/fresh-db.ts --force",
-    "get-ip": "node scripts/get-ip.js"
+    "get-ip": "node scripts/get-ip.js",
+    "dev:ip": "npm run get-ip && tsx server.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",

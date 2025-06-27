@@ -1,13 +1,29 @@
 import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
+import { networkInterfaces } from 'os';
 import { SocketService } from './lib/socket';
 import { FileService } from './lib/files';
 
 const dev = process.env.NODE_ENV !== 'production';
+
+// Function to get local IP address
+function getLocalIPAddress(): string {
+  const networks = networkInterfaces();
+  for (const name of Object.keys(networks)) {
+    for (const net of networks[name] || []) {
+      if (!net.internal && net.family === 'IPv4') {
+        return net.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
 // Use environment variables for production deployment
-const hostname = process.env.SERVER_HOST || (dev ? 'localhost' : '0.0.0.0');
+const hostname = process.env.SERVER_HOST || (dev ? '0.0.0.0' : '0.0.0.0');
 const port = parseInt(process.env.PORT || '3000', 10);
+const localIP = getLocalIPAddress();
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -35,12 +51,27 @@ app.prepare().then(() => {
   });
 
   server.listen(port, hostname, () => {
-    console.log(`> Ready on http://${hostname}:${port}`);
-    console.log('> Socket.io server is running');
-    if (!dev) {
-      console.log('> Running in production mode');
-      console.log(`> Access via: http://${process.env.DOMAIN_NAME || hostname}${port !== 80 ? ':' + port : ''}`);
+    console.log('');
+    console.log('🚀 LGU-Chat Server Started Successfully!');
+    console.log('=' .repeat(50));
+    
+    if (dev) {
+      console.log('📍 DEVELOPMENT MODE');
+      console.log(`📱 Local Access:     http://localhost:${port}`);
+      console.log(`🌐 Network Access:   http://${localIP}:${port}`);
+      console.log('');
+      console.log('👥 Share with others using the Network Access URL');
+      console.log('💡 Users on the same network can connect via your IP');
+    } else {
+      console.log('🏭 PRODUCTION MODE');
+      console.log(`🌐 Server Address:   http://${process.env.DOMAIN_NAME || hostname}${port !== 80 ? ':' + port : ''}`);
+      console.log(`📍 Local IP:         http://${localIP}:${port}`);
     }
+    
+    console.log('');
+    console.log('⚡ Socket.io server is running');
+    console.log('🔧 Ready to accept connections');
+    console.log('=' .repeat(50));
   });
 }).catch((err) => {
   console.error('Error starting server:', err);
