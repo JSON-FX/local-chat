@@ -18,11 +18,11 @@ if (existsSync(envPath)) {
 }
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = process.env.SERVER_HOST || '0.0.0.0';
-const port = parseInt(process.env.PORT || '3000', 10);
+const hostname = 'localhost';
+const port = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-this';
 
-const app = next({ dev, hostname, port });
+const app = next({ dev });
 const handle = app.getRequestHandler();
 
 // Global state for socket connections
@@ -33,10 +33,35 @@ const socketSessions = new Map(); // socketId -> {userId, username}
 let db;
 async function initializeDatabase() {
   try {
+    const dbPath = path.join(__dirname, '..', 'data', 'chat.db');
+    
+    // Check if database directory exists
+    const dbDir = path.dirname(dbPath);
+    if (!existsSync(dbDir)) {
+      console.log('Creating database directory:', dbDir);
+      await fs.mkdir(dbDir, { recursive: true });
+    }
+    
+    // Check if database exists, if not, we need to run initialization
+    const dbExists = existsSync(dbPath);
+    if (!dbExists) {
+      console.error('Database file does not exist at:', dbPath);
+      console.error('Please run: npm run init-db');
+      process.exit(1);
+    }
+
     db = await open({
-      filename: path.join(__dirname, '..', 'data', 'chat.db'),
+      filename: dbPath,
       driver: sqlite3.Database
     });
+    
+    // Verify database has required tables
+    const tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users'");
+    if (!tableExists) {
+      console.error('Database exists but users table is missing. Please run: npm run init-db');
+      process.exit(1);
+    }
+    
     console.log('✅ Database connection initialized');
   } catch (error) {
     console.error('Failed to initialize database:', error);
@@ -281,7 +306,11 @@ class SocketService {
 
 async function startServer() {
   try {
-    // Initialize database first
+    // Prepare Next.js first
+    await app.prepare();
+    console.log('✅ Next.js prepared');
+    
+    // Initialize database
     await initializeDatabase();
     
     // Initialize file storage
