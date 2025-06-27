@@ -33,38 +33,61 @@ const socketSessions = new Map(); // socketId -> {userId, username}
 let db;
 async function initializeDatabase() {
   try {
-    const dbPath = path.join(__dirname, '..', 'data', 'chat.db');
+    const dbPath = path.resolve(path.join(__dirname, '..', 'data', 'localchat.db'));
+    console.log('🔍 Attempting to initialize database at:', dbPath);
     
     // Check if database directory exists
     const dbDir = path.dirname(dbPath);
+    console.log('📁 Database directory:', dbDir);
     if (!existsSync(dbDir)) {
-      console.log('Creating database directory:', dbDir);
+      console.log('📁 Creating database directory:', dbDir);
       await fs.mkdir(dbDir, { recursive: true });
     }
     
-    // Check if database exists, if not, we need to run initialization
+    // Check if database exists
     const dbExists = existsSync(dbPath);
+    console.log('💾 Database file exists:', dbExists);
     if (!dbExists) {
-      console.error('Database file does not exist at:', dbPath);
-      console.error('Please run: npm run init-db');
+      console.error('❌ Database file does not exist at:', dbPath);
+      console.error('⚠️ Please run: npm run init-db');
       process.exit(1);
     }
 
+    console.log('🔌 Opening database connection...');
     db = await open({
       filename: dbPath,
       driver: sqlite3.Database
     });
     
+    // List all tables in the database
+    console.log('📋 Checking database tables...');
+    const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table'");
+    console.log('📋 Found tables:', tables.map(t => t.name).join(', '));
+    
     // Verify database has required tables
     const tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users'");
     if (!tableExists) {
-      console.error('Database exists but users table is missing. Please run: npm run init-db');
+      console.error('❌ Database exists but users table is missing.');
+      console.error('📋 Current tables:', tables.map(t => t.name).join(', '));
+      console.error('⚠️ Please run: npm run init-db');
+      await db.close();
       process.exit(1);
     }
     
-    console.log('✅ Database connection initialized');
+    // Verify we can actually query the users table
+    try {
+      const userCount = await db.get('SELECT COUNT(*) as count FROM users');
+      console.log('👥 Number of users in database:', userCount.count);
+    } catch (error) {
+      console.error('❌ Failed to query users table:', error);
+      await db.close();
+      process.exit(1);
+    }
+    
+    console.log('✅ Database connection initialized successfully');
   } catch (error) {
-    console.error('Failed to initialize database:', error);
+    console.error('❌ Failed to initialize database:', error);
+    if (db) await db.close();
     process.exit(1);
   }
 }
