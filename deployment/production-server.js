@@ -135,195 +135,106 @@ class FileService {
 // Simplified SocketService with proper authentication
 class SocketService {
   static io = null;
+  static userSockets = new Map(); // Track user socket mappings
 
   static initialize(server) {
-    if (this.io) {
-      return this.io;
-    }
+    if (this.io) return;
 
-    // Production CORS configuration
-    const allowedOrigins = process.env.ALLOWED_ORIGINS 
-      ? process.env.ALLOWED_ORIGINS.split(',')
-      : [`http://${process.env.DOMAIN_NAME}`, `https://${process.env.DOMAIN_NAME}`];
+    const allowedOrigins = dev ? [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      /^http:\/\/192\.168\.\d+\.\d+:3000$/,
+      /^http:\/\/10\.\d+\.\d+\\.d+:3000$/,
+      /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+:3000$/
+    ] : [
+      `http://${process.env.SERVER_IP}:${port}`,
+      `http://${process.env.DOMAIN_NAME}`,
+      `https://${process.env.DOMAIN_NAME}`,
+      ...allowedOrigins
+    ];
 
     console.log('[SocketServer] Initializing with CORS allowed origins:', allowedOrigins);
 
     this.io = new SocketServer(server, {
       cors: {
-        origin: dev ? [
-          'http://localhost:3000',
-          'http://127.0.0.1:3000',
-          /^http:\/\/192\.168\.\d+\.\d+:3000$/,
-          /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
-          /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+:3000$/
-        ] : [
-          `http://${process.env.SERVER_IP}:${port}`,
-          `http://${process.env.DOMAIN_NAME}`,
-          `https://${process.env.DOMAIN_NAME}`,
-          ...allowedOrigins
-        ],
+        origin: allowedOrigins,
         methods: ['GET', 'POST'],
         credentials: true
       },
       path: '/socket.io/'
     });
 
-    this.setupSocketHandlers();
-    console.log('✅ Socket.io server initialized');
-    
-    return this.io;
-  }
-
-  static setupSocketHandlers() {
-    if (!this.io) return;
-
-    this.io.on('connection', (socket) => {
+    this.io.on('connection', async (socket) => {
       console.log(`🔌 Socket connected: ${socket.id}`);
-
-      // Proper authentication handler
-      socket.on('authenticate', async (data) => {
+      
+      socket.on('authenticate', async (token) => {
         try {
           console.log(`🔐 Authentication attempt from socket: ${socket.id}`);
-          console.log(`[SocketServer] Received token for auth: ${data.token}`);
+          console.log(`[SocketServer] Received token for auth:`, token);
           
-          if (!data.token) {
-            socket.emit('auth_error', { error: 'No token provided' });
+          const decoded = verifyToken(token);
+          if (!decoded || !decoded.userId) {
+            console.error(`❌ Invalid token for socket ${socket.id}:`, decoded);
             socket.disconnect();
             return;
           }
 
-          // Verify JWT token
-          const decoded = verifyToken(data.token);
-          if (!decoded) {
-            socket.emit('auth_error', { error: 'Invalid token' });
-            socket.disconnect();
-            return;
-          }
-
-          // Get user from database
           const user = await getUserFromDatabase(decoded.userId);
           if (!user) {
-            socket.emit('auth_error', { error: 'User not found' });
+            console.error(`❌ User not found for socket ${socket.id}, userId: ${decoded.userId}`);
             socket.disconnect();
             return;
           }
+
+          // Store socket data
+          socket.userId = user.id;
+          socket.username = user.username;
           
-          socketSessions.set(socket.id, { 
-            userId: user.id, 
-            username: user.username 
-          });
-          
-          connectedUsers.set(user.id, socket.id);
-          socket.join(`user_${user.id}`);
-
-          socket.emit('authenticated', { 
-            userId: user.id, 
-            username: user.username,
-            message: 'Successfully authenticated' 
-          });
-
-          // Broadcast user online status
-          socket.broadcast.emit('user_online', { 
-            userId: user.id, 
-            username: user.username 
-          });
-
+          // Update socket mapping
+          this.userSockets.set(user.id, socket.id);
           console.log(`✅ User authenticated: ${user.username} (${socket.id})`);
+          console.log(`📍 Current socket mappings:`, Object.fromEntries(this.userSockets));
 
         } catch (error) {
-          console.error('Authentication error:', error);
-          socket.emit('auth_error', { error: 'Authentication failed' });
+          console.error(`❌ Authentication error for socket ${socket.id}:`, error);
           socket.disconnect();
         }
       });
 
-      // Handle message sending
-      socket.on('send_message', async (data) => {
-        const session = socketSessions.get(socket.id);
-        if (!session) {
-          socket.emit('error', { message: 'Not authenticated' });
-          return;
-        }
-
-        try {
-          // Basic message handling (extend as needed)
-          const message = {
-            id: Date.now(), // Simple ID generation
-            senderId: session.userId,
-            senderUsername: session.username,
-            content: data.content,
-            timestamp: new Date().toISOString(),
-            type: data.type || 'text'
-          };
-
-          if (data.recipientId) {
-            // Direct message
-            const recipientSocketId = connectedUsers.get(data.recipientId);
-            if (recipientSocketId) {
-              this.io.to(recipientSocketId).emit('new_message', message);
-            }
-          } else if (data.groupId) {
-            // Group message
-            socket.to(`group_${data.groupId}`).emit('new_message', message);
-          }
-
-          socket.emit('message_sent', { messageId: message.id, status: 'delivered' });
-        } catch (error) {
-          console.error('Error sending message:', error);
-          socket.emit('error', { message: 'Failed to send message' });
-        }
-      });
-
-      // Handle joining groups
-      socket.on('join_group', (data) => {
-        const session = socketSessions.get(socket.id);
-        if (session && data.groupId) {
-          socket.join(`group_${data.groupId}`);
-          console.log(`User ${session.username} joined group ${data.groupId}`);
-        }
-      });
-
-      // Handle leaving groups
-      socket.on('leave_group', (data) => {
-        const session = socketSessions.get(socket.id);
-        if (session && data.groupId) {
-          socket.leave(`group_${data.groupId}`);
-          console.log(`User ${session.username} left group ${data.groupId}`);
-        }
-      });
-
-      // Handle disconnect
       socket.on('disconnect', () => {
         console.log(`🔌 Socket disconnected: ${socket.id}`);
-        
-        const session = socketSessions.get(socket.id);
-        if (session) {
-          connectedUsers.delete(session.userId);
-          socketSessions.delete(socket.id);
-          
-          socket.broadcast.emit('user_offline', { 
-            userId: session.userId, 
-            username: session.username 
-          });
+        if (socket.userId) {
+          this.userSockets.delete(socket.userId);
+          console.log(`📍 Updated socket mappings:`, Object.fromEntries(this.userSockets));
         }
       });
     });
+
+    console.log('✅ Socket.io server initialized');
   }
 
-  static getOnlineUsers() {
-    const users = [];
-    for (const [socketId, session] of socketSessions.entries()) {
-      users.push({
-        userId: session.userId,
-        username: session.username,
-        socketId: socketId
-      });
+  static async sendToUser(userId, event, data) {
+    try {
+      const socketId = this.userSockets.get(userId);
+      console.log(`📨 Attempting to send to user ${userId}:`, { event, socketId, hasIo: !!this.io });
+      
+      if (!socketId) {
+        console.warn(`⚠️ No socket found for user ${userId}`);
+        return false;
+      }
+
+      if (!this.io) {
+        console.error('❌ Socket.io not initialized');
+        return false;
+      }
+
+      await this.io.to(socketId).emit(event, data);
+      console.log(`✅ Message sent to user ${userId} (${socketId})`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Failed to send to user ${userId}:`, error);
+      return false;
     }
-    return users;
-  }
-
-  static isUserOnline(userId) {
-    return connectedUsers.has(userId);
   }
 }
 

@@ -6,101 +6,71 @@ import { SocketService } from './socket';
 export class GroupService {
   
   // Create a new group
-  static async createGroup(groupData: CreateGroupData, initialMemberIds: number[] = []): Promise<Group> {
-    console.log(`DEBUG: Creating group with data:`, JSON.stringify(groupData));
-    console.log(`DEBUG: Initial member IDs:`, JSON.stringify(initialMemberIds));
-    
+  static async createGroup(name: string, description: string, createdBy: number, initialMembers: number[] = []): Promise<Group> {
     const db = await getDatabase();
-
+    
     try {
-      // Verify the user exists
-      const userExists = await db.get('SELECT id, username FROM users WHERE id = ?', [groupData.created_by]);
+      console.log('DEBUG: Group creation request:', { name, description, createdBy, initialMembers });
       
-      if (!userExists) {
-        throw new Error(`User with ID ${groupData.created_by} does not exist`);
-      }
-
-      // Verify that all initial members exist before proceeding
-      if (initialMemberIds.length > 0) {
-        // Use a single query to check all member IDs at once
-        const placeholders = initialMemberIds.map(() => '?').join(',');
-        const members = await db.all(`SELECT id FROM users WHERE id IN (${placeholders})`, initialMemberIds);
-        
-        console.log(`DEBUG: Found ${members.length} valid members out of ${initialMemberIds.length} requested`);
-        
-        // Filter to only include existing user IDs
-        initialMemberIds = members.map(m => m.id);
-      }
-
-      // Insert group
-      const result = await db.run(
-        'INSERT INTO groups (name, description, created_by) VALUES (?, ?, ?)',
-        [groupData.name, groupData.description || null, groupData.created_by]
+      // Validate initial members exist in database
+      const memberIds = [...new Set([...initialMembers])]; // Remove duplicates
+      console.log('DEBUG: Initial member IDs:', memberIds);
+      
+      const validMembers = await db.all(
+        'SELECT id FROM users WHERE id IN (' + memberIds.map(() => '?').join(',') + ')',
+        memberIds
       );
+      const validMemberIds = validMembers.map(m => m.id);
+      console.log('DEBUG: Valid member IDs from database:', validMemberIds);
 
-      // Get the inserted ID
-      let groupId;
-      if (result && typeof result === 'object') {
-        groupId = (result as any).lastID || (result as any).lastId || (result as any).insertId;
-      }
-      
-      if (!groupId) {
-        // Fallback: get the most recently created group by this user
-        const group = await db.get(
-          'SELECT * FROM groups WHERE created_by = ? ORDER BY id DESC LIMIT 1', 
-          [groupData.created_by]
-        );
-        if (!group) {
-          throw new Error('Failed to retrieve created group');
-        }
-        groupId = group.id;
-      }
+      // Start transaction
+      await db.run('BEGIN TRANSACTION');
 
-      console.log(`DEBUG: Successfully created group with ID ${groupId}`);
+      // Create group
+      const result = await db.run(
+        'INSERT INTO groups (name, description, created_by, created_at) VALUES (?, ?, ?, datetime("now"))',
+        [name, description, createdBy]
+      );
+      const groupId = result.lastID;
+      console.log('DEBUG: Created group with ID:', groupId);
 
       // Add creator as admin
-      try {
-        await db.run(
-          'INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
-          [groupId, groupData.created_by, 'admin']
-        );
-        console.log(`DEBUG: Added creator (${groupData.created_by}) as admin`);
-      } catch (error: any) {
-        console.error(`ERROR: Failed to add creator as admin:`, error);
-        throw new Error(`Failed to add creator as admin: ${error.message}`);
-      }
+      await db.run(
+        'INSERT INTO group_members (group_id, user_id, role, joined_at) VALUES (?, ?, ?, datetime("now"))',
+        [groupId, createdBy, 'admin']
+      );
+      console.log('DEBUG: Added creator as admin');
 
-      // Add initial members and create system messages
-      for (const userId of initialMemberIds) {
-        if (userId !== groupData.created_by) { // Don't add creator twice
-          try {
+      // Add initial members
+      for (const memberId of validMemberIds) {
+        try {
+          if (memberId !== createdBy) {
             await db.run(
-              'INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
-              [groupId, userId, 'member']
+              'INSERT INTO group_members (group_id, user_id, role, joined_at) VALUES (?, ?, ?, datetime("now"))',
+              [groupId, memberId, 'member']
             );
-            console.log(`DEBUG: Added member ${userId} to group ${groupId}`);
-
-            // Get username for system message
-            const member = await db.get('SELECT username FROM users WHERE id = ?', [userId]);
-            if (member) {
-              const systemMessage = `${member.username} joined the group`;
-              const message = await MessageService.createSystemMessage(groupId, systemMessage);
-              
-              // Broadcast system message to group members
-              SocketService.broadcastSystemMessage(groupId, message);
-            }
-          } catch (error: any) {
-            console.error(`ERROR: Failed to add member ${userId}:`, error);
-            // Continue with other members instead of failing completely
+            console.log(`DEBUG: Added member ${memberId} to group ${groupId}`);
           }
+        } catch (error) {
+          console.error(`ERROR: Failed to add member ${memberId}:`, error);
         }
       }
 
-      // Get the created group
-      const group = await db.get('SELECT * FROM groups WHERE id = ?', [groupId]);
+      // Commit transaction
+      await db.run('COMMIT');
+
+      // Return created group
+      const group = await db.get(
+        'SELECT * FROM groups WHERE id = ?',
+        [groupId]
+      ) as Group;
+
+      console.log('DEBUG: Group creation successful:', group);
       return group;
+
     } catch (error) {
-      console.error('ERROR in createGroup:', error);
+      console.error('ERROR: Group creation failed:', error);
+      await db.run('ROLLBACK');
       throw error;
     }
   }

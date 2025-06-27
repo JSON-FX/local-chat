@@ -2,6 +2,7 @@
 
 import { io, Socket } from 'socket.io-client';
 import { Message, OnlineUser } from './types';
+import { toast } from 'sonner';
 
 export interface SocketClientEvents {
   onConnected: () => void;
