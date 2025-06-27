@@ -476,9 +476,22 @@ export class SocketService {
     const io = this.getIO();
     
     if (socketId && io) {
-      io.to(socketId).emit(event, data);
-      console.log(`✅ Message sent to user ${userId} via socket ${socketId}`);
-      return true;
+      // Check if socket still exists
+      const socket = io.sockets.sockets.get(socketId);
+      
+      if (socket && socket.connected) {
+        io.to(socketId).emit(event, data);
+        console.log(`✅ Message sent to user ${userId} via socket ${socketId}`);
+        return true;
+      } else {
+        console.log(`❌ Socket ${socketId} for user ${userId} is not connected or doesn't exist`);
+        // Clean up stale connection
+        connectedUsers.delete(userId);
+        if (socketId) {
+          socketSessions.delete(socketId);
+        }
+        return false;
+      }
     }
     console.log(`❌ Failed to send to user ${userId} - socketId: ${socketId}, io: ${!!io}`);
     return false;

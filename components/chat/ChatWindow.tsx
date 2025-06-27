@@ -64,9 +64,13 @@ export function ChatWindow({
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const scrollViewportRef = useRef<HTMLElement | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isConfirmingLeave, setIsConfirmingLeave] = useState(false);
+  const [userHasScrolled, setUserHasScrolled] = useState(false);
+  const lastMessageCountRef = useRef(0);
+  const lastConversationRef = useRef<number | null>(null);
   
   // Read status hook
   const { markAllUnreadAsRead, markMessagesAsRead } = useReadStatus({
@@ -77,76 +81,78 @@ export function ChatWindow({
     isConnected
   });
 
-  // Add new state and refs for tracking visible messages - USE REF FOR PERSISTENCE
-  const markedAsReadRef = useRef<Set<number>>(new Set()); // Persistent across renders
+  // Add new state and refs for tracking visible messages
+  const markedAsReadRef = useRef<Set<number>>(new Set());
   const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const intersectionObserver = useRef<IntersectionObserver | null>(null);
-  const isProcessingReadRef = useRef<Set<number>>(new Set()); // Track processing messages
+  const isProcessingReadRef = useRef<Set<number>>(new Set());
 
+  // Get scroll viewport reference
   useEffect(() => {
-    // Use setTimeout to ensure the DOM is fully updated before scrolling
-    const timer = setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-    }, 100);
+    const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+    scrollViewportRef.current = scrollArea;
+  }, []);
+
+  // Smart auto-scroll: only scroll if user hasn't manually scrolled up or it's a new conversation
+  useEffect(() => {
+    // Check if this is a new message (increased message count)
+    const isNewMessage = messages.length > lastMessageCountRef.current;
+    const isNewConversation = selectedConversation !== lastConversationRef.current;
     
-    return () => clearTimeout(timer);
-  }, [messages]);
+    // Update message count tracker
+    lastMessageCountRef.current = messages.length;
+    lastConversationRef.current = selectedConversation;
+    
+    // Only auto-scroll if:
+    // 1. It's a new conversation (user just switched chats)
+    // 2. It's a new message AND user hasn't manually scrolled up
+    if (isNewConversation || (isNewMessage && !userHasScrolled)) {
+      const timer = setTimeout(() => {
+        scrollToBottom('auto');
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [messages, selectedConversation, userHasScrolled]);
 
-  // Scroll to bottom when selected conversation changes
+  // Reset scroll behavior when conversation changes
   useEffect(() => {
+    setUserHasScrolled(false);
+    
+    // Force scroll to bottom for new conversation
     const timer = setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      scrollToBottom('auto');
     }, 100);
     
     return () => clearTimeout(timer);
   }, [selectedConversation]);
 
-  // Auto-mark ALL unread messages as read when viewing conversation
-  const processingRef = useRef(false);
-  const lastConversationRef = useRef<string>('');
-  
-  // DISABLED: Simplified auto-mark for initial conversation entry only
+  // Enhanced scroll event listener to track user behavior and show scroll button
   useEffect(() => {
-    // DISABLED TO STOP INFINITE LOOP - just return early
-    console.log(`🔍 DEBUG: Auto-mark useEffect DISABLED to prevent infinite loop`);
-    return;
-  }, [selectedConversation, selectedConversationType, currentUser?.id, markAllUnreadAsRead]);
-
-  // DISABLED: Add real-time message visibility detection for group chats
-  useEffect(() => {
-    // DISABLED TO STOP INFINITE LOOP - just return early
-    console.log(`🔍 DEBUG: Intersection observer DISABLED to prevent infinite loop`);
-    return;
-  }, [selectedConversation, selectedConversationType, currentUser, messages]);
-
-  // DISABLED: Observe messages when they're added/updated
-  useEffect(() => {
-    // DISABLED TO STOP INFINITE LOOP - just return early
-    console.log(`🔍 DEBUG: Message observation DISABLED to prevent infinite loop`);
-    return;
-  }, [messages, selectedConversationType]);
-
-  // Reset processing state when conversation changes (put this back)
-  useEffect(() => {
-    processingRef.current = false;
-    console.log(`🔍 DEBUG: Reset processing state for conversation change`);
-    
-    // CRITICAL: Clear BOTH tracking sets when switching conversations
-    markedAsReadRef.current.clear();
-    isProcessingReadRef.current.clear();
-    console.log(`🔍 DEBUG: Cleared both tracking sets for new conversation`);
-  }, [selectedConversation, selectedConversationType]);
-
-  // Add scroll event listener to detect when user has scrolled up
-  useEffect(() => {
-    const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    const scrollArea = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
     
     if (!scrollArea) return;
     
+    let scrollTimeout: NodeJS.Timeout;
+    let lastScrollTop = scrollArea.scrollTop;
+    
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = scrollArea as HTMLElement;
-      const isScrolledUp = scrollHeight - scrollTop - clientHeight > 100;
+      const { scrollTop, scrollHeight, clientHeight } = scrollArea;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      const isScrolledUp = distanceFromBottom > 50;
+      
+      // Show/hide scroll to bottom button
       setShowScrollButton(isScrolledUp);
+      
+      // Track if user manually scrolled up (not auto-scroll)
+      if (scrollTop < lastScrollTop) {
+        // User scrolled up manually
+        setUserHasScrolled(true);
+      } else if (distanceFromBottom < 50) {
+        // User scrolled to bottom (within 50px), reset manual scroll flag
+        setUserHasScrolled(false);
+      }
+      
+      lastScrollTop = scrollTop;
     };
     
     scrollArea.addEventListener('scroll', handleScroll);
@@ -155,8 +161,18 @@ export function ChatWindow({
     };
   }, []);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (scrollViewportRef.current) {
+      scrollViewportRef.current.scrollTo({
+        top: scrollViewportRef.current.scrollHeight,
+        behavior
+      });
+    } else {
+      // Fallback to scrollIntoView
+      messagesEndRef.current?.scrollIntoView({ behavior });
+    }
+    // Reset user scroll flag since we've scrolled to bottom
+    setUserHasScrolled(false);
   };
 
   const getConversationPartner = () => {
@@ -228,6 +244,19 @@ export function ChatWindow({
     return message.sender_username || 'Unknown User';
   };
 
+  // Auto-mark messages as read when conversation changes
+  useEffect(() => {
+    if (selectedConversation && currentUser && messages.length > 0) {
+      // Small delay to ensure UI is ready
+      const timer = setTimeout(() => {
+        markAllUnreadAsRead(selectedConversation, selectedConversationType === 'group');
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [selectedConversation, currentUser?.id, messages.length, markAllUnreadAsRead, selectedConversationType]);
+
+  // Handle sending a message
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim() && currentUser) {
@@ -237,7 +266,7 @@ export function ChatWindow({
       
       // Scroll to bottom after sending a message
       setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+        scrollToBottom('auto');
       }, 100);
     }
   };
@@ -592,7 +621,7 @@ export function ChatWindow({
         </div>
       )}
 
-      <ScrollArea className="flex-1 px-6 overflow-y-auto h-full" ref={scrollAreaRef}>
+      <ScrollArea className="flex-1 px-6 overflow-hidden" ref={scrollAreaRef}>
         <div className="py-4 space-y-4">
           {messages.map((message, index) => {
             // System messages should be displayed differently
@@ -849,7 +878,7 @@ export function ChatWindow({
           <Button 
             size="icon" 
             className="rounded-full shadow-md" 
-            onClick={scrollToBottom}
+            onClick={() => scrollToBottom()}
           >
             <ArrowDown className="h-4 w-4" />
           </Button>

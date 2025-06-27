@@ -25,7 +25,9 @@ const updateConversationCount = (key: string, count: number) => {
 
 export const incrementUnreadCount = (conversationId: number, isGroup: boolean) => {
   const key = isGroup ? `group_${conversationId}` : `direct_${conversationId}`;
-  updateConversationCount(key, (globalUnreadCounts[key] || 0) + 1);
+  const oldCount = globalUnreadCounts[key] || 0;
+  const newCount = oldCount + 1;
+  updateConversationCount(key, newCount);
 };
 
 export const clearUnreadCount = (conversationId: number, isGroup: boolean) => {

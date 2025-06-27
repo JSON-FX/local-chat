@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -86,18 +86,6 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
     setIsOpen(false);
   };
 
-  const sortedUsers = filteredUsers.sort((a, b) => {
-    // Sort online users first
-    const aOnline = onlineUsers.includes(a.id);
-    const bOnline = onlineUsers.includes(b.id);
-    
-    if (aOnline && !bOnline) return -1;
-    if (!aOnline && bOnline) return 1;
-    
-    // Then sort alphabetically by display name
-    return formatUserDisplayName(a).localeCompare(formatUserDisplayName(b));
-  });
-
   // Helper function to format user display name with same logic as sidebar and conversation list
   const formatUserDisplayName = (user: User) => {
     // Build full name with middle initial if available
@@ -120,6 +108,24 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
     // Fallback to username if no first name
     return user.username;
   };
+
+  const sortedUsers = useMemo(() => {
+    if (!filteredUsers || !Array.isArray(filteredUsers)) {
+      return [];
+    }
+    
+    return [...filteredUsers].sort((a, b) => {
+      // Sort online users first
+      const aOnline = onlineUsers.includes(a.id);
+      const bOnline = onlineUsers.includes(b.id);
+      
+      if (aOnline && !bOnline) return -1;
+      if (!aOnline && bOnline) return 1;
+      
+      // Then sort alphabetically by display name
+      return formatUserDisplayName(a).localeCompare(formatUserDisplayName(b));
+    });
+  }, [filteredUsers, onlineUsers]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>

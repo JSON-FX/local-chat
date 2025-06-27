@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
       }
     } else if (recipient_id) {
       // Direct message - send to specific user if online
-      SocketService.sendToUser(recipient_id, 'new_message', messageWithSender);
-      console.log(`📨 Message sent to user ${recipient_id} from ${user.username}`);
+      const success = SocketService.sendToUser(recipient_id, 'new_message', messageWithSender);
+      console.log(`📨 Message sent to user ${recipient_id} from ${user.username} - Success: ${success}`);
     }
 
     return NextResponse.json({

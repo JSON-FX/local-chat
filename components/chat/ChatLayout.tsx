@@ -1277,7 +1277,7 @@ export function ChatLayout() {
     <TooltipProvider>
       <div className="h-screen flex flex-col bg-background">
         <BetaNotice variant="warning" dismissible={true} />
-        <div className="flex-1 flex bg-background">
+        <div className="flex-1 flex overflow-hidden bg-background">
         {/* Sidebar */}
         <div className={`${sidebarCollapsed ? 'w-16' : 'w-80'} border-r border-border flex flex-col h-full transition-all duration-300 ease-in-out`}>
           {/* Header */}
