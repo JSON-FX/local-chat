@@ -62,6 +62,7 @@ class FileService {
 // Authentication helper
 function verifyToken(token) {
   try {
+    console.log(`[SocketServer] Verifying token with JWT_SECRET: ${JWT_SECRET.substring(0, 10)}...`);
     return jwt.verify(token, JWT_SECRET);
   } catch (error) {
     console.error('Token verification failed:', error);
@@ -82,6 +83,8 @@ class SocketService {
     const allowedOrigins = process.env.ALLOWED_ORIGINS 
       ? process.env.ALLOWED_ORIGINS.split(',')
       : [`http://${process.env.DOMAIN_NAME}`, `https://${process.env.DOMAIN_NAME}`];
+
+    console.log('[SocketServer] Initializing with CORS allowed origins:', allowedOrigins);
 
     this.io = new SocketServer(server, {
       cors: {
@@ -114,6 +117,7 @@ class SocketService {
       socket.on('authenticate', async (data) => {
         try {
           console.log(`🔐 Authentication attempt from socket: ${socket.id}`);
+          console.log(`[SocketServer] Received token for auth: ${data.token}`);
           
           if (!data.token) {
             socket.emit('auth_error', { error: 'No token provided' });

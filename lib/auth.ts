@@ -28,6 +28,7 @@ export class AuthService {
 
   // Generate JWT token
   static generateToken(userId: number, sessionId: string): string {
+    console.log(`[AuthService] Generating token with JWT_SECRET: ${JWT_SECRET.substring(0, 10)}...`);
     return jwt.sign(
       { userId, sessionId },
       JWT_SECRET,
@@ -38,6 +39,7 @@ export class AuthService {
   // Verify JWT token
   static verifyToken(token: string): { userId: number; sessionId: string } | null {
     try {
+      console.log(`[AuthService] Verifying token with JWT_SECRET: ${JWT_SECRET.substring(0, 10)}...`);
       const decoded = jwt.verify(token, JWT_SECRET) as any;
       return { userId: decoded.userId, sessionId: decoded.sessionId };
     } catch (error) {

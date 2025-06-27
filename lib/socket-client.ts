@@ -122,7 +122,7 @@ class SocketClient {
           
           // Authenticate immediately after connection
           if (this.token) {
-            console.log('🔐 Sending authentication with token:', this.token.substring(0, 50) + '...');
+            console.log('🔐 [SocketClient] Sending authentication event with token.');
             this.socket?.emit('authenticate', { token: this.token });
             
             // Set authentication timeout
