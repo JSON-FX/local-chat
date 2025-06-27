@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { apiService } from '@/lib/api';
+import { BetaNotice } from '@/components/ui/beta-notice';
 import {
   Bell,
   Settings,
@@ -158,7 +159,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex flex-col h-screen bg-background">
+      <BetaNotice variant="info" dismissible={true} />
+      <div className="flex flex-1 bg-background">
       {/* Sidebar Navigation */}
       <div className="flex-shrink-0">
         <AdminNavigation />
@@ -277,6 +280,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="flex-1 overflow-auto">
           {children}
         </div>
+      </div>
       </div>
     </div>
   );

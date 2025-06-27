@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { apiService } from '@/lib/api';
 import Image from 'next/image';
+import { BetaNotice } from '@/components/ui/beta-notice';
 
 interface LoginFormProps {
   onLoginSuccess?: () => void;
@@ -83,8 +84,10 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col bg-muted/40">
+      <BetaNotice variant="warning" dismissible={false} persistent={true} />
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-white shadow-md">
@@ -103,6 +106,11 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
               ? 'Create a new account to start messaging' 
               : 'Sign in to your account to start messaging'
             }
+            {isRegisterMode && (
+              <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded text-xs text-yellow-800 dark:text-yellow-200">
+                <strong>Beta Notice:</strong> This is a beta version. Your data may be removed during updates.
+              </div>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -177,6 +185,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 } 

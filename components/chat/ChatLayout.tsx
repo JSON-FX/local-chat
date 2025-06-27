@@ -23,6 +23,8 @@ import { ChatList } from './ChatList';
 import { ChatWindow } from './ChatWindow';
 import { NewChatDialog } from './NewChatDialog';
 import { UserSettingsDialog } from './UserSettingsDialog';
+import { BetaNotice } from '@/components/ui/beta-notice';
+import { BetaAgreementDialog } from '@/components/ui/beta-agreement-dialog';
 import { User, Conversation, Message } from '@/lib/types';
 import { incrementUnreadCount, clearUnreadCount } from '@/lib/hooks/useReadStatus';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -56,6 +58,7 @@ export function ChatLayout() {
   const [isPageVisible, setIsPageVisible] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [serviceWorkerRegistration, setServiceWorkerRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [showBetaAgreement, setShowBetaAgreement] = useState(false);
 
   // Read status management (including badge counts)
   const selectedConversationId = selectedConversation 
@@ -1272,7 +1275,9 @@ export function ChatLayout() {
 
   return (
     <TooltipProvider>
-      <div className="h-screen flex bg-background">
+      <div className="h-screen flex flex-col bg-background">
+        <BetaNotice variant="warning" dismissible={true} />
+        <div className="flex-1 flex bg-background">
         {/* Sidebar */}
         <div className={`${sidebarCollapsed ? 'w-16' : 'w-80'} border-r border-border flex flex-col h-full transition-all duration-300 ease-in-out`}>
           {/* Header */}
@@ -1617,6 +1622,10 @@ export function ChatLayout() {
         )}
       </div>
       </div>
+      </div>
+      
+      {/* Beta Agreement Dialog */}
+      <BetaAgreementDialog onAgreementAccepted={() => setShowBetaAgreement(false)} />
     </TooltipProvider>
   );
 } 
