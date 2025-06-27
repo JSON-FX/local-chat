@@ -140,17 +140,21 @@ class SocketService {
   static initialize(server) {
     if (this.io) return;
 
-    const allowedOrigins = dev ? [
+    // Initialize base allowed origins
+    const baseAllowedOrigins = [
       'http://localhost:3000',
       'http://127.0.0.1:3000',
       /^http:\/\/192\.168\.\d+\.\d+:3000$/,
-      /^http:\/\/10\.\d+\.\d+\\.d+:3000$/,
+      /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
       /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+:3000$/
-    ] : [
+    ];
+
+    // Add production origins if not in dev mode
+    const allowedOrigins = dev ? baseAllowedOrigins : [
       `http://${process.env.SERVER_IP}:${port}`,
       `http://${process.env.DOMAIN_NAME}`,
       `https://${process.env.DOMAIN_NAME}`,
-      ...allowedOrigins
+      ...baseAllowedOrigins
     ];
 
     console.log('[SocketServer] Initializing with CORS allowed origins:', allowedOrigins);
