@@ -5,10 +5,10 @@
   "scripts": {
     "dev": "tsx server.ts",
     "dev:next": "next dev --turbopack",
-    "build": "node_modules/.bin/dotenv -e ./deployment/production.env next build",
-    "start": "node_modules/.bin/dotenv -e ./deployment/production.env ./node_modules/.bin/cross-env NODE_ENV=production tsx server.ts",
+    "build": "npx dotenv-cli -e ./deployment/production.env -- next build",
+    "start": "npx dotenv-cli -e ./deployment/production.env -- npx cross-env NODE_ENV=production tsx server.ts",
     "start:next": "next start",
-    "prod": "node_modules/.bin/dotenv -e ./deployment/production.env ./node_modules/.bin/cross-env NODE_ENV=production node deployment/production-server.js",
+    "prod": "npx dotenv-cli -e ./deployment/production.env -- npx cross-env NODE_ENV=production node deployment/production-server.js",
     "lint": "next lint",
     "init-db": "tsx scripts/init-db.ts",
     "fresh-db": "tsx scripts/fresh-db.ts",
