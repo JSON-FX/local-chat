@@ -165,7 +165,18 @@ class SocketService {
         methods: ['GET', 'POST'],
         credentials: true
       },
-      path: '/socket.io/'
+      path: '/socket.io/',
+      pingTimeout: 60000, // 60 seconds
+      pingInterval: 25000, // 25 seconds
+      transports: ['websocket', 'polling'],
+      allowUpgrades: true,
+      upgradeTimeout: 10000,
+      maxHttpBufferSize: 1e8 // 100 MB
+    });
+
+    // Log transport changes
+    this.io.engine.on('transport', (transport) => {
+      console.log(`🔌 Client transport changed to: ${transport.name}`);
     });
 
     this.io.on('connection', async (socket) => {

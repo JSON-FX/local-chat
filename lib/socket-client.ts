@@ -110,16 +110,40 @@ class SocketClient {
         this.socket = io(socketUrl, {
           transports: ['websocket', 'polling'],
           timeout: 20000,
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          randomizationFactor: 0.5,
+          forceNew: false,
+          path: '/socket.io/',
+          autoConnect: false, // We'll call connect() manually
+          withCredentials: true
         });
 
-        this.setupEventHandlers();
+        // Log transport changes
+        (this.socket as any).io.engine.on('transport', (transport: { name: string }) => {
+          console.log(`🔌 Client transport changed to: ${transport.name}`);
+        });
 
-        // Wait for connection
+        // Handle ping/pong events for connection monitoring
         this.socket.on('connect', () => {
           console.log('✅ Socket connected:', this.socket?.id);
           this.isConnecting = false;
           this.reconnectAttempts = 0;
           this.handlers.onConnected?.();
+          
+          // Monitor connection health
+          setInterval(() => {
+            if (this.socket?.connected) {
+              const start = Date.now();
+              this.socket.emit('ping');
+              this.socket.once('pong', () => {
+                const latency = Date.now() - start;
+                console.log(`🏓 Connection health check - Latency: ${latency}ms`);
+              });
+            }
+          }, 30000); // Check every 30 seconds
           
           // Authenticate immediately after connection
           if (this.token) {
