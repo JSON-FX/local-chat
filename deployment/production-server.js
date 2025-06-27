@@ -171,12 +171,20 @@ class SocketService {
     this.io.on('connection', async (socket) => {
       console.log(`🔌 Socket connected: ${socket.id}`);
       
-      socket.on('authenticate', async (token) => {
+      socket.on('authenticate', async (tokenData) => {
         try {
           console.log(`🔐 Authentication attempt from socket: ${socket.id}`);
-          console.log(`[SocketServer] Received token for auth:`, token);
+          console.log(`[SocketServer] Received token for auth:`, tokenData);
           
-          const decoded = verifyToken(token);
+          // Extract token string from token object
+          const tokenString = typeof tokenData === 'string' ? tokenData : tokenData?.token;
+          if (!tokenString) {
+            console.error(`❌ No valid token provided for socket ${socket.id}`);
+            socket.disconnect();
+            return;
+          }
+          
+          const decoded = verifyToken(tokenString);
           if (!decoded || !decoded.userId) {
             console.error(`❌ Invalid token for socket ${socket.id}:`, decoded);
             socket.disconnect();
