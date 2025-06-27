@@ -7,20 +7,27 @@ const fs = require('fs').promises;
 const { existsSync } = require('fs');
 const jwt = require('jsonwebtoken');
 
-// Load environment variables from .env.production if it exists
+// Load environment variables from production.env if it exists
 try {
   const fs = require('fs');
-  if (fs.existsSync('.env.production')) {
-    const envContent = fs.readFileSync('.env.production', 'utf8');
-    envContent.split('\n').forEach(line => {
-      const [key, value] = line.split('=');
+  const envFilePath = path.join(__dirname, 'production.env');
+  if (fs.existsSync(envFilePath)) {
+    console.log('Loading environment variables from production.env');
+    const envContent = fs.readFileSync(envFilePath, 'utf8');
+    envContent.split(/\r?\n/).forEach(line => {
+      const [key, ...values] = line.split('=');
+      const value = values.join('=').trim();
       if (key && value && !key.startsWith('#')) {
-        process.env[key.trim()] = value.trim();
+        const cleanedValue = value.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
+        process.env[key.trim()] = cleanedValue;
       }
     });
+    console.log('JWT_SECRET loaded:', !!process.env.JWT_SECRET);
+  } else {
+    console.log('Note: production.env file not found.');
   }
 } catch (error) {
-  console.log('Note: Could not load .env.production file, using defaults');
+  console.log('Note: Could not load production.env file, using defaults', error);
 }
 
 const dev = process.env.NODE_ENV !== 'production';
