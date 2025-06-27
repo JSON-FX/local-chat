@@ -56,29 +56,35 @@ class SocketClient {
   // Connect to Socket.io server
   connect(token?: string): Promise<void> {
     return new Promise((resolve, reject) => {
+      console.log('🔍 [DEBUG] Socket connect() called with token:', token ? 'present' : 'missing');
+      
       if (token) {
         this.token = token;
+        console.log('🔍 [DEBUG] Token set on socket client');
       }
 
       if (!this.token) {
+        console.error('❌ [DEBUG] No authentication token provided');
         reject(new Error('No authentication token provided'));
         return;
       }
 
       // If already connected with the same token, resolve immediately
       if (this.socket?.connected) {
-        console.log('✅ Socket already connected, reusing connection');
+        console.log('✅ [DEBUG] Socket already connected, reusing connection');
         resolve();
         return;
       }
 
       // If connecting, wait for it to complete
       if (this.isConnecting) {
-        console.log('⏳ Connection already in progress, waiting...');
+        console.log('⏳ [DEBUG] Connection already in progress, waiting...');
         const checkConnection = () => {
           if (this.socket?.connected) {
+            console.log('✅ [DEBUG] Connection completed while waiting');
             resolve();
           } else if (!this.isConnecting) {
+            console.error('❌ [DEBUG] Connection failed while waiting');
             reject(new Error('Connection failed'));
           } else {
             setTimeout(checkConnection, 100);
@@ -90,13 +96,14 @@ class SocketClient {
 
       // Disconnect existing socket if it exists but is not connected
       if (this.socket && !this.socket.connected) {
-        console.log('🔄 Cleaning up old socket connection');
+        console.log('🔄 [DEBUG] Cleaning up old socket connection');
         this.socket.removeAllListeners();
         this.socket.disconnect();
         this.socket = null;
       }
 
       this.isConnecting = true;
+      console.log('🔍 [DEBUG] Starting new socket connection process');
 
       try {
         // Use environment variable for production, otherwise use current host
@@ -105,10 +112,12 @@ class SocketClient {
             ? `${window.location.protocol}//${window.location.host}`
             : 'http://localhost:3000');
           
-        console.log(`🔌 Attempting to connect to socket server at: ${socketUrl}`);
+        console.log(`🔌 [DEBUG] Attempting to connect to socket server at: ${socketUrl}`);
+        console.log(`🔍 [DEBUG] Browser protocol: ${typeof window !== 'undefined' ? window.location.protocol : 'N/A'}`);
+        console.log(`🔍 [DEBUG] Browser host: ${typeof window !== 'undefined' ? window.location.host : 'N/A'}`);
         
         this.socket = io(socketUrl, {
-          transports: ['websocket', 'polling'],
+          transports: ['polling', 'websocket'], // Try polling first for compatibility
           timeout: 20000,
           reconnection: true,
           reconnectionAttempts: 5,
@@ -118,17 +127,31 @@ class SocketClient {
           forceNew: false,
           path: '/socket.io/',
           autoConnect: false, // We'll call connect() manually
-          withCredentials: true
+          withCredentials: true,
+          upgrade: true,
+          rememberUpgrade: true
         });
 
-        // Log transport changes
-        (this.socket as any).io.engine.on('transport', (transport: { name: string }) => {
-          console.log(`🔌 Client transport changed to: ${transport.name}`);
-        });
+        console.log('🔍 [DEBUG] Socket.io client instance created');
 
+        // Log transport changes (safely)
+        try {
+          if (this.socket && (this.socket as any).io && (this.socket as any).io.engine) {
+            (this.socket as any).io.engine.on('transport', (transport: { name: string }) => {
+              console.log(`🔌 [DEBUG] Client transport changed to: ${transport.name}`);
+            });
+          }
+        } catch (error) {
+          console.log('🔍 [DEBUG] Transport logging not available (this is normal)');
+        }
+
+        // Setup all event handlers first
+        this.setupEventHandlers();
+        
         // Handle ping/pong events for connection monitoring
         this.socket.on('connect', () => {
-          console.log('✅ Socket connected:', this.socket?.id);
+          console.log('✅ [DEBUG] Socket connected successfully:', this.socket?.id);
+          console.log('🔍 [DEBUG] Socket state:', this.socket?.connected ? 'connected' : 'disconnected');
           this.isConnecting = false;
           this.reconnectAttempts = 0;
           this.handlers.onConnected?.();
@@ -140,54 +163,67 @@ class SocketClient {
               this.socket.emit('ping');
               this.socket.once('pong', () => {
                 const latency = Date.now() - start;
-                console.log(`🏓 Connection health check - Latency: ${latency}ms`);
+                console.log(`🏓 [DEBUG] Connection health check - Latency: ${latency}ms`);
               });
             }
           }, 30000); // Check every 30 seconds
           
           // Authenticate immediately after connection
           if (this.token) {
-            console.log('🔐 [SocketClient] Sending authentication event with token.');
+            console.log('🔐 [DEBUG] Sending authentication event with token.');
+            console.log('🔍 [DEBUG] Token length:', this.token.length);
+            console.log('🔍 [DEBUG] Token preview:', this.token.substring(0, 50) + '...');
             this.socket?.emit('authenticate', { token: this.token });
             
             // Set authentication timeout
             const authTimeout = setTimeout(() => {
-              console.error('❌ Authentication timeout');
+              console.error('❌ [DEBUG] Authentication timeout after 10 seconds');
               this.disconnect();
               reject(new Error('Authentication timeout'));
-            }, 5000);
+            }, 10000); // Increase timeout to 10 seconds
 
             // Clear timeout on successful auth
             this.socket?.once('authenticated', (data) => {
               clearTimeout(authTimeout);
-              console.log('✅ Socket authenticated:', data.username);
+              console.log('✅ [DEBUG] Socket authenticated successfully:', data.username);
               this.handlers.onAuthenticated?.(data);
               resolve();
             });
 
             // Clear timeout on auth error
             this.socket?.once('auth_error', (error) => {
+              console.error('❌ [DEBUG] Authentication error received:', error);
               clearTimeout(authTimeout);
             });
           } else {
-            console.error('❌ No token available for authentication');
+            console.error('❌ [DEBUG] No token available for authentication');
             reject(new Error('No authentication token'));
           }
         });
 
         this.socket.on('auth_error', (error) => {
-          console.error('❌ Socket auth error:', error);
+          console.error('❌ [DEBUG] Socket auth error:', error);
           this.handlers.onAuthError?.(error);
           this.disconnect();
           reject(new Error(error.error));
         });
 
         this.socket.on('connect_error', (error) => {
-          console.error('❌ Socket connection error:', error);
+          console.error('❌ [DEBUG] Socket connection error:', error);
+          console.error('❌ [DEBUG] Error details:', {
+            message: error.message,
+            description: (error as any).description,
+            type: (error as any).type,
+            transport: (error as any).transport
+          });
           this.isConnecting = false;
           this.handleReconnect();
           reject(error);
         });
+
+        // Manually initiate connection since autoConnect is false
+        console.log('🔌 [DEBUG] Manually connecting socket...');
+        this.socket.connect();
 
       } catch (error) {
         this.isConnecting = false;

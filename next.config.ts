@@ -40,7 +40,42 @@ const nextConfig: NextConfig = {
   // Disable TypeScript strict checking during build
   typescript: {
     ignoreBuildErrors: true
-  }
+  },
+
+  serverExternalPackages: ['sqlite3'],
+
+  // Ensure socket.io and static files are handled properly
+  async rewrites() {
+    return [
+      {
+        source: '/socket.io/:path*',
+        destination: '/api/socket/:path*',
+      },
+    ];
+  },
+
+  // Add proper headers for socket.io
+  async headers() {
+    return [
+      {
+        source: '/socket.io/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, PUT, DELETE, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

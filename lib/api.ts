@@ -61,26 +61,42 @@ class ApiService {
 
   // Authentication endpoints
   async login(username: string, password: string): Promise<AuthResponse> {
+    console.log('🔍 [DEBUG] API login called for username:', username);
+    
     const response = await this.fetchApi<AuthResponse['data']>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
 
+    console.log('🔍 [DEBUG] Login API response success:', response.success);
     if (response.success && response.data?.token) {
+      console.log('🔍 [DEBUG] Token received, length:', response.data.token.length);
+      console.log('🔍 [DEBUG] Token preview:', response.data.token.substring(0, 50) + '...');
       this.setToken(response.data.token);
+      console.log('🔍 [DEBUG] Token stored in localStorage');
+    } else {
+      console.error('❌ [DEBUG] Login failed:', response.error);
     }
 
     return response as AuthResponse;
   }
 
   async register(username: string, password: string, confirmPassword: string): Promise<AuthResponse> {
+    console.log('🔍 [DEBUG] API register called for username:', username);
+    
     const response = await this.fetchApi<AuthResponse['data']>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify({ username, password, confirmPassword }),
     });
 
+    console.log('🔍 [DEBUG] Register API response success:', response.success);
     if (response.success && response.data?.token) {
+      console.log('🔍 [DEBUG] Token received, length:', response.data.token.length);
+      console.log('🔍 [DEBUG] Token preview:', response.data.token.substring(0, 50) + '...');
       this.setToken(response.data.token);
+      console.log('🔍 [DEBUG] Token stored in localStorage');
+    } else {
+      console.error('❌ [DEBUG] Register failed:', response.error);
     }
 
     return response as AuthResponse;

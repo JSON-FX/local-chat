@@ -112,24 +112,41 @@ export class SocketService {
       // Handle authentication
       socket.on('authenticate', async (data: { token: string }) => {
         try {
-          console.log(`🔐 Authentication attempt from socket: ${socket.id}`);
-          console.log(`🔐 Token received: ${data.token.substring(0, 50)}...`);
+          console.log(`🔐 [DEBUG] Authentication attempt from socket: ${socket.id}`);
+          console.log(`🔐 [DEBUG] Client IP: ${socket.handshake.address}`);
+          console.log(`🔐 [DEBUG] Token received: ${data.token ? data.token.substring(0, 50) + '...' : 'missing'}`);
+          console.log(`🔐 [DEBUG] Token length: ${data.token ? data.token.length : 0}`);
+          console.log(`🔐 [DEBUG] Full authentication data keys:`, Object.keys(data));
           
+          if (!data.token) {
+            console.error(`❌ [DEBUG] No token provided from socket: ${socket.id}`);
+            socket.emit('auth_error', { error: 'No token provided' });
+            socket.disconnect();
+            return;
+          }
+          
+          console.log(`🔍 [DEBUG] Attempting to verify JWT token...`);
           const decoded = AuthService.verifyToken(data.token);
           if (!decoded) {
-            console.log(`❌ Invalid token from socket: ${socket.id}`);
+            console.error(`❌ [DEBUG] Invalid token from socket: ${socket.id}`);
+            console.error(`❌ [DEBUG] Token verification failed`);
             socket.emit('auth_error', { error: 'Invalid token' });
             socket.disconnect();
             return;
           }
+          console.log(`🔐 [DEBUG] Token decoded successfully:`, { userId: decoded.userId, sessionId: decoded.sessionId });
 
+          console.log(`🔍 [DEBUG] Validating session: ${decoded.sessionId}`);
           const user = await AuthService.validateSession(decoded.sessionId);
           if (!user) {
-            console.log(`❌ Invalid session from socket: ${socket.id}`);
+            console.log(`❌ [DEBUG] Invalid session from socket: ${socket.id}`);
+            console.log(`❌ [DEBUG] Session ID: ${decoded.sessionId}`);
             socket.emit('auth_error', { error: 'Session invalid or expired' });
             socket.disconnect();
             return;
           }
+
+          console.log(`✅ [DEBUG] Session validated for user: ${user.username} (ID: ${user.id})`);
 
           // Store user session
           socketSessions.set(socket.id, { 
@@ -137,23 +154,29 @@ export class SocketService {
             username: user.username 
           });
           
+          console.log(`🔍 [DEBUG] Checking for existing connections for user ${user.id}...`);
           // Remove user from any previous socket
           const previousSocketId = connectedUsers.get(user.id);
           if (previousSocketId && previousSocketId !== socket.id) {
+            console.log(`🔄 [DEBUG] Found previous connection ${previousSocketId}, disconnecting...`);
             const previousSocket = this.io?.sockets.sockets.get(previousSocketId);
             if (previousSocket) {
               previousSocket.disconnect();
+              console.log(`🔄 [DEBUG] Previous socket disconnected`);
             }
           }
           
           // Add user to connected users
           connectedUsers.set(user.id, socket.id);
+          console.log(`✅ [DEBUG] User ${user.username} mapped to socket ${socket.id}`);
 
           // Join user to their personal room
           socket.join(`user_${user.id}`);
+          console.log(`🏠 [DEBUG] User joined personal room: user_${user.id}`);
 
           // Join user's group rooms
           try {
+            console.log(`🔍 [DEBUG] Loading user groups for auto-join...`);
             const { getDatabase } = await import('./database');
             const db = await getDatabase();
             const userGroups = await db.all(
@@ -161,15 +184,17 @@ export class SocketService {
               [user.id]
             );
             
+            console.log(`🔍 [DEBUG] Found ${userGroups.length} groups for user ${user.username}`);
             for (const group of userGroups) {
               socket.join(`group_${group.group_id}`);
-              console.log(`👥 User ${user.username} auto-joined group room ${group.group_id}`);
+              console.log(`👥 [DEBUG] User ${user.username} auto-joined group room ${group.group_id}`);
             }
           } catch (error) {
-            console.error('Failed to join user groups:', error);
+            console.error('❌ [DEBUG] Failed to join user groups:', error);
           }
 
           // Emit successful authentication
+          console.log(`✅ [DEBUG] Emitting authenticated event for ${user.username}`);
           socket.emit('authenticated', { 
             userId: user.id, 
             username: user.username,
@@ -177,6 +202,7 @@ export class SocketService {
           });
 
           // Deliver any pending messages
+          console.log(`📨 [DEBUG] Delivering pending messages for user ${user.id}...`);
           await MessageQueueService.deliverPendingMessages(user.id);
 
           // Notify others that user is online
@@ -185,8 +211,8 @@ export class SocketService {
             username: user.username 
           });
 
-          console.log(`✅ User authenticated: ${user.username} (${socket.id})`);
-          console.log(`📊 Connected users now:`, Array.from(connectedUsers.entries()));
+          console.log(`✅ [DEBUG] User authenticated successfully: ${user.username} (${socket.id})`);
+          console.log(`📊 [DEBUG] Connected users now:`, Array.from(connectedUsers.entries()));
 
         } catch (error) {
           console.error('Authentication error:', error);
@@ -353,34 +379,25 @@ export class SocketService {
 
       // Handle marking messages as read
       socket.on('mark_messages_read', async (data: { message_ids: number[]; conversation_id: number; is_group: boolean }) => {
-        console.log(`📖 DEBUG: Socket mark_messages_read event from user ${data.userId}:`, data);
+        const userSession = socketSessions.get(socket.id);
+        if (!userSession) {
+          socket.emit('error', { error: 'Not authenticated' });
+          return;
+        }
+        
+        console.log(`📖 DEBUG: Socket mark_messages_read event from user ${userSession.userId}:`, data);
         
         try {
-          // Prevent duplicate processing using deduplication cache
-          const cacheKey = `mark_${data.userId}_${data.conversation_id}_${data.is_group}_${data.message_ids.sort().join(',')}`;
-          
-          if (processedEvents.has(cacheKey)) {
-            console.log(`📖 DEBUG: Socket mark_messages_read - Duplicate event detected, skipping:`, cacheKey);
-            return;
-          }
-          
-          processedEvents.add(cacheKey);
-          
-          // Set expiry for cache cleanup (30 seconds)
-          setTimeout(() => {
-            processedEvents.delete(cacheKey);
-            console.log(`📖 DEBUG: Socket - Cleaned up cache key:`, cacheKey);
-          }, 30000);
-          
-          await MessageReadService.markMessagesAsRead(data.message_ids, data.userId);
-          console.log(`📖 DEBUG: Socket - User ${data.userId} marked ${data.message_ids.length} messages as read`);
+          const { MessageReadService } = await import('./messageReads');
+          await MessageReadService.markMessagesAsRead(data.message_ids, userSession.userId);
+          console.log(`📖 DEBUG: Socket - User ${userSession.userId} marked ${data.message_ids.length} messages as read`);
           
           // Broadcast to other clients
           const broadcastData = {
             message_ids: data.message_ids,
-            reader_id: data.userId,
-            reader_username: users.get(data.userId)?.username || 'Unknown',
-            reader_avatar: users.get(data.userId)?.avatar_path || null,
+            reader_id: userSession.userId,
+            reader_username: userSession.username,
+            reader_avatar: null, // TODO: Get user avatar
             conversation_id: data.conversation_id,
             is_group: data.is_group
           };
@@ -388,10 +405,10 @@ export class SocketService {
           console.log(`📖 DEBUG: Socket - Broadcasting messages_read event:`, broadcastData);
           
           if (data.is_group) {
-            io.to(`group_${data.conversation_id}`).emit('messages_read', broadcastData);
+            this.io?.to(`group_${data.conversation_id}`).emit('messages_read', broadcastData);
           } else {
             // For direct messages, emit to both participants
-            io.emit('messages_read', broadcastData);
+            this.io?.emit('messages_read', broadcastData);
           }
           
           console.log(`📖 DEBUG: Socket - messages_read broadcast completed`);

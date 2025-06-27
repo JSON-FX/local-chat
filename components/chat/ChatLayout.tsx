@@ -465,47 +465,93 @@ export function ChatLayout() {
 
   const initializeApp = async () => {
     try {
+      console.log('🔍 [DEBUG] ChatLayout - starting app initialization...');
+      
       // Check if user is authenticated
       if (!apiService.isAuthenticated()) {
+        console.log('🔍 [DEBUG] ChatLayout - user not authenticated, redirecting...');
         router.push('/');
         return;
       }
 
       // Get current user
+      console.log('🔍 [DEBUG] ChatLayout - fetching current user...');
       const userResponse = await apiService.getCurrentUser();
       if (!userResponse.success || !userResponse.data) {
+        console.error('❌ [DEBUG] ChatLayout - failed to get user data:', userResponse.error);
         toast.error('Failed to get user data');
         router.push('/');
         return;
       }
 
+      console.log('✅ [DEBUG] ChatLayout - user data retrieved:', userResponse.data.username);
       setCurrentUser(userResponse.data);
 
-      // Connect to socket first (handlers will be set up by the useEffect)
+      // Get token and ensure it's available
       const token = apiService.getToken();
-      if (token) {
-        try {
-          // Disconnect any existing connections first
-          socketClient.disconnect();
-          
-          // Ensure socket client uses the fresh token
-          socketClient.setToken(token);
-          await socketClient.connect(token);
-        } catch (socketError) {
-          console.warn('Socket connection failed:', socketError);
-          toast.error('Real-time connection failed');
-        }
+      console.log('🔍 [DEBUG] ChatLayout - attempting socket connection with token:', token ? 'present' : 'missing');
+      console.log('🔍 [DEBUG] ChatLayout - token preview:', token ? token.substring(0, 50) + '...' : 'N/A');
+      console.log('🔍 [DEBUG] ChatLayout - token from localStorage:', typeof window !== 'undefined' ? localStorage.getItem('auth_token') ? 'present' : 'missing' : 'N/A');
+      
+      if (!token) {
+        console.error('❌ [DEBUG] ChatLayout - no token available for socket connection');
+        console.error('❌ [DEBUG] ChatLayout - apiService.isAuthenticated():', apiService.isAuthenticated());
+        toast.error('Authentication token missing. Please log in again.');
+        router.push('/');
+        return;
       }
 
-      // Load conversations and online users after socket connection
+      // Set up socket event handlers first (before connection attempt)
+      console.log('🔍 [DEBUG] ChatLayout - setting up socket event handlers...');
+      setupSocketHandlers();
+      
+      // Connect to socket with proper error handling and timeout
+      try {
+        console.log('🔍 [DEBUG] ChatLayout - disconnecting any existing socket connections...');
+        socketClient.disconnect();
+        
+        console.log('🔍 [DEBUG] ChatLayout - setting token on socket client...');
+        socketClient.setToken(token);
+        
+        console.log('🔍 [DEBUG] ChatLayout - attempting socket connection...');
+        
+        // Add a race condition with timeout to prevent hanging
+        const connectionPromise = socketClient.connect(token);
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Socket connection timeout after 15 seconds')), 15000);
+        });
+        
+        await Promise.race([connectionPromise, timeoutPromise]);
+        console.log('✅ [DEBUG] ChatLayout - socket connection successful!');
+        
+      } catch (socketError: any) {
+        console.error('❌ [DEBUG] ChatLayout - socket connection failed:', socketError);
+        console.error('❌ [DEBUG] ChatLayout - error message:', socketError.message);
+        console.error('❌ [DEBUG] ChatLayout - error stack:', socketError.stack);
+        
+        // Provide user-friendly error message
+        const friendlyMessage = socketError.message?.includes('timeout') 
+          ? 'Connection timeout - please check your network and try again'
+          : socketError.message || 'Connection failed';
+          
+        toast.error(`Real-time connection failed: ${friendlyMessage}`);
+        
+        // Don't block the app completely - load conversations anyway
+        console.log('🔍 [DEBUG] ChatLayout - proceeding without socket connection...');
+      }
+
+      // Load conversations and online users (even if socket failed)
+      console.log('🔍 [DEBUG] ChatLayout - loading conversations and online users...');
       await Promise.all([
         loadConversations(),
         loadOnlineUsers()
       ]);
+      
+      console.log('✅ [DEBUG] ChatLayout - app initialization completed');
 
-    } catch (error) {
-      console.error('App initialization error:', error);
-      toast.error('Failed to initialize app');
+    } catch (error: any) {
+      console.error('❌ [DEBUG] ChatLayout - app initialization error:', error);
+      toast.error('Failed to initialize app: ' + (error.message || 'Unknown error'));
     } finally {
       setIsLoading(false);
     }
