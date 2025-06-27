@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+import { apiService } from '@/lib/api';
 import {
   Users,
   MessageSquare,
@@ -67,12 +68,22 @@ export function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch('/api/admin');
+      const token = apiService.getToken();
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+
+      const response = await fetch('/api/admin', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard data');
       }
       const result = await response.json();
-      setData(result);
+      setData(result.success ? result : null);
     } catch (error) {
       console.error('Dashboard error:', error);
       toast.error('Failed to load dashboard data');

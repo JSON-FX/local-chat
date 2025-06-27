@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
+import { apiService } from '@/lib/api';
 import {
   Users,
   UserPlus,
@@ -79,7 +80,17 @@ export function UserManagement() {
       params.append('sortBy', filters.sortBy);
       params.append('sortOrder', filters.sortOrder);
 
-      const response = await fetch(`/api/admin/users?${params}`);
+      const token = apiService.getToken();
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+
+      const response = await fetch(`/api/admin/users?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
       if (!response.ok) {
         throw new Error('Failed to fetch users');
       }
@@ -99,8 +110,16 @@ export function UserManagement() {
     }
 
     try {
+      const token = apiService.getToken();
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+
       const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       if (!response.ok) {

@@ -26,6 +26,20 @@ export class AuditLogService {
         data.severity || 'info'
       ]);
       
+      // Handle potential undefined result from SQLite3
+      if (!result) {
+        // For audit logs, we can continue without the ID since it's just for logging
+        console.warn('Database insert returned null result, continuing with default ID');
+        return 0; // Return a safe default
+      }
+      
+      // SQLite3 lastID can be 0 for some operations, which is falsy but valid
+      if (result.lastID === undefined || result.lastID === null) {
+        // For audit logs, we can continue without the ID since it's just for logging
+        console.warn('Database insert missing lastID, continuing with default');
+        return 0; // Return a safe default
+      }
+      
       return result.lastID as number;
     } catch (error) {
       console.error('Failed to create audit log:', error);
@@ -138,62 +152,75 @@ export class AuditLogService {
   }> {
     const db = await getDatabase();
     
-    let timeCondition = '';
-    if (timeframe === '24h') {
-      timeCondition = "WHERE timestamp >= datetime('now', '-1 day')";
-    } else if (timeframe === '7d') {
-      timeCondition = "WHERE timestamp >= datetime('now', '-7 days')";
-    } else if (timeframe === '30d') {
-      timeCondition = "WHERE timestamp >= datetime('now', '-30 days')";
+    try {
+      let timeCondition = '';
+      if (timeframe === '24h') {
+        timeCondition = "WHERE timestamp >= datetime('now', '-1 day')";
+      } else if (timeframe === '7d') {
+        timeCondition = "WHERE timestamp >= datetime('now', '-7 days')";
+      } else if (timeframe === '30d') {
+        timeCondition = "WHERE timestamp >= datetime('now', '-30 days')";
+      }
+      
+      // Get total events
+      const totalResult = await db.get(`SELECT COUNT(*) as total FROM audit_logs ${timeCondition}`);
+      
+      // Get stats by severity
+      const severityStats = await db.all(`
+        SELECT severity, COUNT(*) as count 
+        FROM audit_logs ${timeCondition}
+        GROUP BY severity
+      `);
+      
+      // Get stats by action
+      const actionStats = await db.all(`
+        SELECT action, COUNT(*) as count 
+        FROM audit_logs ${timeCondition}
+        GROUP BY action
+        ORDER BY count DESC
+        LIMIT 10
+      `);
+      
+      // Get stats by entity type
+      const entityStats = await db.all(`
+        SELECT entity_type, COUNT(*) as count 
+        FROM audit_logs ${timeCondition}
+        GROUP BY entity_type
+      `);
+      
+      // Get unique users and IPs
+      const uniqueUsersResult = await db.get(`
+        SELECT COUNT(DISTINCT user_id) as count 
+        FROM audit_logs 
+        ${timeCondition} AND user_id IS NOT NULL
+      `);
+      
+      const uniqueIpsResult = await db.get(`
+        SELECT COUNT(DISTINCT ip_address) as count 
+        FROM audit_logs 
+        ${timeCondition} AND ip_address IS NOT NULL
+      `);
+      
+      return {
+        total_events: totalResult.total || 0,
+        by_severity: Object.fromEntries(severityStats.map(s => [s.severity, s.count])),
+        by_action: Object.fromEntries(actionStats.map(s => [s.action, s.count])),
+        by_entity_type: Object.fromEntries(entityStats.map(s => [s.entity_type, s.count])),
+        unique_users: uniqueUsersResult.count || 0,
+        unique_ips: uniqueIpsResult.count || 0
+      };
+    } catch (error) {
+      console.error('Error getting audit stats:', error);
+      // Return empty stats for fresh database
+      return {
+        total_events: 0,
+        by_severity: {},
+        by_action: {},
+        by_entity_type: {},
+        unique_users: 0,
+        unique_ips: 0
+      };
     }
-    
-    // Get total events
-    const totalResult = await db.get(`SELECT COUNT(*) as total FROM audit_logs ${timeCondition}`);
-    
-    // Get stats by severity
-    const severityStats = await db.all(`
-      SELECT severity, COUNT(*) as count 
-      FROM audit_logs ${timeCondition}
-      GROUP BY severity
-    `);
-    
-    // Get stats by action
-    const actionStats = await db.all(`
-      SELECT action, COUNT(*) as count 
-      FROM audit_logs ${timeCondition}
-      GROUP BY action
-      ORDER BY count DESC
-      LIMIT 10
-    `);
-    
-    // Get stats by entity type
-    const entityStats = await db.all(`
-      SELECT entity_type, COUNT(*) as count 
-      FROM audit_logs ${timeCondition}
-      GROUP BY entity_type
-    `);
-    
-    // Get unique users and IPs
-    const uniqueUsersResult = await db.get(`
-      SELECT COUNT(DISTINCT user_id) as count 
-      FROM audit_logs 
-      ${timeCondition} AND user_id IS NOT NULL
-    `);
-    
-    const uniqueIpsResult = await db.get(`
-      SELECT COUNT(DISTINCT ip_address) as count 
-      FROM audit_logs 
-      ${timeCondition} AND ip_address IS NOT NULL
-    `);
-    
-    return {
-      total_events: totalResult.total,
-      by_severity: Object.fromEntries(severityStats.map(s => [s.severity, s.count])),
-      by_action: Object.fromEntries(actionStats.map(s => [s.action, s.count])),
-      by_entity_type: Object.fromEntries(entityStats.map(s => [s.entity_type, s.count])),
-      unique_users: uniqueUsersResult.count,
-      unique_ips: uniqueIpsResult.count
-    };
   }
 
   // Export audit logs (for compliance)
@@ -298,45 +325,55 @@ export class AuditLogService {
   }> {
     const db = await getDatabase();
     
-    // Failed login attempts in last hour
-    const failedLogins = await db.all(`
-      SELECT ip_address, COUNT(*) as count, MAX(timestamp) as latest
-      FROM audit_logs 
-      WHERE action = 'login_failed' 
-      AND timestamp >= datetime('now', '-1 hour')
-      GROUP BY ip_address
-      HAVING count >= 5
-      ORDER BY count DESC
-    `);
-    
-    // High volume message senders in last hour
-    const highVolumeUsers = await db.all(`
-      SELECT user_id, username, COUNT(*) as message_count
-      FROM audit_logs 
-      WHERE action = 'message_send' 
-      AND timestamp >= datetime('now', '-1 hour')
-      GROUP BY user_id, username
-      HAVING message_count >= 100
-      ORDER BY message_count DESC
-    `);
-    
-    // Users accessing from many different IPs today
-    const unusualAccess = await db.all(`
-      SELECT user_id, username, COUNT(DISTINCT ip_address) as unique_ips
-      FROM audit_logs 
-      WHERE action LIKE 'login_%' 
-      AND timestamp >= datetime('now', '-1 day')
-      AND user_id IS NOT NULL
-      GROUP BY user_id, username
-      HAVING unique_ips >= 5
-      ORDER BY unique_ips DESC
-    `);
-    
-    return {
-      failed_logins: failedLogins,
-      high_volume_users: highVolumeUsers,
-      unusual_access_patterns: unusualAccess
-    };
+    try {
+      // Failed login attempts in last hour
+      const failedLogins = await db.all(`
+        SELECT ip_address, COUNT(*) as count, MAX(timestamp) as latest
+        FROM audit_logs 
+        WHERE action = 'login_failed' 
+        AND timestamp >= datetime('now', '-1 hour')
+        GROUP BY ip_address
+        HAVING count >= 5
+        ORDER BY count DESC
+      `);
+      
+      // High volume message senders in last hour
+      const highVolumeUsers = await db.all(`
+        SELECT user_id, username, COUNT(*) as message_count
+        FROM audit_logs 
+        WHERE action = 'message_send' 
+        AND timestamp >= datetime('now', '-1 hour')
+        GROUP BY user_id, username
+        HAVING message_count >= 100
+        ORDER BY message_count DESC
+      `);
+      
+      // Users accessing from many different IPs today
+      const unusualAccess = await db.all(`
+        SELECT user_id, username, COUNT(DISTINCT ip_address) as unique_ips
+        FROM audit_logs 
+        WHERE action LIKE 'login_%' 
+        AND timestamp >= datetime('now', '-1 day')
+        AND user_id IS NOT NULL
+        GROUP BY user_id, username
+        HAVING unique_ips >= 5
+        ORDER BY unique_ips DESC
+      `);
+      
+      return {
+        failed_logins: failedLogins || [],
+        high_volume_users: highVolumeUsers || [],
+        unusual_access_patterns: unusualAccess || []
+      };
+    } catch (error) {
+      console.error('Error detecting suspicious activity:', error);
+      // Return empty arrays for fresh database
+      return {
+        failed_logins: [],
+        high_volume_users: [],
+        unusual_access_patterns: []
+      };
+    }
   }
 }
 

@@ -143,6 +143,9 @@ export const initializeDatabase = async (): Promise<void> => {
       )
     `);
 
+    // Run migrations to ensure all columns exist
+    await runMigrations();
+    
     // Create indexes for optimal performance in high-volume environment
     console.log('Creating performance indexes...');
     
@@ -260,6 +263,18 @@ const runMigrations = async (): Promise<void> => {
       console.log('Adding user_deleted_by column to messages table...');
       await db.run('ALTER TABLE messages ADD COLUMN user_deleted_by TEXT');
       console.log('✅ user_deleted_by column added to messages table');
+    }
+
+    // Check and add last_activity column to sessions table
+    const sessionTableInfo = await db.all("PRAGMA table_info(sessions)");
+    const sessionColumns = sessionTableInfo.map((column: any) => column.name);
+    
+    if (!sessionColumns.includes('last_activity')) {
+      console.log('Adding last_activity column to sessions table...');
+      await db.run('ALTER TABLE sessions ADD COLUMN last_activity DATETIME');
+      // Update existing rows to have a default last_activity value
+      await db.run('UPDATE sessions SET last_activity = created_at WHERE last_activity IS NULL');
+      console.log('✅ last_activity column added to sessions table');
     }
   } catch (error) {
     console.error('Error running migrations:', error);

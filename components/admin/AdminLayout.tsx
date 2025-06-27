@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { apiService } from '@/lib/api';
 import {
   Bell,
   Settings,
@@ -22,9 +23,9 @@ import {
 } from 'lucide-react';
 
 interface AdminUser {
-  id: string;
+  id: number;
   username: string;
-  email: string;
+  email?: string;
   role: string;
   avatar?: string;
 }
@@ -54,20 +55,19 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('/api/auth/me');
-      if (!response.ok) {
+      const response = await apiService.getCurrentUser();
+      if (!response.success || !response.data) {
         throw new Error('Not authenticated');
       }
-      const userData = await response.json();
       
       // Check if user is admin
-      if (userData.role !== 'admin') {
+      if (response.data.role !== 'admin') {
         toast.error('Access denied. Admin privileges required.');
         router.push('/chat');
         return;
       }
       
-      setUser(userData);
+      setUser(response.data);
     } catch (error) {
       console.error('Auth check failed:', error);
       toast.error('Authentication failed. Please login.');
@@ -79,7 +79,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const fetchSystemAlerts = async () => {
     try {
-      const response = await fetch('/api/admin/system');
+      const token = apiService.getToken();
+      if (!token) return;
+
+      const response = await fetch('/api/admin/system', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
       if (response.ok) {
         const data = await response.json();
         setAlerts(data.alerts || []);
@@ -91,16 +99,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST'
-      });
-      
-      if (response.ok) {
-        toast.success('Logged out successfully');
-        router.push('/');
-      } else {
-        throw new Error('Logout failed');
-      }
+      await apiService.logout();
+      toast.success('Logged out successfully');
+      router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
       toast.error('Failed to logout');
@@ -109,9 +110,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const markAlertAsRead = async (alertId: string) => {
     try {
+      const token = apiService.getToken();
+      if (!token) return;
+
       await fetch(`/api/admin/system/alerts/${alertId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ read: true })
       });
       
