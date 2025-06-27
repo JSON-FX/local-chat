@@ -94,7 +94,12 @@ class SocketService {
           /^http:\/\/192\.168\.\d+\.\d+:3000$/,
           /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
           /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+:3000$/
-        ] : allowedOrigins,
+        ] : [
+          `http://${process.env.SERVER_IP}:${port}`,
+          `http://${process.env.DOMAIN_NAME}`,
+          `https://${process.env.DOMAIN_NAME}`,
+          ...allowedOrigins
+        ],
         methods: ['GET', 'POST'],
         credentials: true
       },
