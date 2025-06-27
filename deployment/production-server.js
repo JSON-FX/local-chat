@@ -7,29 +7,14 @@ const path = require('path');
 const fs = require('fs').promises;
 const { existsSync } = require('fs');
 const jwt = require('jsonwebtoken');
-const { getDatabase } = require('../lib/database');
+const sqlite3 = require('sqlite3');
+const { open } = require('sqlite');
 
 // Load environment variables from production.env if it exists
-try {
-  const fs = require('fs');
-  const envFilePath = path.join(__dirname, 'production.env');
-  if (fs.existsSync(envFilePath)) {
-    console.log('Loading environment variables from production.env');
-    const envContent = fs.readFileSync(envFilePath, 'utf8');
-    envContent.split(/\r?\n/).forEach(line => {
-      const [key, ...values] = line.split('=');
-      const value = values.join('=').trim();
-      if (key && value && !key.startsWith('#')) {
-        const cleanedValue = value.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
-        process.env[key.trim()] = cleanedValue;
-      }
-    });
-    console.log('JWT_SECRET loaded:', !!process.env.JWT_SECRET);
-  } else {
-    console.log('Note: production.env file not found.');
-  }
-} catch (error) {
-  console.log('Note: Could not load production.env file, using defaults', error);
+const envPath = path.join(__dirname, 'production.env');
+if (existsSync(envPath)) {
+  console.log('Loading environment variables from production.env');
+  require('dotenv').config({ path: envPath });
 }
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -44,20 +29,18 @@ const handle = app.getRequestHandler();
 const connectedUsers = new Map(); // userId -> socketId
 const socketSessions = new Map(); // socketId -> {userId, username}
 
-// Simplified FileService
-class FileService {
-  static UPLOAD_DIR = process.env.UPLOAD_PATH || path.join(process.cwd(), 'uploads');
-  
-  static async initializeStorage() {
-    try {
-      if (!existsSync(this.UPLOAD_DIR)) {
-        await fs.mkdir(this.UPLOAD_DIR, { recursive: true });
-        console.log('Upload directory created:', this.UPLOAD_DIR);
-      }
-    } catch (error) {
-      console.error('Error initializing file storage:', error);
-      throw error;
-    }
+// Initialize database connection
+let db;
+async function initializeDatabase() {
+  try {
+    db = await open({
+      filename: path.join(__dirname, '..', 'data', 'chat.db'),
+      driver: sqlite3.Database
+    });
+    console.log('✅ Database connection initialized');
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    process.exit(1);
   }
 }
 
@@ -75,12 +58,29 @@ function verifyToken(token) {
 // Get user from database
 async function getUserFromDatabase(userId) {
   try {
-    const db = await getDatabase();
+    if (!db) await initializeDatabase();
     const user = await db.get('SELECT id, username FROM users WHERE id = ?', [userId]);
     return user;
   } catch (error) {
     console.error('Failed to get user from database:', error);
     return null;
+  }
+}
+
+// Simplified FileService
+class FileService {
+  static UPLOAD_DIR = process.env.UPLOAD_PATH || path.join(process.cwd(), 'uploads');
+  
+  static async initializeStorage() {
+    try {
+      if (!existsSync(this.UPLOAD_DIR)) {
+        await fs.mkdir(this.UPLOAD_DIR, { recursive: true });
+        console.log('Upload directory created:', this.UPLOAD_DIR);
+      }
+    } catch (error) {
+      console.error('Error initializing file storage:', error);
+      throw error;
+    }
   }
 }
 
@@ -279,38 +279,45 @@ class SocketService {
   }
 }
 
-app.prepare().then(() => {
-  const server = createServer(async (req, res) => {
-    try {
-      const parsedUrl = parse(req.url || '', true);
-      await handle(req, res, parsedUrl);
-    } catch (err) {
-      console.error('Error occurred handling', req.url, err);
-      res.statusCode = 500;
-      res.end('internal server error');
-    }
-  });
-
-  // Initialize Socket.io
-  SocketService.initialize(server);
-
-  // Initialize file storage
-  FileService.initializeStorage().then(() => {
+async function startServer() {
+  try {
+    // Initialize database first
+    await initializeDatabase();
+    
+    // Initialize file storage
+    await FileService.initializeStorage();
     console.log('> File storage initialized');
-  }).catch((err) => {
-    console.error('Error initializing file storage:', err);
-  });
 
-  server.listen(port, hostname, () => {
-    console.log(`> Ready on http://${hostname}:${port}`);
-    console.log('> Socket.io server is running');
-    console.log(`> Running in ${process.env.NODE_ENV || 'development'} mode`);
-    if (!dev) {
-      console.log(`> Access via: http://${process.env.DOMAIN_NAME || hostname}${port !== 80 ? ':' + port : ''}`);
+    // Create HTTP server
+    const server = createServer(async (req, res) => {
+      try {
+        const parsedUrl = parse(req.url, true);
+        await handle(req, res, parsedUrl);
+      } catch (err) {
+        console.error('Error handling request:', err);
+        res.statusCode = 500;
+        res.end('Internal Server Error');
+      }
+    });
+
+    // Initialize Socket.io
+    SocketService.initialize(server);
+
+    // Start listening
+    server.listen(port, '0.0.0.0', (err) => {
+      if (err) throw err;
+      console.log(`> Ready on http://0.0.0.0:${port}`);
+      console.log('> Socket.io server is running');
+      console.log('> Running in production mode');
+      console.log(`> Access via: http://localhost:${port}`);
       console.log('> Production security enabled');
-    }
-  });
-}).catch((err) => {
-  console.error('Error starting server:', err);
-  process.exit(1);
-}); 
+    });
+
+  } catch (err) {
+    console.error('Error starting server:', err);
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer(); 
