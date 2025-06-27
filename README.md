@@ -51,18 +51,6 @@ This command first shows your IP addresses, then starts the server.
 
 ## 🏭 Production Mode
 
-### Prerequisites
-
-**For Windows Server 2019 with IIS:**
-
-1. **Install Node.js LTS** (v18 or v20) from [nodejs.org](https://nodejs.org)
-2. **Install IIS Node.js Module** from [GitHub releases](https://github.com/azure/iisnode/releases)
-3. **Install URL Rewrite Module** from [Microsoft IIS](https://www.iis.net/downloads/microsoft/url-rewrite)
-4. **Enable IIS Features** (run as Administrator):
-   ```powershell
-   Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole, IIS-WebServer, IIS-CommonHttpFeatures, IIS-HttpErrors, IIS-HttpRedirect, IIS-ApplicationDevelopment, IIS-NetFxExtensibility45, IIS-HealthAndDiagnostics, IIS-HttpLogging, IIS-Security, IIS-RequestFiltering, IIS-Performance, IIS-WebServerManagementTools, IIS-ManagementConsole, IIS-IIS6ManagementCompatibility, IIS-Metabase
-   ```
-
 ### Production Deployment
 
 1. **Build the Application**
@@ -70,25 +58,14 @@ This command first shows your IP addresses, then starts the server.
    npm run build
    ```
 
-2. **Production Mode Options:**
-
-   **Option A: Simple Production Server**
+2. **Start Production Server**
    ```bash
    npm run start
-   ```
-
-   **Option B: IIS Deployment (Windows Server)**
-   ```bash
-   # Run as Administrator
-   .\deployment\setup-iis.ps1
-   .\deployment\deploy.bat
-   .\deployment\configure-dns.bat
    ```
 
 3. **Access the Application**
    - **Local**: `http://localhost:3000`
    - **Network**: `http://YOUR_SERVER_IP:3000`
-   - **Domain** (if configured): `http://lgu-chat.local`
 
 ---
 
@@ -96,7 +73,7 @@ This command first shows your IP addresses, then starts the server.
 
 ### Environment Variables
 
-Create a `.env.local` file for development or modify `deployment/production.env` for production:
+Create a `.env.local` file for development:
 
 ```env
 # Database
@@ -164,7 +141,6 @@ If team members can't access your app:
 | `npm run get-ip` | Display all network IP addresses |
 | `npm run build` | Build the application for production |
 | `npm run start` | Start production server |
-| `npm run prod` | Start with production server script |
 | `npm run init-db` | Initialize the database |
 | `npm run fresh-db` | Reset database (fresh start) |
 | `npm run db-reset` | Force reset database |
@@ -202,7 +178,7 @@ cp database.sqlite backup-$(date +%Y%m%d).sqlite
 
 ### Upload Directory
 - **Development**: `./uploads/`
-- **Production**: `C:\inetpub\wwwroot\lgu-chat\uploads\` (IIS)
+- **Production**: `./uploads/`
 
 ### File Size Limits
 - **Default**: 10MB per file
