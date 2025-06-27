@@ -98,12 +98,13 @@ class SocketClient {
       this.isConnecting = true;
 
       try {
-        // Use current host for socket connection to support network access
-        const socketUrl = typeof window !== 'undefined' 
-          ? `${window.location.protocol}//${window.location.host}`
-          : 'http://localhost:3000';
+        // Use environment variable for production, otherwise use current host
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 
+          (typeof window !== 'undefined' 
+            ? `${window.location.protocol}//${window.location.host}`
+            : 'http://localhost:3000');
           
-        console.log('🔌 Connecting to socket server:', socketUrl);
+        console.log(`🔌 Attempting to connect to socket server at: ${socketUrl}`);
         
         this.socket = io(socketUrl, {
           transports: ['websocket', 'polling'],
