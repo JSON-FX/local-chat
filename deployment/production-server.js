@@ -1,3 +1,4 @@
+const express = require('express');
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
@@ -6,6 +7,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const { existsSync } = require('fs');
 const jwt = require('jsonwebtoken');
+const { getDatabase } = require('../lib/database');
 
 // Load environment variables from production.env if it exists
 try {
@@ -66,6 +68,18 @@ function verifyToken(token) {
     return jwt.verify(token, JWT_SECRET);
   } catch (error) {
     console.error('Token verification failed:', error);
+    return null;
+  }
+}
+
+// Get user from database
+async function getUserFromDatabase(userId) {
+  try {
+    const db = await getDatabase();
+    const user = await db.get('SELECT id, username FROM users WHERE id = ?', [userId]);
+    return user;
+  } catch (error) {
+    console.error('Failed to get user from database:', error);
     return null;
   }
 }
@@ -138,10 +152,13 @@ class SocketService {
             return;
           }
 
-          const user = {
-            id: decoded.userId,
-            username: decoded.username
-          };
+          // Get user from database
+          const user = await getUserFromDatabase(decoded.userId);
+          if (!user) {
+            socket.emit('auth_error', { error: 'User not found' });
+            socket.disconnect();
+            return;
+          }
           
           socketSessions.set(socket.id, { 
             userId: user.id, 
