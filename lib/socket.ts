@@ -53,11 +53,31 @@ export class SocketService {
       return this.io;
     }
 
-    // Get all local network IPs for CORS
-    const getLocalOrigins = () => {
-      const origins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+    // Get allowed origins for CORS
+    const getAllowedOrigins = () => {
+      const origins: (string | RegExp)[] = [];
       
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === 'production') {
+        // Production origins
+        const allowedOrigins = process.env.ALLOWED_ORIGINS;
+        if (allowedOrigins) {
+          origins.push(...allowedOrigins.split(',').map(origin => origin.trim()));
+        }
+        
+        // Add domain-based origins
+        const domainName = process.env.DOMAIN_NAME;
+        if (domainName) {
+          origins.push(`http://${domainName}`);
+          origins.push(`https://${domainName}`);
+        }
+        
+        // Fallback production origins
+        origins.push('http://lgu-chat.lguquezon.local');
+        origins.push('https://lgu-chat.lguquezon.local');
+        
+      } else {
+        // Development origins
+        origins.push('http://localhost:3000', 'http://127.0.0.1:3000');
         // Add auto-detected network IPs
         const networks = networkInterfaces();
         Object.keys(networks).forEach(name => {
@@ -74,24 +94,28 @@ export class SocketService {
           const additionalOrigins = customIPs.split(',').map(ip => `http://${ip.trim()}:3000`);
           origins.push(...additionalOrigins);
         }
+        
+        // Allow any local network IP patterns for development
+        origins.push(
+          /^http:\/\/192\.168\.\d+\.\d+:3000$/,
+          /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
+          /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+:3000$/
+        );
       }
       
+      console.log(`🌐 [CORS] Allowed origins:`, origins);
       return origins;
     };
 
     this.io = new SocketServer(server, {
       cors: {
-        origin: process.env.NODE_ENV === 'production' ? false : [
-          ...getLocalOrigins(),
-          // Allow any local network IP for development
-          /^http:\/\/192\.168\.\d+\.\d+:3000$/,
-          /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
-          /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+:3000$/
-        ],
-        methods: ['GET', 'POST'],
-        credentials: true
+        origin: getAllowedOrigins(),
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        credentials: true,
+        allowedHeaders: ['Content-Type', 'Authorization']
       },
-      path: '/socket.io/'
+      path: '/socket.io/',
+      transports: ['websocket', 'polling']
     });
 
     // Store in global singleton

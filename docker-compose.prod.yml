@@ -1,0 +1,72 @@
+services:
+  lgu-chat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    container_name: lgu-chat-prod
+    ports:
+      - "80:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SERVER_HOST=0.0.0.0
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
+      - DOMAIN_NAME=${DOMAIN_NAME:-chat.lguquezon.local}
+      - CUSTOM_ALLOWED_IPS=${CUSTOM_ALLOWED_IPS:-}
+      - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL:-http://chat.lguquezon.local}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://chat.lguquezon.local}
+    volumes:
+      # Persist database data
+      - ./data:/app/data
+      # Persist uploaded files
+      - ./uploads:/app/uploads
+      # Optional: Use named volumes for better production setup
+      # - lgu-chat-data:/app/data
+      # - lgu-chat-uploads:/app/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/auth/me"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - lgu-chat-network
+    # Production security settings
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # Set to true if you want read-only filesystem
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+networks:
+  lgu-chat-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Optional: Use named volumes for production
+volumes:
+  lgu-chat-data:
+    driver: local
+  lgu-chat-uploads:
+    driver: local 
