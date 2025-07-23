@@ -276,14 +276,6 @@ const runMigrations = async (): Promise<void> => {
       console.log('✅ user_deleted_by column added to messages table');
     }
 
-    // Check and add file_name column to messages table
-    if (!messageColumns.includes('file_name')) {
-      console.log('Adding file_name column to messages table...');
-      await db.run('ALTER TABLE messages ADD COLUMN file_name TEXT DEFAULT NULL');
-      console.log('✅ file_name column added to messages table');
-
-    }
-
     // Check and add last_activity column to sessions table
     const sessionTableInfo = await db.all("PRAGMA table_info(sessions)");
     const sessionColumns = sessionTableInfo.map((column: any) => column.name);

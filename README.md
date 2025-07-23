@@ -150,6 +150,15 @@ If team members can't access your app:
 
 ## 🗄️ Database Management
 
+### Automatic Migrations
+
+The application automatically runs database migrations on startup. When you start the application:
+- It checks for any missing columns or tables
+- Applies necessary schema changes automatically
+- Logs migration progress to the console
+
+No manual intervention is required for migrations.
+
 ### SQLite Database Location
 - **Development**: `./database.sqlite`
 - **Production**: `./data/localchat.db`

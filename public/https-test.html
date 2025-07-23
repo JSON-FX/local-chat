@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HTTPS Socket.IO Test</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .log { margin: 5px 0; padding: 5px; background: #f0f0f0; }
+        .error { background: #ffdddd; }
+        .success { background: #ddffdd; }
+        .info { background: #ddddff; }
+    </style>
+</head>
+<body>
+    <h1>HTTPS Socket.IO Test - chat.lgu.local</h1>
+    <button onclick="testBasicConnection()">Test Basic Connection</button>
+    <button onclick="testWithAuth()">Test With Authentication</button>
+    <button onclick="clearLogs()">Clear</button>
+    <div id="logs"></div>
+
+    <script>
+    function log(msg, type = '') {
+        const div = document.createElement('div');
+        div.className = `log ${type}`;
+        div.textContent = `[${new Date().toISOString()}] ${msg}`;
+        document.getElementById('logs').appendChild(div);
+        console.log(msg);
+    }
+
+    function clearLogs() {
+        document.getElementById('logs').innerHTML = '';
+    }
+
+    async function testBasicConnection() {
+        log('=== Testing Basic Socket.IO Connection ===', 'info');
+        
+        // Test 1: Check protocol
+        log(`Current protocol: ${window.location.protocol}`, 'info');
+        log(`Current host: ${window.location.host}`, 'info');
+        log(`Current origin: ${window.location.origin}`, 'info');
+        
+        // Test 2: Raw polling test
+        try {
+            const pollUrl = `${window.location.origin}/socket.io/?EIO=4&transport=polling&t=${Date.now()}`;
+            log(`Testing polling endpoint: ${pollUrl}`, 'info');
+            
+            const response = await fetch(pollUrl, {
+                credentials: 'include',
+                headers: {
+                    'Accept': '*/*'
+                }
+            });
+            
+            const text = await response.text();
+            log(`Polling response: ${response.status} - ${text.substring(0, 100)}...`, 
+                response.ok ? 'success' : 'error');
+                
+            if (!response.ok) {
+                log(`Response headers: ${JSON.stringify([...response.headers])}`, 'error');
+            }
+        } catch (e) {
+            log(`Polling test error: ${e.message}`, 'error');
+            log(`Error stack: ${e.stack}`, 'error');
+        }
+        
+        // Test 3: Socket.IO connection
+        log('Creating Socket.IO connection...', 'info');
+        
+        // Force debug mode
+        localStorage.debug = 'socket.io-client:*,engine.io-client:*';
+        
+        const socket = io(window.location.origin, {
+            transports: ['polling', 'websocket'],
+            withCredentials: true,
+            path: '/socket.io/',
+            reconnection: false,
+            timeout: 20000,
+            forceNew: true
+        });
+
+        socket.on('connect', () => {
+            log(`✅ Connected! Socket ID: ${socket.id}`, 'success');
+            log(`Transport: ${socket.io.engine.transport.name}`, 'success');
+            socket.disconnect();
+        });
+
+        socket.on('connect_error', (error) => {
+            log(`❌ Connection error: ${error.type} - ${error.message}`, 'error');
+            log(`Error type: ${error.type}`, 'error');
+            log(`Error transport: ${error.transport}`, 'error');
+            
+            // Log more details about XHR poll error
+            if (error.message.includes('xhr poll error')) {
+                log('=== XHR Poll Error Details ===', 'error');
+                try {
+                    const engine = socket.io?.engine;
+                    if (engine) {
+                        log(`Engine readyState: ${engine.readyState}`, 'error');
+                        log(`Engine transport: ${engine.transport?.name}`, 'error');
+                    }
+                } catch (e) {
+                    log(`Cannot access engine details: ${e.message}`, 'error');
+                }
+            }
+        });
+
+        socket.on('error', (error) => {
+            log(`Socket error: ${error}`, 'error');
+        });
+    }
+
+    async function testWithAuth() {
+        log('=== Testing with Authentication ===', 'info');
+        
+        // First login
+        try {
+            const loginResponse = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: 'admin',
+                    password: 'admin123'
+                }),
+                credentials: 'include'
+            });
+            
+            const loginData = await loginResponse.json();
+            if (loginData.success) {
+                log(`✅ Login successful! Token: ${loginData.data.token.substring(0, 50)}...`, 'success');
+                
+                // Now connect with token
+                const socket = io(window.location.origin, {
+                    transports: ['polling', 'websocket'],
+                    withCredentials: true,
+                    path: '/socket.io/',
+                    reconnection: false
+                });
+                
+                socket.on('connect', () => {
+                    log(`✅ Connected with auth! Socket ID: ${socket.id}`, 'success');
+                    socket.emit('authenticate', { token: loginData.data.token });
+                });
+                
+                socket.on('authenticated', (data) => {
+                    log(`✅ Authenticated: ${JSON.stringify(data)}`, 'success');
+                    socket.disconnect();
+                });
+                
+                socket.on('auth_error', (error) => {
+                    log(`❌ Auth error: ${JSON.stringify(error)}`, 'error');
+                });
+                
+                socket.on('connect_error', (error) => {
+                    log(`❌ Connection error with auth: ${error.message}`, 'error');
+                });
+            } else {
+                log(`❌ Login failed: ${JSON.stringify(loginData)}`, 'error');
+            }
+        } catch (e) {
+            log(`Login error: ${e.message}`, 'error');
+        }
+    }
+
+    // Check if we're on HTTPS
+    window.onload = () => {
+        if (window.location.protocol !== 'https:') {
+            log('⚠️ WARNING: Not on HTTPS! Redirecting...', 'error');
+            window.location.protocol = 'https:';
+        } else {
+            log('✅ Page loaded on HTTPS', 'success');
+            log('Click "Test Basic Connection" to start', 'info');
+        }
+    };
+    </script>
+</body>
+</html>

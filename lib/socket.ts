@@ -72,8 +72,8 @@ export class SocketService {
         }
         
         // Fallback production origins
-        origins.push('http://lgu-chat.lguquezon.local');
-        origins.push('https://lgu-chat.lguquezon.local');
+        origins.push('https://chat.lgu.local');
+        origins.push('https://chat.lgu.local');
         
       } else {
         // Development origins

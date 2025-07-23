@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket.IO Test - chat.lgu.local</title>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <h1>Socket.IO Connection Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="log"></div>
+    
+    <script>
+    const log = (msg) => {
+        const div = document.createElement('div');
+        div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        document.getElementById('log').appendChild(div);
+        console.log(msg);
+    };
+
+    // Enable Socket.IO debugging
+    localStorage.debug = 'socket.io-client:*';
+
+    log('Initializing Socket.IO connection to ' + window.location.origin);
+    
+    const socket = io(window.location.origin, {
+        transports: ['websocket', 'polling'],
+        withCredentials: true,
+        path: '/socket.io/'
+    });
+
+    socket.on('connect', () => {
+        log('✅ Connected! Socket ID: ' + socket.id);
+        document.getElementById('status').textContent = 'Connected - Socket ID: ' + socket.id;
+        document.getElementById('status').style.color = 'green';
+        
+        // Try authentication with a test token (you'll need a real token)
+        log('Attempting authentication...');
+        // socket.emit('authenticate', { token: 'YOUR_TOKEN_HERE' });
+    });
+
+    socket.on('disconnect', (reason) => {
+        log('❌ Disconnected: ' + reason);
+        document.getElementById('status').textContent = 'Disconnected: ' + reason;
+        document.getElementById('status').style.color = 'red';
+    });
+
+    socket.on('connect_error', (error) => {
+        log('❌ Connection error: ' + error.message);
+        document.getElementById('status').textContent = 'Connection error: ' + error.message;
+        document.getElementById('status').style.color = 'red';
+    });
+
+    socket.on('authenticated', (data) => {
+        log('✅ Authenticated: ' + JSON.stringify(data));
+    });
+
+    socket.on('auth_error', (error) => {
+        log('❌ Auth error: ' + JSON.stringify(error));
+    });
+
+    // Log all events
+    socket.onAny((eventName, ...args) => {
+        log(`Event received: ${eventName} - ${JSON.stringify(args)}`);
+    });
+    </script>
+</body>
+</html>

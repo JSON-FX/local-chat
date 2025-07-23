@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket.IO Debug - XHR Polling Error</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .log { margin: 5px 0; padding: 5px; background: #f0f0f0; }
+        .error { background: #ffdddd; }
+        .success { background: #ddffdd; }
+    </style>
+</head>
+<body>
+    <h1>Socket.IO XHR Polling Debug</h1>
+    <button onclick="testConnection()">Test Connection</button>
+    <button onclick="clearLogs()">Clear</button>
+    <div id="logs"></div>
+
+    <script>
+    function log(msg, type = '') {
+        const div = document.createElement('div');
+        div.className = `log ${type}`;
+        div.textContent = `[${new Date().toISOString()}] ${msg}`;
+        document.getElementById('logs').appendChild(div);
+        console.log(msg);
+    }
+
+    function clearLogs() {
+        document.getElementById('logs').innerHTML = '';
+    }
+
+    async function testConnection() {
+        log('Starting connection test...');
+        
+        // Test 1: Basic HTTP endpoint
+        try {
+            const response = await fetch('/api/health');
+            log(`API Health check: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'error');
+        } catch (e) {
+            log(`API Health check failed: ${e.message}`, 'error');
+        }
+
+        // Test 2: Socket.IO polling endpoint
+        try {
+            const pollResponse = await fetch('/socket.io/?EIO=4&transport=polling&t=' + Date.now(), {
+                headers: {
+                    'Accept': '*/*',
+                },
+                credentials: 'include'
+            });
+            const pollData = await pollResponse.text();
+            log(`Socket.IO polling response: ${pollResponse.status} - ${pollData.substring(0, 100)}...`, 
+                pollResponse.ok ? 'success' : 'error');
+        } catch (e) {
+            log(`Socket.IO polling failed: ${e.message}`, 'error');
+        }
+
+        // Test 3: Actual Socket.IO connection
+        log('Attempting Socket.IO connection...');
+        
+        // Enable debug
+        localStorage.debug = 'socket.io-client:*';
+        
+        const socket = io(window.location.origin, {
+            transports: ['polling'], // Force polling only
+            withCredentials: true,
+            path: '/socket.io/',
+            reconnection: false,
+            timeout: 10000
+        });
+
+        socket.on('connect', () => {
+            log(`✅ Connected! Socket ID: ${socket.id}`, 'success');
+        });
+
+        socket.on('connect_error', (error) => {
+            log(`❌ Connection error: ${error.type} - ${error.message}`, 'error');
+            
+            // Additional debug info
+            if (error.message.includes('xhr poll error')) {
+                log('XHR Poll Error Details:', 'error');
+                log(`- Transport: ${error.transport}`, 'error');
+                log(`- Ready State: ${error.readyState}`, 'error');
+                log(`- Status: ${error.status}`, 'error');
+                
+                // Check CORS
+                log('Checking CORS configuration...', 'error');
+                fetch('/socket.io/?EIO=4&transport=polling', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=UTF-8',
+                    },
+                    body: '1:1',
+                    credentials: 'include'
+                }).then(r => {
+                    log(`POST test: ${r.status} ${r.statusText}`, r.ok ? 'success' : 'error');
+                }).catch(e => {
+                    log(`POST test failed: ${e.message}`, 'error');
+                });
+            }
+        });
+
+        socket.on('disconnect', (reason) => {
+            log(`Disconnected: ${reason}`, 'error');
+        });
+    }
+
+    // Auto-test on load
+    window.onload = () => {
+        log('Page loaded. Click "Test Connection" to start debugging.');
+    };
+    </script>
+</body>
+</html>

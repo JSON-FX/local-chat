@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Comprehensive Socket.IO Debug</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .log { margin: 5px 0; padding: 5px; background: #f0f0f0; }
+        .error { background: #ffdddd; }
+        .success { background: #ddffdd; }
+        .info { background: #ddddff; }
+        .warning { background: #ffffdd; }
+    </style>
+</head>
+<body>
+    <h1>Comprehensive Socket.IO Debug</h1>
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="clearLogs()">Clear</button>
+    <div id="logs"></div>
+
+    <script>
+    let logData = [];
+    
+    function log(msg, type = '') {
+        const timestamp = new Date().toISOString();
+        const logEntry = { timestamp, msg, type };
+        logData.push(logEntry);
+        
+        const div = document.createElement('div');
+        div.className = `log ${type}`;
+        div.textContent = `[${timestamp}] ${msg}`;
+        document.getElementById('logs').appendChild(div);
+        console.log(msg);
+    }
+
+    function clearLogs() {
+        document.getElementById('logs').innerHTML = '';
+        logData = [];
+    }
+
+    async function runAllTests() {
+        clearLogs();
+        log('=== Starting Comprehensive Debug ===', 'info');
+        
+        // Test 1: Environment Check
+        log('--- Environment Check ---', 'info');
+        log(`Protocol: ${window.location.protocol}`, 'info');
+        log(`Host: ${window.location.host}`, 'info');
+        log(`Origin: ${window.location.origin}`, 'info');
+        log(`User Agent: ${navigator.userAgent}`, 'info');
+        
+        // Test 2: Cookie Check
+        log('--- Cookie Check ---', 'info');
+        log(`Cookies: ${document.cookie || 'No cookies'}`, 'info');
+        log(`localStorage items: ${Object.keys(localStorage).length}`, 'info');
+        
+        // Test 3: Basic Connectivity
+        log('--- Basic Connectivity Test ---', 'info');
+        try {
+            const healthResponse = await fetch('/api/health', { credentials: 'include' });
+            log(`API Health: ${healthResponse.status} ${healthResponse.statusText}`, healthResponse.ok ? 'success' : 'error');
+        } catch (e) {
+            log(`API Health failed: ${e.message}`, 'error');
+        }
+        
+        // Test 4: Socket.IO Endpoint Direct Test
+        log('--- Socket.IO Endpoint Test ---', 'info');
+        try {
+            const sid = Math.random().toString(36).substring(7);
+            const pollUrl = `${window.location.origin}/socket.io/?EIO=4&transport=polling&t=${Date.now()}`;
+            log(`Testing: ${pollUrl}`, 'info');
+            
+            const pollResponse = await fetch(pollUrl, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Accept': '*/*',
+                    'Cache-Control': 'no-cache'
+                }
+            });
+            
+            const pollText = await pollResponse.text();
+            log(`Poll Response: ${pollResponse.status} - ${pollText.substring(0, 100)}`, pollResponse.ok ? 'success' : 'error');
+            
+            if (pollResponse.ok) {
+                // Extract session ID
+                const match = pollText.match(/"sid":"([^"]+)"/);
+                if (match) {
+                    const sessionId = match[1];
+                    log(`Session ID: ${sessionId}`, 'success');
+                    
+                    // Test POST to session
+                    const postUrl = `${window.location.origin}/socket.io/?EIO=4&transport=polling&sid=${sessionId}`;
+                    const postResponse = await fetch(postUrl, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'text/plain;charset=UTF-8'
+                        },
+                        body: '40'
+                    });
+                    
+                    log(`POST Response: ${postResponse.status}`, postResponse.ok ? 'success' : 'error');
+                }
+            }
+        } catch (e) {
+            log(`Socket.IO endpoint error: ${e.message}`, 'error');
+            log(`Error stack: ${e.stack}`, 'error');
+        }
+        
+        // Test 5: Actual Socket.IO Connection
+        log('--- Socket.IO Connection Test ---', 'info');
+        
+        // Enable all debug
+        localStorage.debug = '*';
+        
+        const startTime = Date.now();
+        const socket = io(window.location.origin, {
+            transports: ['polling'],
+            withCredentials: true,
+            path: '/socket.io/',
+            reconnection: false,
+            timeout: 20000,
+            forceNew: true,
+            // Additional options
+            upgrade: false,
+            rememberUpgrade: false,
+            query: {
+                t: Date.now()
+            }
+        });
+        
+        // Log all events
+        const events = ['connect', 'connect_error', 'connect_timeout', 'error', 'disconnect', 
+                       'reconnect', 'reconnect_attempt', 'reconnecting', 'reconnect_error', 
+                       'reconnect_failed', 'ping', 'pong'];
+        
+        events.forEach(event => {
+            socket.on(event, (data) => {
+                const elapsed = Date.now() - startTime;
+                log(`[${elapsed}ms] Event '${event}': ${JSON.stringify(data)}`, 
+                    event.includes('error') ? 'error' : 'info');
+            });
+        });
+        
+        socket.on('connect', () => {
+            log(`✅ Connected! Socket ID: ${socket.id}`, 'success');
+            log(`Transport: ${socket.io.engine.transport.name}`, 'success');
+            
+            // Test ping
+            socket.emit('ping');
+            
+            setTimeout(() => {
+                socket.disconnect();
+            }, 2000);
+        });
+        
+        socket.on('connect_error', (error) => {
+            log(`❌ Connect Error Type: ${error.type}`, 'error');
+            log(`❌ Connect Error Message: ${error.message}`, 'error');
+            
+            // Detailed error info
+            if (error.message.includes('xhr poll error')) {
+                log('=== XHR Poll Error Details ===', 'error');
+                
+                // Check engine state
+                if (socket.io && socket.io.engine) {
+                    const engine = socket.io.engine;
+                    log(`Engine readyState: ${engine.readyState}`, 'error');
+                    log(`Engine writeBuffer length: ${engine.writeBuffer.length}`, 'error');
+                    
+                    if (engine.transport) {
+                        log(`Transport name: ${engine.transport.name}`, 'error');
+                        log(`Transport readyState: ${engine.transport.readyState}`, 'error');
+                        
+                        // For polling transport
+                        if (engine.transport.poll) {
+                            log(`Poll readyState: ${engine.transport.poll.readyState}`, 'error');
+                            log(`Poll status: ${engine.transport.poll.status}`, 'error');
+                        }
+                    }
+                }
+                
+                // Try to get XHR details
+                const xhr = error.transport?.poll || error.req;
+                if (xhr) {
+                    log(`XHR readyState: ${xhr.readyState}`, 'error');
+                    log(`XHR status: ${xhr.status}`, 'error');
+                    log(`XHR statusText: ${xhr.statusText}`, 'error');
+                    log(`XHR responseURL: ${xhr.responseURL}`, 'error');
+                    
+                    // Try to get response headers
+                    try {
+                        const headers = xhr.getAllResponseHeaders();
+                        if (headers) {
+                            log(`XHR Response Headers:\n${headers}`, 'error');
+                        }
+                    } catch (e) {
+                        log(`Cannot get response headers: ${e.message}`, 'error');
+                    }
+                }
+            }
+        });
+        
+        // Test 6: Check for Mixed Content
+        log('--- Mixed Content Check ---', 'info');
+        const scripts = document.querySelectorAll('script[src]');
+        scripts.forEach(script => {
+            if (script.src.startsWith('http://') && window.location.protocol === 'https:') {
+                log(`⚠️ Mixed content: ${script.src}`, 'warning');
+            }
+        });
+        
+        // Test 7: Network Timing
+        setTimeout(() => {
+            if (!socket.connected) {
+                log('⏱️ Connection timeout after 10 seconds', 'error');
+                
+                // Final diagnostic info
+                log('--- Final Diagnostic Info ---', 'info');
+                log(`Socket connected: ${socket.connected}`, 'info');
+                log(`Socket disconnected: ${socket.disconnected}`, 'info');
+                
+                if (socket.io && socket.io.engine) {
+                    log(`Engine state: ${socket.io.engine.readyState}`, 'info');
+                }
+                
+                socket.disconnect();
+            }
+        }, 10000);
+    }
+
+    // Auto-run on load
+    window.onload = () => {
+        log('Page loaded. Click "Run All Tests" to begin comprehensive debugging.', 'info');
+        
+        // Check certificate
+        if (window.location.protocol === 'https:' && window.location.hostname !== 'localhost') {
+            log('⚠️ Using HTTPS with non-localhost. Make sure certificate is trusted!', 'warning');
+        }
+    };
+    </script>
+</body>
+</html>
