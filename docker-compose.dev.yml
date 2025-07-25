@@ -2,7 +2,7 @@ services:
   chat-app:
     build:
       context: .
-      dockerfile: Dockerfile.simple
+      dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
     volumes:
@@ -10,7 +10,7 @@ services:
       - ./public/uploads:/app/public/uploads
       - ./logs:/app/logs
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
     env_file:
       - .env
     restart: unless-stopped
