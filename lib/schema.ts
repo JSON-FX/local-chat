@@ -294,6 +294,17 @@ const runMigrations = async (): Promise<void> => {
       // Update existing rows to have a default last_activity value
       await db.run('UPDATE sessions SET last_activity = created_at WHERE last_activity IS NULL');
       console.log('✅ last_activity column added to sessions table');
+
+    // Ensure system user exists (for system messages)
+    console.log(.Ensuring system user exists...);
+    await db.run(`
+      INSERT OR IGNORE INTO users (
+        id, username, password_hash, role, name, status, created_at
+      ) VALUES (
+        0, "system", "system", "system", "System", "active", datetime("now")
+      )
+    `);
+    console.log(.✅ System user ensured.);
     }
   } catch (error) {
     console.error('Error running migrations:', error);

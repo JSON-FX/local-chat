@@ -8,6 +8,14 @@ export interface User {
   created_at: string;
   last_login?: string;
   status: 'active' | 'inactive' | 'banned';
+  name?: string;
+  middle_name?: string;
+  last_name?: string;
+  position?: string;
+  department?: string;
+  email?: string;
+  mobile_number?: string;
+  avatar_path?: string;
   profile_data?: string; // JSON string for additional profile info
 }
 
@@ -151,3 +159,35 @@ export interface ApiResponse<T = any> {
 export type UserRole = User['role'];
 export type MessageType = Message['message_type'];
 export type UserStatus = User['status']; 
+// Utility function to format user's full name
+export function getFullName(user: User): string {
+  if (!user) return 'Unknown User';
+  
+  const firstName = user.name?.trim() || '';
+  const middleName = user.middle_name?.trim() || '';
+  const lastName = user.last_name?.trim() || '';
+  
+  // If no name fields are available, fall back to username
+  if (!firstName && !middleName && !lastName) {
+    return user.username;
+  }
+  
+  // Format: First Name Middle Initial. Last Name
+  let fullName = firstName;
+  
+  if (middleName) {
+    const middleInitial = middleName.charAt(0).toUpperCase() + '.';
+    fullName += fullName ? ` ${middleInitial}` : middleInitial;
+  }
+  
+  if (lastName) {
+    fullName += fullName ? ` ${lastName}` : lastName;
+  }
+  
+  return fullName || user.username;
+}
+
+// Get display name for UI (full name or username as fallback)
+export function getDisplayName(user: User): string {
+  return getFullName(user);
+}

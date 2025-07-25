@@ -1,5 +1,7 @@
 'use client';
 
+import { getDisplayName, User } from '../../lib/models';
+import { MessageWithSender } from '../../lib/types';
 import { useState, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -222,26 +224,17 @@ export function ChatWindow({
   };
 
   // Helper function to format sender name with same logic as sidebar and conversation list
-  const formatSenderName = (message: Message) => {
-    // Build full name with middle initial if available
-    if (message.sender_name) {
-      let fullName = message.sender_name;
-      
-      // Add middle initial if middle_name exists
-      if (message.sender_middle_name) {
-        fullName += ` ${message.sender_middle_name.charAt(0).toUpperCase()}.`;
-      }
-      
-      // Add last name if it exists
-      if (message.sender_last_name) {
-        fullName += ` ${message.sender_last_name}`;
-      }
-      
-      return fullName;
-    }
+  const formatSenderName = (message: MessageWithSender) => {
+    // Create a user-like object for the getDisplayName function
+    const senderUser = {
+      id: message.sender_id,
+      username: message.sender_username || "Unknown User",
+      name: message.sender_name,
+      middle_name: message.sender_middle_name,
+      last_name: message.sender_last_name
+    } as User;
     
-    // Fallback to username if no first name
-    return message.sender_username || 'Unknown User';
+    return getDisplayName(senderUser);
   };
 
   // Auto-mark messages as read when conversation changes
