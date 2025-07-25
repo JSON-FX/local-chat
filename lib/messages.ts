@@ -2,6 +2,52 @@ import { getDatabase } from './database';
 import { Message, CreateMessageData } from './models';
 
 export class MessageService {
+  // Maximum allowed filename length (including extension)
+  private static readonly MAX_FILENAME_LENGTH = 255;
+  
+  // Disallowed characters in filenames (regex pattern)
+  private static readonly DISALLOWED_FILENAME_CHARS = /[\x00-\x1f\x7f-\x9f<>:"|?*\\]/;
+  
+  // Validate filename
+  private static validateFilename(filename: string): { valid: boolean; error?: string } {
+    if (!filename || filename.trim() === '') {
+      return { valid: false, error: 'Filename cannot be empty' };
+    }
+    
+    // Check filename length
+    if (filename.length > this.MAX_FILENAME_LENGTH) {
+      return { 
+        valid: false, 
+        error: `Filename too long. Maximum ${this.MAX_FILENAME_LENGTH} characters allowed` 
+      };
+    }
+    
+    // Check for disallowed characters
+    if (this.DISALLOWED_FILENAME_CHARS.test(filename)) {
+      return { 
+        valid: false, 
+        error: 'Filename contains invalid characters' 
+      };
+    }
+    
+    // Check for path traversal attempts
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return { 
+        valid: false, 
+        error: 'Filename cannot contain path separators or ".."' 
+      };
+    }
+    
+    // Ensure filename has an extension
+    if (!filename.includes('.') || filename.endsWith('.')) {
+      return { 
+        valid: false, 
+        error: 'Filename must have a valid extension' 
+      };
+    }
+    
+    return { valid: true };
+  }
   
   // Create a system message (for group membership changes)
   static async createSystemMessage(groupId: number, content: string): Promise<Message> {
@@ -59,6 +105,30 @@ export class MessageService {
         throw new Error('Message must have either recipient_id or group_id, but not both');
       }
 
+      // Validate file attachment data if present
+      if (messageData.file_path || messageData.file_name || messageData.file_size) {
+        // If any file property is provided, all must be provided
+        if (!messageData.file_path || !messageData.file_name || !messageData.file_size) {
+          throw new Error('When sending a file attachment, file_path, file_name, and file_size must all be provided');
+        }
+        
+        // Validate filename
+        const filenameValidation = MessageService.validateFilename(messageData.file_name);
+        if (!filenameValidation.valid) {
+          throw new Error(`Invalid filename: ${filenameValidation.error}`);
+        }
+        
+        // Validate file size is a positive number
+        if (typeof messageData.file_size !== 'number' || messageData.file_size <= 0) {
+          throw new Error('File size must be a positive number');
+        }
+        
+        // Validate file path format (should start with /uploads/)
+        if (!messageData.file_path.startsWith('/uploads/')) {
+          throw new Error('Invalid file path format');
+        }
+      }
+
       // For group messages, check if the group exists and user is a member (skip check for system messages)
       if (messageData.group_id) {
         const group = await db.get(
@@ -83,6 +153,10 @@ export class MessageService {
         }
       }
 
+      // Prepare values for insertion
+      // Only include file properties if they're ALL present and valid
+      const hasValidAttachment = messageData.file_path && messageData.file_name && messageData.file_size;
+      
       // Insert message
       const result = await db.run(
         `INSERT INTO messages (sender_id, recipient_id, group_id, content, message_type, file_path, file_name, file_size) 
@@ -93,9 +167,9 @@ export class MessageService {
           messageData.group_id || null,
           messageData.content,
           messageData.message_type || 'text',
-          messageData.file_path || null,
-          messageData.file_name || null,
-          messageData.file_size || null
+          hasValidAttachment ? messageData.file_path : null,
+          hasValidAttachment ? messageData.file_name : null,
+          hasValidAttachment ? messageData.file_size : null
         ]
       );
 

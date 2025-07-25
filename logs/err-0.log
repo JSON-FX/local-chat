@@ -1,8 +1,0 @@
-2025-07-23T03:41:40: 2025-07-23T05:52:51: Send message error: [Error: SQLITE_ERROR: table messages has no column named file_name] {
-2025-07-23T05:52:51:   errno: 1,
-2025-07-23T05:52:51:   code: 'SQLITE_ERROR'
-2025-07-23T05:52:51: }
-2025-07-23T05:53:03: Send message error: [Error: SQLITE_ERROR: table messages has no column named file_name] {
-2025-07-23T05:53:03:   errno: 1,
-2025-07-23T05:53:03:   code: 'SQLITE_ERROR'
-2025-07-23T05:53:03: }

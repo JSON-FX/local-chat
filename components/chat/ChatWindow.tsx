@@ -763,11 +763,11 @@ export function ChatWindow({
                       )}>
                         {formatMessageTime(message.timestamp)}
                       </span>
-                      {message.queued && (
+                      {message.queued ? (
                         <Badge variant="outline" className="text-xs ml-2">
                           Queued
                         </Badge>
-                      )}
+                      ) : null}
                     </div>
                     
                     {/* Group "Seen" indicator - show below timestamp for the very last message */}

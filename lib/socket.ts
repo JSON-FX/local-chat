@@ -280,9 +280,14 @@ export class SocketService {
           };
 
           // Add file properties if they exist (for file uploads via socket)
-          if ('file_path' in data && data.file_path) messageData.file_path = data.file_path;
-          if ('file_name' in data && data.file_name) messageData.file_name = data.file_name;
-          if ('file_size' in data && data.file_size) messageData.file_size = data.file_size;
+          // Only add file properties if ALL required fields are present
+          if ("file_path" in data && "file_name" in data && "file_size" in data) {
+            if (data.file_path && data.file_name && data.file_size) {
+              messageData.file_path = data.file_path;
+              messageData.file_name = data.file_name;
+              messageData.file_size = data.file_size;
+            }
+          }
 
           const message = await MessageService.sendMessage(messageData);
 

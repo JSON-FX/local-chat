@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '../../../../lib/auth';
 import { MessageService } from '../../../../lib/messages';
 import { SocketService } from '../../../../lib/socket';
+import { CreateMessageData } from '../../../../lib/models';
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,7 +10,7 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth(request);
     
     const body = await request.json();
-    const { recipient_id, group_id, content, message_type } = body;
+    const { recipient_id, group_id, content, message_type, file_path, file_name, file_size } = body;
 
     // Validate input
     if (!content || content.trim() === '') {
@@ -27,14 +28,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send message
-    const message = await MessageService.sendMessage({
+    // Build message data with proper typing
+    const messageData: CreateMessageData = {
       sender_id: user.id,
-      recipient_id: recipient_id || null,
-      group_id: group_id || null,
+      recipient_id: recipient_id || undefined,
+      group_id: group_id || undefined,
       content: content.trim(),
-      message_type: message_type || 'text'
-    });
+      message_type: message_type || 'text',
+      file_path: file_path,
+      file_name: file_name,
+      file_size: file_size
+    };
+
+    // Send message
+    const message = await MessageService.sendMessage(messageData);
 
     // Add sender username for real-time display
     const messageWithSender = {
@@ -73,4 +80,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

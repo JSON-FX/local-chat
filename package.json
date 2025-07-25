@@ -13,7 +13,8 @@
     "fresh-db": "tsx scripts/fresh-db.ts",
     "db-reset": "tsx scripts/fresh-db.ts --force",
     "get-ip": "node scripts/get-ip.js",
-    "dev:ip": "npm run get-ip && tsx server.ts"
+    "dev:ip": "npm run get-ip && tsx server.ts",
+    "test": "jest"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
@@ -49,22 +50,28 @@
     "socket.io-client": "^4.8.1",
     "sonner": "^2.0.5",
     "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
     "tailwind-merge": "^3.3.1",
     "zod": "^3.25.67"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sqlite3": "^3.1.11",
     "autoprefixer": "^10.4.20",
     "cross-env": "^7.0.3",
     "dotenv-cli": "^8.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
+    "jest": "^30.0.5",
+    "node-fetch": "^2.7.0",
+    "sqlite3": "^5.1.7",
     "tailwindcss": "^4",
+    "ts-jest": "^29.4.0",
     "tsx": "^4.20.3",
     "tw-animate-css": "^1.3.4",
     "typescript": "^5"

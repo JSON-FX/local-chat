@@ -51,3 +51,35 @@ next-env.d.ts
 *.sqlite
 *.sqlite3
 localchat.db
+
+# logs
+/logs/
+*.log
+
+# backup files
+*.backup
+*.backup2
+*.bak
+
+# build output
+build.log
+server.log
+
+# test coverage
+/tests/coverage/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+Thumbs.db
+
+# PM2
+.pm2/
+pids
+*.pid
+*.seed
+*.pid.lock
