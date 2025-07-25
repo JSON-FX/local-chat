@@ -41,7 +41,18 @@ class DatabaseConnection {
 
   private promisifyMethods(db: sqlite3.Database): Database {
     return {
-      run: promisify(db.run.bind(db)),
+      run: (sql: string, params?: any[]) => {
+        return new Promise<sqlite3.RunResult>((resolve, reject) => {
+          db.run(sql, params || [], function(err) {
+            if (err) {
+              reject(err);
+            } else {
+              // 'this' context contains lastID, changes, etc.
+              resolve(this as sqlite3.RunResult);
+            }
+          });
+        });
+      },
       get: promisify(db.get.bind(db)),
       all: promisify(db.all.bind(db)),
       close: promisify(db.close.bind(db))
@@ -50,8 +61,13 @@ class DatabaseConnection {
 
   async close(): Promise<void> {
     if (this.db) {
-      await this.promisifyMethods(this.db).close();
-      this.db = null;
+      try {
+        await promisify(this.db.close.bind(this.db))();
+      } catch (error) {
+        console.error('Error closing database:', error);
+      } finally {
+        this.db = null;
+      }
     }
   }
 }
@@ -69,4 +85,4 @@ export const closeDatabase = async (): Promise<void> => {
 
 export const forceReconnectDatabase = async (): Promise<Database> => {
   return await dbConnection.forceReconnect();
-}; 
+};

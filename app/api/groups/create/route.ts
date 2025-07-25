@@ -63,12 +63,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create group
-    const group = await GroupService.createGroup({
-      name: name.trim(),
-      description: description?.trim() || undefined,
-      created_by: user.id
-    }, initialMemberIds);
+    // Create group with correct parameter order
+    const group = await GroupService.createGroup(
+      name.trim(),
+      description?.trim() || '',
+      user.id,
+      initialMemberIds
+    );
 
     // Get group members to return complete info
     const members = await GroupService.getGroupMembers(group.id, user.id);
@@ -125,4 +126,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

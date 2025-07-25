@@ -31,7 +31,19 @@ export class GroupService {
         'INSERT INTO groups (name, description, created_by, created_at) VALUES (?, ?, ?, datetime("now"))',
         [name, description, createdBy]
       );
-      const groupId = result.lastID;
+      console.log('DEBUG: DB run result:', result);
+      console.log('DEBUG: Result type:', typeof result);
+      console.log('DEBUG: Result keys:', result ? Object.keys(result) : 'null');
+      console.log('DEBUG: Result properties:', result ? { lastID: result.lastID, lastId: result.lastId, insertId: result.insertId } : 'null');
+      // Get the inserted ID with proper type handling
+      let groupId;
+      if (result && typeof result === 'object') {
+        groupId = (result as any).lastID || (result as any).lastId || (result as any).insertId;
+      }
+      
+      if (!groupId) {
+        throw new Error('Failed to retrieve created group ID');
+      }
       console.log('DEBUG: Created group with ID:', groupId);
 
       // Add creator as admin

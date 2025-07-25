@@ -1,3 +1,7 @@
+// Load environment variables first
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
@@ -53,7 +57,7 @@ app.prepare().then(() => {
   server.listen(port, hostname, () => {
     console.log('');
     console.log('🚀 LGU-Chat Server Started Successfully!');
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
     
     if (dev) {
       console.log('📍 DEVELOPMENT MODE');
@@ -71,9 +75,9 @@ app.prepare().then(() => {
     console.log('');
     console.log('⚡ Socket.io server is running');
     console.log('🔧 Ready to accept connections');
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
   });
 }).catch((err) => {
   console.error('Error starting server:', err);
   process.exit(1);
-}); 
+});

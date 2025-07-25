@@ -1,3 +1,5 @@
+// Load environment variables first
+import "./env";
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
