@@ -180,9 +180,6 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
             </Button>
           </div>
           
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Demo account: admin / admin123</p>
-          </div>
         </CardContent>
       </Card>
       </div>
