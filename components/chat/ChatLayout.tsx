@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { 
-  MessageSquare, 
-  LogOut, 
+import {
+  MessageSquare,
+  LogOut,
   Circle,
   PanelLeftClose,
   PanelLeftOpen,
@@ -61,12 +61,12 @@ export function ChatLayout() {
   const [showBetaAgreement, setShowBetaAgreement] = useState(false);
 
   // Read status management (including badge counts)
-  const selectedConversationId = selectedConversation 
-    ? (selectedConversationType === 'group' 
+  const selectedConversationId = selectedConversation
+    ? (selectedConversationType === 'group'
         ? selectedConversation.group_id || 0
         : selectedConversation.other_user_id || 0)
     : 0;
-    
+
   const {
     unreadCounts,
     loading: unreadLoading,
@@ -104,7 +104,7 @@ export function ChatLayout() {
     }
     setupServiceWorker();
     const cleanup = setupPageVisibility();
-    
+
     return () => {
       if (cleanup) cleanup();
     };
@@ -117,7 +117,7 @@ export function ChatLayout() {
         const registration = await navigator.serviceWorker.register('/sw.js');
         setServiceWorkerRegistration(registration);
         console.log('✅ Service Worker registered:', registration);
-        
+
         // Wait for service worker to be ready
         await navigator.serviceWorker.ready;
         console.log('✅ Service Worker ready');
@@ -133,27 +133,27 @@ export function ChatLayout() {
       try {
         // Check current permission first
         let permission = Notification.permission;
-        
+
         // For Chrome compatibility - only request if not already decided
         if (permission === 'default') {
           // Show a user-friendly prompt first (Chrome requires user gesture)
           const userWantsNotifications = window.confirm(
             'LGU-Chat would like to send you notifications when you receive new messages. Allow notifications?'
           );
-          
+
           if (userWantsNotifications) {
             permission = await Notification.requestPermission();
           } else {
             permission = 'denied';
           }
         }
-        
+
         setNotificationPermission(permission);
-        
+
         if (permission === 'granted') {
           console.log('✅ Notification permission granted');
           toast.success('🔔 Notifications enabled! You\'ll be notified of new messages.');
-          
+
           // Test notification on first enable
           try {
             const testNotification = new Notification('LGU-Chat Notifications Enabled', {
@@ -162,14 +162,14 @@ export function ChatLayout() {
               tag: 'test-notification',
               requireInteraction: false
             });
-            
+
             setTimeout(() => {
               testNotification.close();
             }, 3000);
           } catch (error) {
             console.warn('Test notification failed:', error);
           }
-          
+
         } else if (permission === 'denied') {
           console.log('❌ Notification permission denied');
           toast.error('Notifications blocked. To enable: Click the bell icon in your browser\'s address bar or go to site settings.');
@@ -192,11 +192,11 @@ export function ChatLayout() {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     // Also listen for window focus/blur
     const handleFocus = () => setIsPageVisible(true);
     const handleBlur = () => setIsPageVisible(false);
-    
+
     window.addEventListener('focus', handleFocus);
     window.addEventListener('blur', handleBlur);
 
@@ -218,7 +218,7 @@ export function ChatLayout() {
       }
 
       const audioContext = new AudioContext();
-      
+
       // Resume audio context if suspended (Chrome autoplay policy)
       if (audioContext.state === 'suspended') {
         try {
@@ -231,19 +231,19 @@ export function ChatLayout() {
 
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
-      
+
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
-      
+
       // Create a pleasant notification sound
       oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime); // E5
       oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime + 0.1); // C5
       oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.2); // E5
-      
+
       gainNode.gain.setValueAtTime(0, audioContext.currentTime);
       gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-      
+
       oscillator.type = 'sine';
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.4);
@@ -252,10 +252,10 @@ export function ChatLayout() {
       setTimeout(() => {
         audioContext.close();
       }, 500);
-      
+
     } catch (error) {
       console.warn('Failed to play notification sound:', error);
-      
+
       // Fallback: Try using a simple HTML5 audio beep
       try {
         const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmMbBTmV2/LReSsFJXzJ8t2WQQAWX7np1JBMEA9Pqd/trWAaAA=');
@@ -315,25 +315,25 @@ export function ChatLayout() {
             if (window.focus) {
               window.focus();
             }
-            
+
             // For Chrome/Edge: bring tab to front
             if (parent && parent !== window) {
               parent.focus();
             }
-            
+
             // Try to bring browser window to front (may not work due to security)
             try {
               window.parent.focus();
             } catch (e) {
               // Silently fail
             }
-            
+
             notification.close();
           };
 
           console.log('🔔 Browser notification shown:', title);
         }
-        
+
         // Flash the title bar for additional attention
         try {
           const originalTitle = document.title;
@@ -352,13 +352,13 @@ export function ChatLayout() {
 
       } catch (error) {
         console.error('Failed to show notification:', error);
-        
+
         // Ultimate fallback: Change tab title
         try {
           if (!isPageVisible) {
             const originalTitle = document.title;
             document.title = `💬 ${title}`;
-            
+
             setTimeout(() => {
               document.title = originalTitle;
             }, 5000);
@@ -382,11 +382,11 @@ export function ChatLayout() {
 
     // Only show browser notification when page is not visible
     if (!isPageVisible) {
-      const title = isGroup 
+      const title = isGroup
         ? `New message in ${conversations.find(c => c.group_id === message.group_id)?.group_name || 'group'}`
         : `New message from ${senderName}`;
-      
-      const body = message.file_path 
+
+      const body = message.file_path
         ? '📎 Sent a file'
         : message.content || 'New message';
 
@@ -412,11 +412,11 @@ export function ChatLayout() {
           const { id, type } = JSON.parse(savedConversation);
           if (id && type) {
             // Find the conversation in the loaded conversations
-            const exists = conversations.find(c => 
-              (type === 'direct' && c.other_user_id === id) || 
+            const exists = conversations.find(c =>
+              (type === 'direct' && c.other_user_id === id) ||
               (type === 'group' && c.group_id === id)
             );
-            
+
             if (exists) {
               console.log('🔄 Restoring conversation:', id, type);
               handleConversationSelect(id, type === 'group');
@@ -439,7 +439,7 @@ export function ChatLayout() {
     console.log('🔧 Setting up socket handlers with current state');
     console.log('🔧 currentUser:', currentUser);
     console.log('🔧 selectedConversation:', selectedConversation);
-    
+
     setupSocketHandlers();
 
     return () => {
@@ -466,7 +466,7 @@ export function ChatLayout() {
   const initializeApp = async () => {
     try {
       console.log('🔍 [DEBUG] ChatLayout - starting app initialization...');
-      
+
       // Check if user is authenticated
       if (!apiService.isAuthenticated()) {
         console.log('🔍 [DEBUG] ChatLayout - user not authenticated, redirecting...');
@@ -492,7 +492,7 @@ export function ChatLayout() {
       console.log('🔍 [DEBUG] ChatLayout - attempting socket connection with token:', token ? 'present' : 'missing');
       console.log('🔍 [DEBUG] ChatLayout - token preview:', token ? token.substring(0, 50) + '...' : 'N/A');
       console.log('🔍 [DEBUG] ChatLayout - token from localStorage:', typeof window !== 'undefined' ? localStorage.getItem('auth_token') ? 'present' : 'missing' : 'N/A');
-      
+
       if (!token) {
         console.error('❌ [DEBUG] ChatLayout - no token available for socket connection');
         console.error('❌ [DEBUG] ChatLayout - apiService.isAuthenticated():', apiService.isAuthenticated());
@@ -504,38 +504,38 @@ export function ChatLayout() {
       // Set up socket event handlers first (before connection attempt)
       console.log('🔍 [DEBUG] ChatLayout - setting up socket event handlers...');
       setupSocketHandlers();
-      
+
       // Connect to socket with proper error handling and timeout
       try {
         console.log('🔍 [DEBUG] ChatLayout - disconnecting any existing socket connections...');
         socketClient.disconnect();
-        
+
         console.log('🔍 [DEBUG] ChatLayout - setting token on socket client...');
         socketClient.setToken(token);
-        
+
         console.log('🔍 [DEBUG] ChatLayout - attempting socket connection...');
-        
+
         // Add a race condition with timeout to prevent hanging
         const connectionPromise = socketClient.connect(token);
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => reject(new Error('Socket connection timeout after 15 seconds')), 15000);
         });
-        
+
         await Promise.race([connectionPromise, timeoutPromise]);
         console.log('✅ [DEBUG] ChatLayout - socket connection successful!');
-        
+
       } catch (socketError: any) {
         console.error('❌ [DEBUG] ChatLayout - socket connection failed:', socketError);
         console.error('❌ [DEBUG] ChatLayout - error message:', socketError.message);
         console.error('❌ [DEBUG] ChatLayout - error stack:', socketError.stack);
-        
+
         // Provide user-friendly error message
-        const friendlyMessage = socketError.message?.includes('timeout') 
+        const friendlyMessage = socketError.message?.includes('timeout')
           ? 'Connection timeout - please check your network and try again'
           : socketError.message || 'Connection failed';
-          
+
         toast.error(`Real-time connection failed: ${friendlyMessage}`);
-        
+
         // Don't block the app completely - load conversations anyway
         console.log('🔍 [DEBUG] ChatLayout - proceeding without socket connection...');
       }
@@ -546,7 +546,7 @@ export function ChatLayout() {
         loadConversations(),
         loadOnlineUsers()
       ]);
-      
+
       console.log('✅ [DEBUG] ChatLayout - app initialization completed');
 
     } catch (error: any) {
@@ -569,7 +569,7 @@ export function ChatLayout() {
     socketClient.on('onAuthenticated', async (data) => {
       setIsConnected(true);
       toast.success(`Connected as ${data.username}`);
-      
+
       // Auto-join all group rooms after authentication
       setTimeout(async () => {
         try {
@@ -577,7 +577,7 @@ export function ChatLayout() {
           if (conversations.length === 0) {
             await loadConversations();
           }
-          
+
           // Join all group rooms
           const groupConversations = conversations.filter(c => c.conversation_type === 'group');
           for (const conv of groupConversations) {
@@ -594,10 +594,10 @@ export function ChatLayout() {
 
     socketClient.on('onNewMessage', (message) => {
       console.log('📨 Processing new message:', message);
-      
+
       // Check if this message is for the currently opened conversation
       let isRelevantMessage = false;
-      
+
       if (selectedConversation) {
         if (selectedConversationType === 'group' && message.group_id) {
           // Group message (including system messages): check if it's for the selected group
@@ -612,7 +612,7 @@ export function ChatLayout() {
           );
         }
       }
-      
+
       if (isRelevantMessage) {
         console.log('📨 Message is relevant, adding to current chat');
         setMessages(prev => {
@@ -632,21 +632,21 @@ export function ChatLayout() {
       // Handle notifications for direct messages (but not system messages)
       if (!message.group_id && message.recipient_id === currentUser?.id && message.sender_id !== 0) {
         // Find sender information and format display name
-        const conversation = conversations.find(c => 
+        const conversation = conversations.find(c =>
           c.conversation_type === 'direct' && c.other_user_id === message.sender_id
         );
-        
+
         let senderName = 'Unknown User';
         if (conversation) {
           // Build full name with middle initial if available
           if (conversation.other_user_name) {
             senderName = conversation.other_user_name;
-            
+
             // Add middle initial if middle_name exists
             if (conversation.other_user_middle_name) {
               senderName += ` ${conversation.other_user_middle_name.charAt(0).toUpperCase()}.`;
             }
-            
+
             // Add last name if it exists
             if (conversation.other_user_last_name) {
               senderName += ` ${conversation.other_user_last_name}`;
@@ -656,7 +656,7 @@ export function ChatLayout() {
             senderName = conversation.other_username || 'Unknown User';
           }
         }
-        
+
         handleMessageNotification(message, senderName, false);
       }
 
@@ -668,7 +668,7 @@ export function ChatLayout() {
           incrementUnreadCount(message.sender_id, false);
         }
       }
-      
+
       // Update conversation list (debounced)
       debouncedLoadConversations();
     });
@@ -676,11 +676,11 @@ export function ChatLayout() {
     socketClient.on('onGroupMessage', (message) => {
       // Check if this message is for the currently opened group conversation
       let isRelevantMessage = false;
-      
+
       if (selectedConversation && selectedConversationType === 'group' && message.group_id) {
         isRelevantMessage = message.group_id === selectedConversation.group_id;
       }
-      
+
       if (isRelevantMessage) {
         setMessages(prev => {
           // Prevent duplicates by checking if message already exists
@@ -696,12 +696,12 @@ export function ChatLayout() {
         let senderName = 'Unknown User';
         if (message.sender_name) {
           senderName = message.sender_name;
-          
+
           // Add middle initial if middle_name exists
           if (message.sender_middle_name) {
             senderName += ` ${message.sender_middle_name.charAt(0).toUpperCase()}.`;
           }
-          
+
           // Add last name if it exists
           if (message.sender_last_name) {
             senderName += ` ${message.sender_last_name}`;
@@ -710,7 +710,7 @@ export function ChatLayout() {
           // Fallback to username if no first name
           senderName = message.sender_username || 'Unknown User';
         }
-        
+
         handleMessageNotification(message, senderName, true);
       }
 
@@ -722,55 +722,55 @@ export function ChatLayout() {
           incrementUnreadCount(message.group_id, true);
         }
       }
-      
+
       // Update conversation list (debounced)
       debouncedLoadConversations();
     });
 
     socketClient.on('onGroupDeleted', (data) => {
       console.log('Group deleted:', data);
-      
+
       // If the deleted group is the currently selected conversation, reset it
-      if (selectedConversation && 
-          selectedConversationType === 'group' && 
+      if (selectedConversation &&
+          selectedConversationType === 'group' &&
           selectedConversation.group_id === data.group_id) {
         setSelectedConversation(null);
         setMessages([]);
         localStorage.removeItem('selectedConversation');
-        
+
         // Show notification
         toast.info(`Group was deleted by ${data.deleted_by.username}`);
       }
-      
+
       // Immediately update conversations list to remove the deleted group
-      setConversations(prev => prev.filter(c => 
+      setConversations(prev => prev.filter(c =>
         !(c.conversation_type === 'group' && c.group_id === data.group_id)
       ));
-      
+
       // Also refresh from server (debounced)
       debouncedLoadConversations();
     });
 
     socketClient.on('onMemberLeftGroup', (data) => {
       console.log('Member left group:', data);
-      
+
       // Show notification if it's the current group
-      if (selectedConversation && 
-          selectedConversationType === 'group' && 
+      if (selectedConversation &&
+          selectedConversationType === 'group' &&
           selectedConversation.group_id === data.group_id) {
         toast.info(`${data.username} left the group`);
       }
-      
+
       // Refresh conversations to update member count if needed (debounced)
       debouncedLoadConversations();
     });
 
     socketClient.on('onOwnershipTransferred', (data) => {
       console.log('Ownership transferred:', data);
-      
+
       // Show notification
       toast.info(`Group ownership transferred from ${data.former_owner.username} to ${data.new_owner.username}`);
-      
+
       // Refresh conversations to update ownership status (debounced)
       debouncedLoadConversations();
     });
@@ -778,7 +778,7 @@ export function ChatLayout() {
     socketClient.on('onMessageSent', (message) => {
       // Add sent message to current chat if it's for the selected conversation
       let isForCurrentConversation = false;
-      
+
       if (selectedConversation) {
         if (selectedConversationType === 'group' && message.group_id) {
           // Group message: check if it's for the selected group
@@ -788,7 +788,7 @@ export function ChatLayout() {
           isForCurrentConversation = message.recipient_id === selectedConversation.other_user_id;
         }
       }
-      
+
       if (isForCurrentConversation) {
         setMessages(prev => {
           // Prevent duplicates by checking if message already exists
@@ -797,7 +797,7 @@ export function ChatLayout() {
           return [...prev, message];
         });
       }
-      
+
       // Update conversation list (debounced)
       debouncedLoadConversations();
     });
@@ -833,7 +833,7 @@ export function ChatLayout() {
     socketClient.on('onGroupCreated', (data) => {
       // Refresh conversations to show the new group
       loadConversations();
-      
+
       // Show notification (but only if current user didn't create it)
       if (data.created_by.id !== currentUser?.id) {
         toast.success(`You were added to group "${data.group.name}"`);
@@ -843,19 +843,19 @@ export function ChatLayout() {
     socketClient.on('onMemberAddedToGroup', (data) => {
       // Refresh conversations to show the group
       loadConversations();
-      
+
       // Auto-join the group room for real-time messaging
       if (socketClient.isConnected()) {
         socketClient.joinRoom(`group_${data.group.id}`);
       }
-      
+
       // Show notification
       toast.success(`You were added to group "${data.group.name}" by ${data.added_by.username}`);
     });
 
     socketClient.on('onGroupAvatarUpdated', (data) => {
       console.log('Group avatar updated:', data);
-      
+
       // Update conversations list to reflect the new avatar
       setConversations(prev => prev.map(conversation => {
         if (conversation.conversation_type === 'group' && conversation.group_id === data.group_id) {
@@ -866,7 +866,7 @@ export function ChatLayout() {
         }
         return conversation;
       }));
-      
+
       // Show notification if the current user didn't update it
       if (data.updated_by.id !== currentUser?.id) {
         const avatarAction = data.avatar_path ? 'updated' : 'removed';
@@ -876,7 +876,7 @@ export function ChatLayout() {
 
     socketClient.on('onUserAvatarUpdated', (data) => {
       console.log('👤 User avatar updated received in ChatLayout:', data);
-      
+
       // Update current user if it's their avatar
       if (data.user_id === currentUser?.id) {
         setCurrentUser(prev => prev ? {
@@ -884,7 +884,7 @@ export function ChatLayout() {
           avatar_path: data.avatar_path || undefined
         } : prev);
       }
-      
+
       // Update conversations list to reflect the new avatar for direct chats
       setConversations(prev => prev.map(conversation => {
         if (conversation.conversation_type === 'direct' && conversation.other_user_id === data.user_id) {
@@ -895,7 +895,7 @@ export function ChatLayout() {
         }
         return conversation;
       }));
-      
+
       // Update messages in current conversation if they're from this user
       setMessages(prev => prev.map(message => {
         if (message.sender_id === data.user_id) {
@@ -906,7 +906,7 @@ export function ChatLayout() {
         }
         return message;
       }));
-      
+
       // Show notification if it's not the current user
       if (data.user_id !== currentUser?.id) {
         const avatarAction = data.avatar_path ? 'updated' : 'removed';
@@ -919,14 +919,14 @@ export function ChatLayout() {
       if (data.user_id === currentUser?.id) {
         return;
       }
-      
+
       // Show notification if this is for the currently selected group
-      if (selectedConversation && 
-          selectedConversationType === 'group' && 
+      if (selectedConversation &&
+          selectedConversationType === 'group' &&
           selectedConversation.group_id === data.group_id) {
         toast.info(`${data.username} has left the group`);
       }
-      
+
       // Refresh conversations to update member counts
       loadConversations();
     });
@@ -934,31 +934,31 @@ export function ChatLayout() {
     socketClient.on('onMessagesRead', (data) => {
       console.log(`🔍 DEBUG: onMessagesRead socket event received:`, data);
       console.log(`🔍 DEBUG: Current conversation: ${selectedConversation?.group_id || selectedConversation?.other_user_id}, type: ${selectedConversationType}`);
-      
+
       // Update read status for messages in the current conversation
       if (selectedConversation) {
         let isRelevantForCurrentConversation = false;
-        
+
         if (data.is_group && selectedConversationType === 'group') {
           isRelevantForCurrentConversation = selectedConversation.group_id === data.conversation_id;
           console.log(`🔍 DEBUG: Group chat - checking if ${selectedConversation.group_id} === ${data.conversation_id}: ${isRelevantForCurrentConversation}`);
         } else if (!data.is_group && selectedConversationType === 'direct') {
           // For direct messages, check if this event is about the current conversation
           // The event is relevant if the reader or conversation involves the selected user
-          isRelevantForCurrentConversation = 
-            selectedConversation.other_user_id === data.reader_id || 
+          isRelevantForCurrentConversation =
+            selectedConversation.other_user_id === data.reader_id ||
             selectedConversation.other_user_id === data.conversation_id;
           console.log(`🔍 DEBUG: Direct chat - checking relevance: ${isRelevantForCurrentConversation}`);
         }
-        
+
         if (isRelevantForCurrentConversation) {
           console.log(`🔍 DEBUG: This read event is relevant for current conversation, updating ${data.message_ids.length} messages`);
-          
+
           setMessages(prev => prev.map(message => {
             // Only update the specific messages that were read
             if (data.message_ids.includes(message.id)) {
               console.log(`🔍 DEBUG: Updating read status for message ${message.id}`);
-              
+
               if (data.is_group) {
                 // For group messages, add to read_by array
                 const existingRead = message.read_by?.find(r => r.user_id === data.reader_id);
@@ -1000,7 +1000,7 @@ export function ChatLayout() {
       } else {
         console.log(`🔍 DEBUG: No selected conversation, ignoring read event`);
       }
-      
+
       // Note: Unread counts are now handled by the useReadStatus hook
       // No need to reload conversations as this causes race conditions
     });
@@ -1020,14 +1020,14 @@ export function ChatLayout() {
       const response = await apiService.getConversations();
       if (response.success && response.data) {
         setConversations(response.data);
-        
+
         // Restore last conversation if none is selected and we have saved state
         if (!selectedConversation && response.data.length > 0) {
           const savedConversation = localStorage.getItem('lastConversation');
           if (savedConversation) {
             try {
               const { conversationId, isGroup } = JSON.parse(savedConversation);
-              
+
               // Check if the saved conversation still exists
               const conversationExists = response.data.some((conv: any) => {
                 if (isGroup) {
@@ -1036,7 +1036,7 @@ export function ChatLayout() {
                   return conv.other_user_id === conversationId;
                 }
               });
-              
+
               if (conversationExists) {
                 // Restore the conversation with a small delay to ensure everything is loaded
                 setTimeout(() => {
@@ -1073,31 +1073,32 @@ export function ChatLayout() {
       const usersResponse = await apiService.getUsers();
       if (usersResponse.success && usersResponse.data) {
         const user = usersResponse.data.find(u => u.id === userId);
-        
+
         if (user) {
           // Create a temporary conversation with the user's information
           const tempConversation: Conversation = {
             other_user_id: user.id,
             other_username: user.username,
+            other_user_name: user.full_name,
             last_message: '',
             last_message_time: new Date().toISOString(),
             conversation_type: 'direct',
             group_id: undefined,
             group_name: undefined,
-            avatar_path: undefined
+            avatar_path: user.avatar_path || undefined
           };
-          
+
           // Set the selected conversation with the user information
           setSelectedConversation(tempConversation);
           setSelectedConversationType('direct');
           setMessages([]);
-          
+
           // Save to localStorage
           localStorage.setItem('selectedConversation', JSON.stringify({
             id: userId,
             type: 'direct'
           }));
-          
+
           // Reload conversations to show the new chat in the sidebar
           await loadConversations();
         } else {
@@ -1114,13 +1115,13 @@ export function ChatLayout() {
   const handleGroupCreated = async (groupData: any) => {
     // Handle both API response format and direct group object
     const group = groupData.group || groupData;
-    
+
     // Refresh conversations to show the new group
     await loadConversations();
-    
+
     // Show success message
     toast.success(`Group "${group.name}" created successfully`);
-    
+
     // Optionally select the new group conversation
     // TODO: Add group selection logic when group chat display is implemented
   };
@@ -1128,22 +1129,22 @@ export function ChatLayout() {
   const handleConversationSelect = async (conversationId: number, isGroup: boolean = false) => {
     try {
       setIsLoadingMessages(true);
-      
+
       // IMMEDIATELY clear badge count for real-time response
       console.log(`📖 DEBUG: Immediately clearing badge for ${isGroup ? 'group' : 'direct'}_${conversationId}`);
       clearUnreadCount(conversationId, isGroup);
-      
+
       // Save selected conversation to localStorage
       localStorage.setItem('selectedConversation', JSON.stringify({
         id: conversationId,
         type: isGroup ? 'group' : 'direct'
       }));
-      
-      const conversation = conversations.find(c => 
-        (isGroup && c.group_id === conversationId) || 
+
+      const conversation = conversations.find(c =>
+        (isGroup && c.group_id === conversationId) ||
         (!isGroup && c.other_user_id === conversationId)
       );
-      
+
       if (!conversation) {
         // For direct chats, if the conversation doesn't exist yet, create a temporary conversation object
         // This allows users to start a new chat with someone they haven't chatted with before
@@ -1164,7 +1165,7 @@ export function ChatLayout() {
                   group_name: undefined,
                   avatar_path: undefined
                 };
-                
+
                 setSelectedConversation(tempConversation);
                 setSelectedConversationType('direct');
                 setMessages([]);
@@ -1176,7 +1177,7 @@ export function ChatLayout() {
             console.error('Failed to get user info:', error);
           }
         }
-        
+
         // If we reach here, either it's a group that doesn't exist or we couldn't get user info
         localStorage.removeItem('selectedConversation');
         setSelectedConversation(null);
@@ -1184,10 +1185,10 @@ export function ChatLayout() {
         console.warn(`Conversation not found: ${isGroup ? 'group' : 'direct'} ID ${conversationId}`);
         return;
       }
-      
+
       setSelectedConversation(conversation);
       setSelectedConversationType(isGroup ? 'group' : 'direct');
-      
+
       // Join the appropriate room for real-time messaging
       if (socketClient.isConnected()) {
         if (isGroup) {
@@ -1195,12 +1196,12 @@ export function ChatLayout() {
         }
         // For direct messages, no specific room joining needed
       }
-      
+
       // Fetch messages for this conversation
       const response = isGroup
         ? await apiService.getGroupMessages(conversationId)
         : await apiService.getDirectMessages(conversationId);
-      
+
       if (response.success && response.data) {
         setMessages(response.data);
       } else {
@@ -1232,10 +1233,10 @@ export function ChatLayout() {
         }
       } else {
         // Fallback to HTTP API
-        const response = selectedConversationType === 'group' 
+        const response = selectedConversationType === 'group'
           ? await apiService.sendGroupMessage(selectedConversation.group_id || 0, content.trim())
           : await apiService.sendMessage(selectedConversation.other_user_id, content.trim());
-          
+
         if (response.success && response.data) {
           setMessages(prev => [...prev, response.data!]);
           loadConversations();
@@ -1252,7 +1253,7 @@ export function ChatLayout() {
   const handleFileUploaded = (message: Message) => {
     // Add the message immediately to show in current conversation
     let isForCurrentConversation = false;
-    
+
     if (selectedConversation) {
       if (selectedConversationType === 'group' && message.group_id) {
         // Group message: check if it's for the selected group
@@ -1262,7 +1263,7 @@ export function ChatLayout() {
         isForCurrentConversation = message.recipient_id === selectedConversation.other_user_id;
       }
     }
-    
+
     if (isForCurrentConversation) {
       setMessages(prev => {
         const exists = prev.some(m => m.id === message.id);
@@ -1270,7 +1271,7 @@ export function ChatLayout() {
         return [...prev, message];
       });
     }
-    
+
     // Update conversation list to show latest activity (debounced)
     debouncedLoadConversations();
   };
@@ -1292,18 +1293,18 @@ export function ChatLayout() {
   const handleDeleteConversation = (conversationId: number, isGroup: boolean) => {
     // Reset selected conversation if it was deleted
     if (selectedConversation) {
-      const currentId = selectedConversation.conversation_type === 'direct' 
-        ? selectedConversation.other_user_id 
+      const currentId = selectedConversation.conversation_type === 'direct'
+        ? selectedConversation.other_user_id
         : selectedConversation.group_id;
-        
-      if ((isGroup && currentId === conversationId) || 
+
+      if ((isGroup && currentId === conversationId) ||
           (!isGroup && currentId === conversationId)) {
         setSelectedConversation(null);
         // Clear localStorage when conversation is deleted
         localStorage.removeItem('selectedConversation');
       }
     }
-    
+
     // Refresh conversations list (debounced)
     debouncedLoadConversations();
   };
@@ -1332,10 +1333,10 @@ export function ChatLayout() {
               <>
                 <div className="flex items-center space-x-2">
                   <div className="h-8 w-8 rounded-lg bg-white shadow-sm flex items-center justify-center">
-                    <Image 
-                      src="/lgu-seal.png" 
-                      alt="LGU Seal" 
-                      width={24} 
+                    <Image
+                      src="/lgu-seal.png"
+                      alt="LGU Seal"
+                      width={24}
                       height={24}
                       className="object-contain"
                     />
@@ -1349,8 +1350,8 @@ export function ChatLayout() {
                     size="sm"
                     onClick={() => setupNotifications()}
                     className="text-muted-foreground hover:text-foreground p-1"
-                    title={notificationPermission === 'granted' ? 'Notifications enabled - you will receive alerts for new messages' : 
-                           notificationPermission === 'denied' ? 'Notifications blocked - check your browser settings or site permissions' : 
+                    title={notificationPermission === 'granted' ? 'Notifications enabled - you will receive alerts for new messages' :
+                           notificationPermission === 'denied' ? 'Notifications blocked - check your browser settings or site permissions' :
                            'Click to enable desktop notifications for new messages'}
                   >
                     {notificationPermission === 'granted' ? (
@@ -1359,7 +1360,7 @@ export function ChatLayout() {
                       <BellOff className="h-4 w-4 text-muted-foreground" />
                     )}
                   </Button>
-                  
+
                   {/* Connection Status */}
                   {isConnected ? (
                     <Badge variant="secondary" className="text-xs">
@@ -1378,10 +1379,10 @@ export function ChatLayout() {
               <div className="flex flex-col items-center justify-center w-full space-y-1">
                 <div className="relative">
                   <div className="h-6 w-6 rounded bg-white shadow-sm flex items-center justify-center">
-                    <Image 
-                      src="/lgu-seal.png" 
-                      alt="LGU Seal" 
-                      width={16} 
+                    <Image
+                      src="/lgu-seal.png"
+                      alt="LGU Seal"
+                      width={16}
                       height={16}
                       className="object-contain"
                     />
@@ -1398,8 +1399,8 @@ export function ChatLayout() {
                   size="sm"
                   onClick={() => setupNotifications()}
                   className="p-1 h-6"
-                  title={notificationPermission === 'granted' ? 'Notifications enabled - you will receive alerts for new messages' : 
-                         notificationPermission === 'denied' ? 'Notifications blocked - check your browser settings or site permissions' : 
+                  title={notificationPermission === 'granted' ? 'Notifications enabled - you will receive alerts for new messages' :
+                         notificationPermission === 'denied' ? 'Notifications blocked - check your browser settings or site permissions' :
                          'Click to enable desktop notifications for new messages'}
                 >
                   {notificationPermission === 'granted' ? (
@@ -1446,9 +1447,9 @@ export function ChatLayout() {
           <div className="flex-1 overflow-hidden">
             <ChatList
               conversations={conversations}
-              selectedConversation={selectedConversation ? 
-                (selectedConversation.conversation_type === 'direct' ? 
-                  selectedConversation.other_user_id : 
+              selectedConversation={selectedConversation ?
+                (selectedConversation.conversation_type === 'direct' ?
+                  selectedConversation.other_user_id :
                   selectedConversation.group_id || 0) : null}
               onSelectConversation={handleConversationSelect}
               onlineUsers={onlineUsers}
@@ -1465,55 +1466,35 @@ export function ChatLayout() {
                 <div className="flex items-center space-x-3">
                   <div className="h-10 w-10 rounded-full overflow-hidden bg-muted flex items-center justify-center">
                     {currentUser?.avatar_path ? (
-                      <img 
+                      <img
                         src={`/api/files/download/${currentUser.avatar_path}`}
                         alt={currentUser.username}
                         className="h-full w-full object-cover"
                       />
                     ) : (
                       <span className="text-sm font-semibold">
-                        {currentUser?.name?.[0] || currentUser?.username?.[0]?.toUpperCase()}
+                        {currentUser?.full_name?.[0] || currentUser?.username?.[0]?.toUpperCase()}
                       </span>
                     )}
                   </div>
                   <div>
                     <p className="font-medium">
-                      {(() => {
-                        // Build full name with middle initial if available
-                        if (currentUser?.name) {
-                          let fullName = currentUser.name;
-                          
-                          // Add middle initial if middle_name exists
-                          if (currentUser?.middle_name) {
-                            fullName += ` ${currentUser.middle_name.charAt(0).toUpperCase()}.`;
-                          }
-                          
-                          // Add last name if it exists
-                          if (currentUser?.last_name) {
-                            fullName += ` ${currentUser.last_name}`;
-                          }
-                          
-                          return fullName;
-                        }
-                        
-                        // Fallback to username if no first name
-                        return currentUser?.username;
-                      })()}
+                      {currentUser?.full_name || currentUser?.username}
                     </p>
                     {currentUser?.position && (
                       <p className="text-sm text-muted-foreground">{currentUser.position}</p>
                     )}
-                    {currentUser?.department && (
-                      <p className="text-xs text-muted-foreground">{currentUser.department}</p>
+                    {currentUser?.office_name && (
+                      <p className="text-xs text-muted-foreground">{currentUser.office_name}</p>
                     )}
-                    {(!currentUser?.position && !currentUser?.department) && (
+                    {(!currentUser?.position && !currentUser?.office_name) && (
                       <p className="text-sm text-muted-foreground capitalize">{currentUser?.role}</p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <UserSettingsDialog 
-                    currentUser={currentUser} 
+                  <UserSettingsDialog
+                    currentUser={currentUser}
                     onUserUpdate={setCurrentUser}
                   >
                     <Tooltip>
@@ -1531,7 +1512,7 @@ export function ChatLayout() {
                       </TooltipContent>
                     </Tooltip>
                   </UserSettingsDialog>
-                  
+
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -1558,20 +1539,20 @@ export function ChatLayout() {
               {/* User Avatar in collapsed state */}
               <div className="h-8 w-8 rounded-full overflow-hidden bg-muted flex items-center justify-center mb-1">
                 {currentUser?.avatar_path ? (
-                  <img 
+                  <img
                     src={`/api/files/download/${currentUser.avatar_path}`}
                     alt={currentUser.username}
                     className="h-full w-full object-cover"
                   />
                 ) : (
                   <span className="text-xs font-semibold">
-                    {currentUser?.name?.[0] || currentUser?.username?.[0]?.toUpperCase()}
+                    {currentUser?.full_name?.[0] || currentUser?.username?.[0]?.toUpperCase()}
                   </span>
                 )}
               </div>
-              
-              <UserSettingsDialog 
-                currentUser={currentUser} 
+
+              <UserSettingsDialog
+                currentUser={currentUser}
                 onUserUpdate={setCurrentUser}
               >
                 <Tooltip>
@@ -1589,7 +1570,7 @@ export function ChatLayout() {
                   </TooltipContent>
                 </Tooltip>
               </UserSettingsDialog>
-              
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -1638,8 +1619,8 @@ export function ChatLayout() {
             typingUsers={typingUsers}
             onRefreshMessages={() => {
               if (selectedConversation) {
-                const id = selectedConversation.conversation_type === 'direct' 
-                  ? selectedConversation.other_user_id 
+                const id = selectedConversation.conversation_type === 'direct'
+                  ? selectedConversation.other_user_id
                   : (selectedConversation.group_id || 0);
                 handleConversationSelect(id, selectedConversation.conversation_type === 'group');
               }
@@ -1651,10 +1632,10 @@ export function ChatLayout() {
           <div className="flex-1 flex items-center justify-center">
             <Card className="p-8 text-center max-w-md">
               <div className="h-12 w-12 mx-auto mb-4 rounded-lg bg-white shadow-md flex items-center justify-center">
-                <Image 
-                  src="/lgu-seal.png" 
-                  alt="LGU Seal" 
-                  width={32} 
+                <Image
+                  src="/lgu-seal.png"
+                  alt="LGU Seal"
+                  width={32}
                   height={32}
                   className="object-contain"
                 />
@@ -1669,9 +1650,9 @@ export function ChatLayout() {
       </div>
       </div>
       </div>
-      
+
       {/* Beta Agreement Dialog */}
       <BetaAgreementDialog onAgreementAccepted={() => setShowBetaAgreement(false)} />
     </TooltipProvider>
   );
-} 
+}

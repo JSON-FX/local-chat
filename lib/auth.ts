@@ -1,252 +1,201 @@
 // Load environment variables first
 import "./env";
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { NextRequest } from 'next/server';
 import { getDatabase } from './database';
-import { User, CreateUserData, Session, CreateSessionData, AuthResponse } from './models';
+import { ssoService } from './sso';
 
-// JWT configuration - use fixed secret for development
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-localchat-jwt-key-do-not-use-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
-const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-
-if (!process.env.JWT_SECRET) {
-  console.warn('⚠️  JWT_SECRET not set in environment. Using fixed development secret');
-}
+const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 export class AuthService {
-  
-  // Hash password
-  static async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 10);
+  // Hash an SSO token for storage (we don't store raw tokens)
+  static hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 
-  // Verify password
-  static async verifyPassword(password: string, hash: string): Promise<boolean> {
-    return bcrypt.compare(password, hash);
+  // Map SSO role to local chat role
+  static mapSsoRole(ssoRole: string): 'admin' | 'user' {
+    switch (ssoRole) {
+      case 'super_administrator':
+      case 'administrator':
+        return 'admin';
+      default:
+        return 'user';
+    }
   }
 
-  // Generate JWT token
-  static generateToken(userId: number, sessionId: string): string {
-    console.log(`[AuthService] Generating token with JWT_SECRET: ${JWT_SECRET.substring(0, 10)}...`);
-    return jwt.sign(
-      { userId, sessionId },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+  // Authenticate user via SSO token (called after SSO callback)
+  static async authenticateWithSso(
+    token: string,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<{ user: any; sessionId: string }> {
+    // Call SSO authorize endpoint
+    const authResult = await ssoService.authorizeEmployee(token);
+    if (!authResult || !authResult.authorized) {
+      throw new Error(authResult?.message || 'SSO authorization failed');
+    }
+
+    // Get full employee data
+    const employeeData = await ssoService.getEmployee(token);
+
+    // Upsert local user
+    const user = await this.upsertLocalUser(
+      employeeData || authResult.employee,
+      authResult.role
     );
-  }
 
-  // Verify JWT token
-  static verifyToken(token: string): { userId: number; sessionId: string } | null {
-    try {
-      console.log(`[AuthService] Verifying token with JWT_SECRET: ${JWT_SECRET.substring(0, 10)}...`);
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
-      return { userId: decoded.userId, sessionId: decoded.sessionId };
-    } catch (error) {
-      return null;
-    }
-  }
+    // Create session
+    const sessionId = randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(token);
+    const expiresAt = new Date(Date.now() + SESSION_DURATION).toISOString();
 
-  // Create new user
-  static async createUser(userData: CreateUserData): Promise<User> {
     const db = await getDatabase();
-    
-    try {
-      // Check if username already exists
-      const existingUser = await db.get('SELECT id FROM users WHERE username = ?', [userData.username]);
-      if (existingUser) {
-        throw new Error('Username already exists');
-      }
+    await db.run(
+      'INSERT INTO sessions (id, user_id, sso_token_hash, expires_at, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?)',
+      [sessionId, user.id, tokenHash, expiresAt, ipAddress, userAgent]
+    );
 
-      // Hash password
-      const passwordHash = await this.hashPassword(userData.password);
+    // Update last login
+    await db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
 
-      // Insert user
-      const result = await db.run(
-        'INSERT INTO users (username, password_hash, role, profile_data) VALUES (?, ?, ?, ?)',
-        [
-          userData.username,
-          passwordHash,
-          userData.role || 'user',
-          userData.profile_data ? JSON.stringify(userData.profile_data) : null
-        ]
-      );
+    // Cache the validation result
+    ssoService.cacheValidation(token, employeeData || authResult.employee, authResult.role);
 
-      // Get the inserted ID with proper type handling
-      let insertedId;
-      if (result && typeof result === 'object') {
-        insertedId = (result as any).lastID || (result as any).lastId || (result as any).insertId;
-      }
-      
-      if (!insertedId) {
-        // Fallback: get the most recently created user with this username
-        const user = await db.get('SELECT * FROM users WHERE username = ? ORDER BY id DESC LIMIT 1', [userData.username]);
-        if (!user) {
-          throw new Error('Failed to retrieve created user');
-        }
-        return user;
-      }
-
-      // Get created user
-      const user = await db.get('SELECT * FROM users WHERE id = ?', [insertedId]);
-      return user;
-    } catch (error) {
-      throw error;
-    }
+    return { user, sessionId };
   }
 
-  // Login user
-  static async login(username: string, password: string, ipAddress?: string, userAgent?: string): Promise<AuthResponse> {
+  // Upsert local user from SSO employee data
+  static async upsertLocalUser(ssoEmployee: any, ssoRole: string): Promise<any> {
     const db = await getDatabase();
+    const localRole = this.mapSsoRole(ssoRole);
+    const uuid = ssoEmployee.uuid;
+    const fullName = ssoEmployee.full_name || `${ssoEmployee.first_name || ''} ${ssoEmployee.last_name || ''}`.trim();
+    const email = ssoEmployee.email || '';
+    const position = ssoEmployee.position || '';
+    const officeName = ssoEmployee.office?.name || '';
 
-    try {
-      // Get user by username
-      const user = await db.get('SELECT * FROM users WHERE username = ? AND status = ?', [username, 'active']);
-      if (!user) {
-        throw new Error('Invalid username or password');
-      }
+    // Try to find existing user
+    const existingUser = await db.get(
+      'SELECT * FROM users WHERE sso_employee_uuid = ?',
+      [uuid]
+    );
 
-      // Verify password
-      const isValidPassword = await this.verifyPassword(password, user.password_hash);
-      if (!isValidPassword) {
-        throw new Error('Invalid username or password');
-      }
-
-      // Update last login
-      await db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
-
-      // Create session
-      const sessionId = randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + SESSION_DURATION).toISOString();
-
+    if (existingUser) {
+      // Update profile
       await db.run(
-        'INSERT INTO sessions (id, user_id, expires_at, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)',
-        [sessionId, user.id, expiresAt, ipAddress, userAgent]
+        `UPDATE users SET
+          username = ?, email = ?, role = ?, sso_role = ?,
+          full_name = ?, position = ?, office_name = ?,
+          profile_synced_at = CURRENT_TIMESTAMP, status = 'active'
+        WHERE sso_employee_uuid = ?`,
+        [fullName, email, localRole, ssoRole, fullName, position, officeName, uuid]
       );
-
-      // Generate JWT token
-      const token = this.generateToken(user.id, sessionId);
-
-      // Return user data without password hash
-      const { password_hash, ...userWithoutPassword } = user;
-      
-      return {
-        user: userWithoutPassword,
-        token,
-        expires_at: expiresAt
-      };
-    } catch (error) {
-      throw error;
+      return { ...existingUser, role: localRole, sso_role: ssoRole, full_name: fullName, email, position, office_name: officeName };
     }
+
+    // Create new user
+    await db.run(
+      `INSERT INTO users (sso_employee_uuid, username, email, role, sso_role, full_name, position, office_name, profile_synced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [uuid, fullName, email, localRole, ssoRole, fullName, position, officeName]
+    );
+
+    const newUser = await db.get('SELECT * FROM users WHERE sso_employee_uuid = ?', [uuid]);
+    return newUser;
   }
 
-  // Logout user
+  // Validate an SSO token - fast path via session lookup, slow path via SSO API
+  static async validateSsoToken(token: string): Promise<any | null> {
+    const db = await getDatabase();
+    const tokenHash = this.hashToken(token);
+
+    // Fast path: check local session by token hash
+    const session = await db.get(
+      `SELECT s.*, u.* FROM sessions s
+       JOIN users u ON s.user_id = u.id
+       WHERE s.sso_token_hash = ? AND s.is_active = 1 AND s.expires_at > CURRENT_TIMESTAMP AND u.status = 'active'`,
+      [tokenHash]
+    );
+
+    if (session) {
+      // Update last activity
+      await db.run('UPDATE sessions SET last_activity = CURRENT_TIMESTAMP WHERE sso_token_hash = ?', [tokenHash]);
+      const { sso_token_hash, ...userData } = session;
+      return userData;
+    }
+
+    // Slow path: validate via SSO API (with cache)
+    try {
+      const cached = ssoService.getCachedValidation(token);
+      if (cached) {
+        // Find user by UUID from cached data
+        const uuid = cached.employee?.uuid || cached.employee?.data?.uuid;
+        if (uuid) {
+          const user = await db.get('SELECT * FROM users WHERE sso_employee_uuid = ?', [uuid]);
+          if (user) return user;
+        }
+      }
+
+      const result = await ssoService.validateToken(token);
+      if (result && result.valid) {
+        const employee = result.data;
+        const uuid = employee?.uuid || employee?.data?.uuid;
+        if (uuid) {
+          const user = await db.get('SELECT * FROM users WHERE sso_employee_uuid = ?', [uuid]);
+          return user;
+        }
+      }
+    } catch {
+      // SSO is down, no cached session found
+    }
+
+    return null;
+  }
+
+  // Logout - invalidate local session only
   static async logout(sessionId: string): Promise<void> {
     const db = await getDatabase();
-
-    try {
-      await db.run('UPDATE sessions SET is_active = 0 WHERE id = ?', [sessionId]);
-    } catch (error) {
-      throw error;
-    }
+    await db.run('UPDATE sessions SET is_active = 0 WHERE id = ?', [sessionId]);
   }
 
-  // Validate session
-  static async validateSession(sessionId: string): Promise<User | null> {
+  // Logout by token hash
+  static async logoutByTokenHash(tokenHash: string): Promise<void> {
     const db = await getDatabase();
+    await db.run('UPDATE sessions SET is_active = 0 WHERE sso_token_hash = ?', [tokenHash]);
+  }
 
-    try {
-      const session = await db.get(
-        `SELECT s.*, u.* FROM sessions s 
-         JOIN users u ON s.user_id = u.id 
-         WHERE s.id = ? AND s.is_active = 1 AND s.expires_at > CURRENT_TIMESTAMP AND u.status = 'active'`,
-        [sessionId]
-      );
-
-      if (!session) {
-        return null;
-      }
-
-      // Return user data without password hash
-      const { password_hash, ...userWithoutPassword } = session;
-      return userWithoutPassword;
-    } catch (error) {
-      return null;
-    }
+  // Invalidate all sessions for a user (used for logout-all propagation)
+  static async invalidateAllSessions(userId: number): Promise<void> {
+    const db = await getDatabase();
+    await db.run('UPDATE sessions SET is_active = 0 WHERE user_id = ?', [userId]);
   }
 
   // Get user by ID
-  static async getUserById(userId: number): Promise<User | null> {
+  static async getUserById(userId: number): Promise<any | null> {
     const db = await getDatabase();
-
-    try {
-      const user = await db.get('SELECT * FROM users WHERE id = ? AND status = ?', [userId, 'active']);
-      return user || null;
-    } catch (error) {
-      return null;
-    }
-  }
-
-  // Update user password
-  static async updatePassword(userId: number, currentPassword: string, newPassword: string): Promise<void> {
-    const db = await getDatabase();
-
-    try {
-      // Get current user
-      const user = await db.get('SELECT password_hash FROM users WHERE id = ?', [userId]);
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      // Verify current password
-      const isValidPassword = await this.verifyPassword(currentPassword, user.password_hash);
-      if (!isValidPassword) {
-        throw new Error('Current password is incorrect');
-      }
-
-      // Hash new password
-      const newPasswordHash = await this.hashPassword(newPassword);
-
-      // Update password
-      await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [newPasswordHash, userId]);
-
-      // Invalidate all sessions for this user (force re-login)
-      await db.run('UPDATE sessions SET is_active = 0 WHERE user_id = ?', [userId]);
-    } catch (error) {
-      throw error;
-    }
+    const user = await db.get('SELECT * FROM users WHERE id = ? AND status = ?', [userId, 'active']);
+    return user || null;
   }
 
   // Clean up expired sessions
   static async cleanupExpiredSessions(): Promise<void> {
     const db = await getDatabase();
-
-    try {
-      await db.run('UPDATE sessions SET is_active = 0 WHERE expires_at < CURRENT_TIMESTAMP AND is_active = 1');
-    } catch (error) {
-      console.error('Error cleaning up expired sessions:', error);
-    }
+    await db.run('UPDATE sessions SET is_active = 0 WHERE expires_at < CURRENT_TIMESTAMP AND is_active = 1');
   }
 }
 
 // Middleware helper for Next.js API routes
-export const requireAuth = async (req: NextRequest): Promise<User> => {
+export const requireAuth = async (req: NextRequest): Promise<any> => {
   const authHeader = req.headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw new Error('No token provided');
   }
 
   const token = authHeader.substring(7);
-  const decoded = AuthService.verifyToken(token);
-  if (!decoded) {
-    throw new Error('Invalid token');
-  }
-
-  const user = await AuthService.validateSession(decoded.sessionId);
+  const user = await AuthService.validateSsoToken(token);
   if (!user) {
-    throw new Error('Session invalid or expired');
+    throw new Error('Invalid or expired token');
   }
 
   return user;
@@ -254,13 +203,11 @@ export const requireAuth = async (req: NextRequest): Promise<User> => {
 
 // Role-based access control
 export const requireRole = (allowedRoles: string[]) => {
-  return async (req: NextRequest): Promise<User> => {
+  return async (req: NextRequest): Promise<any> => {
     const user = await requireAuth(req);
-    
     if (!allowedRoles.includes(user.role)) {
       throw new Error('Insufficient permissions');
     }
-
     return user;
   };
-}; 
+};

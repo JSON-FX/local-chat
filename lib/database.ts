@@ -1,6 +1,7 @@
 import sqlite3 from 'sqlite3';
 import { promisify } from 'util';
 import path from 'path';
+import fs from 'fs';
 
 // Database interface for type safety
 export interface Database {
@@ -12,6 +13,7 @@ export interface Database {
 
 class DatabaseConnection {
   private db: sqlite3.Database | null = null;
+  private initialized = false;
 
   async connect(): Promise<Database> {
     if (this.db) {
@@ -19,17 +21,40 @@ class DatabaseConnection {
     }
 
     const dbPath = path.join(process.cwd(), 'data', 'localchat.db');
-    
+
+    // Ensure data directory exists
+    const dataDir = path.dirname(dbPath);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+
+    const isNewDb = !fs.existsSync(dbPath) || fs.statSync(dbPath).size === 0;
+
     return new Promise((resolve, reject) => {
-      this.db = new sqlite3.Database(dbPath, (err) => {
+      this.db = new sqlite3.Database(dbPath, async (err) => {
         if (err) {
           reject(err);
           return;
         }
-        
+
         // Enable foreign keys
         this.db!.run('PRAGMA foreign_keys = ON');
-        resolve(this.promisifyMethods(this.db!));
+        const methods = this.promisifyMethods(this.db!);
+
+        // Auto-initialize schema on first connection if DB is new/empty
+        if (isNewDb && !this.initialized) {
+          this.initialized = true;
+          try {
+            const { initializeDatabase, createSystemUser } = await import('./schema');
+            await initializeDatabase();
+            await createSystemUser();
+            console.log('Database auto-initialized on first connection');
+          } catch (initErr) {
+            console.error('Database auto-initialization failed:', initErr);
+          }
+        }
+
+        resolve(methods);
       });
     });
   }

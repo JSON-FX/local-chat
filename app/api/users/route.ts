@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
     // Get all active users except the current user
     const users = await db.all(
-      'SELECT id, username, role, created_at, last_login FROM users WHERE status = ? AND id != ? ORDER BY username',
+      'SELECT id, username, role, full_name, avatar_path, created_at, last_login FROM users WHERE status = ? AND id != ? ORDER BY username',
       ['active', currentUser.id]
     );
 

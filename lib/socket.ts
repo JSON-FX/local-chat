@@ -48,7 +48,7 @@ export class SocketService {
       this.io = global.__socketio__;
       return this.io;
     }
-    
+
     if (this.io) {
       return this.io;
     }
@@ -56,29 +56,27 @@ export class SocketService {
     // Get allowed origins for CORS
     const getAllowedOrigins = () => {
       const origins: (string | RegExp)[] = [];
-      
+
       if (process.env.NODE_ENV === 'production') {
-        // Production origins
         const allowedOrigins = process.env.ALLOWED_ORIGINS;
         if (allowedOrigins) {
           origins.push(...allowedOrigins.split(',').map(origin => origin.trim()));
         }
-        
-        // Add domain-based origins
+
         const domainName = process.env.DOMAIN_NAME;
         if (domainName) {
           origins.push(`http://${domainName}`);
           origins.push(`https://${domainName}`);
         }
-        
+
         // Fallback production origins
         origins.push('https://chat.lgu.local');
-        origins.push('https://chat.lgu.local');
-        
+
+        origins.push('http://lgu-chat.lguquezon.local');
+        origins.push('https://lgu-chat.lguquezon.local');
+
       } else {
-        // Development origins
         origins.push('http://localhost:3000', 'http://127.0.0.1:3000');
-        // Add auto-detected network IPs
         const networks = networkInterfaces();
         Object.keys(networks).forEach(name => {
           networks[name]?.forEach(net => {
@@ -87,23 +85,21 @@ export class SocketService {
             }
           });
         });
-        
-        // Add custom IPs from environment variable
+
         const customIPs = process.env.CUSTOM_ALLOWED_IPS;
         if (customIPs) {
           const additionalOrigins = customIPs.split(',').map(ip => `http://${ip.trim()}:3000`);
           origins.push(...additionalOrigins);
         }
-        
-        // Allow any local network IP patterns for development
+
         origins.push(
           /^http:\/\/192\.168\.\d+\.\d+:3000$/,
           /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
           /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+:3000$/
         );
       }
-      
-      console.log(`🌐 [CORS] Allowed origins:`, origins);
+
+      console.log('[CORS] Allowed origins:', origins);
       return origins;
     };
 
@@ -122,8 +118,8 @@ export class SocketService {
     global.__socketio__ = this.io;
 
     this.setupSocketHandlers();
-    console.log('✅ Socket.io server initialized');
-    
+    console.log('Socket.io server initialized');
+
     return this.io;
   }
 
@@ -131,115 +127,101 @@ export class SocketService {
     if (!this.io) return;
 
     this.io.on('connection', (socket: Socket) => {
-      console.log(`🔌 Socket connected: ${socket.id}`);
+      console.log(`[Socket] Connected: ${socket.id}`);
 
-      // Handle authentication
+      // Handle SSO token authentication
       socket.on('authenticate', async (data: { token: string }) => {
         try {
-          console.log(`🔐 [DEBUG] Authentication attempt from socket: ${socket.id}`);
-          console.log(`🔐 [DEBUG] Client IP: ${socket.handshake.address}`);
-          console.log(`🔐 [DEBUG] Token received: ${data.token ? data.token.substring(0, 50) + '...' : 'missing'}`);
-          console.log(`🔐 [DEBUG] Token length: ${data.token ? data.token.length : 0}`);
-          console.log(`🔐 [DEBUG] Full authentication data keys:`, Object.keys(data));
-          
           if (!data.token) {
-            console.error(`❌ [DEBUG] No token provided from socket: ${socket.id}`);
             socket.emit('auth_error', { error: 'No token provided' });
             socket.disconnect();
             return;
           }
-          
-          console.log(`🔍 [DEBUG] Attempting to verify JWT token...`);
-          const decoded = AuthService.verifyToken(data.token);
-          if (!decoded) {
-            console.error(`❌ [DEBUG] Invalid token from socket: ${socket.id}`);
-            console.error(`❌ [DEBUG] Token verification failed`);
-            socket.emit('auth_error', { error: 'Invalid token' });
-            socket.disconnect();
-            return;
-          }
-          console.log(`🔐 [DEBUG] Token decoded successfully:`, { userId: decoded.userId, sessionId: decoded.sessionId });
 
-          console.log(`🔍 [DEBUG] Validating session: ${decoded.sessionId}`);
-          const user = await AuthService.validateSession(decoded.sessionId);
+          const user = await AuthService.validateSsoToken(data.token);
           if (!user) {
-            console.log(`❌ [DEBUG] Invalid session from socket: ${socket.id}`);
-            console.log(`❌ [DEBUG] Session ID: ${decoded.sessionId}`);
-            socket.emit('auth_error', { error: 'Session invalid or expired' });
+            socket.emit('auth_error', { error: 'Invalid or expired token' });
             socket.disconnect();
             return;
           }
-
-          console.log(`✅ [DEBUG] Session validated for user: ${user.username} (ID: ${user.id})`);
 
           // Store user session
-          socketSessions.set(socket.id, { 
-            userId: user.id, 
-            username: user.username 
+          socketSessions.set(socket.id, {
+            userId: user.id,
+            username: user.username
           });
-          
-          console.log(`🔍 [DEBUG] Checking for existing connections for user ${user.id}...`);
+
           // Remove user from any previous socket
           const previousSocketId = connectedUsers.get(user.id);
           if (previousSocketId && previousSocketId !== socket.id) {
-            console.log(`🔄 [DEBUG] Found previous connection ${previousSocketId}, disconnecting...`);
             const previousSocket = this.io?.sockets.sockets.get(previousSocketId);
             if (previousSocket) {
               previousSocket.disconnect();
-              console.log(`🔄 [DEBUG] Previous socket disconnected`);
             }
           }
-          
+
           // Add user to connected users
           connectedUsers.set(user.id, socket.id);
-          console.log(`✅ [DEBUG] User ${user.username} mapped to socket ${socket.id}`);
 
           // Join user to their personal room
           socket.join(`user_${user.id}`);
-          console.log(`🏠 [DEBUG] User joined personal room: user_${user.id}`);
 
           // Join user's group rooms
           try {
-            console.log(`🔍 [DEBUG] Loading user groups for auto-join...`);
             const { getDatabase } = await import('./database');
             const db = await getDatabase();
             const userGroups = await db.all(
               'SELECT group_id FROM group_members WHERE user_id = ? AND is_active = 1',
               [user.id]
             );
-            
-            console.log(`🔍 [DEBUG] Found ${userGroups.length} groups for user ${user.username}`);
+
             for (const group of userGroups) {
               socket.join(`group_${group.group_id}`);
-              console.log(`👥 [DEBUG] User ${user.username} auto-joined group room ${group.group_id}`);
             }
+            console.log(`[Socket] User ${user.username} joined ${userGroups.length} group rooms`);
           } catch (error) {
-            console.error('❌ [DEBUG] Failed to join user groups:', error);
+            console.error('[Socket] Failed to join user groups:', error);
           }
 
           // Emit successful authentication
-          console.log(`✅ [DEBUG] Emitting authenticated event for ${user.username}`);
-          socket.emit('authenticated', { 
-            userId: user.id, 
+          socket.emit('authenticated', {
+            userId: user.id,
             username: user.username,
-            message: 'Successfully authenticated' 
+            message: 'Successfully authenticated'
           });
 
           // Deliver any pending messages
-          console.log(`📨 [DEBUG] Delivering pending messages for user ${user.id}...`);
           await MessageQueueService.deliverPendingMessages(user.id);
 
           // Notify others that user is online
-          socket.broadcast.emit('user_online', { 
-            userId: user.id, 
-            username: user.username 
+          socket.broadcast.emit('user_online', {
+            userId: user.id,
+            username: user.username
           });
 
-          console.log(`✅ [DEBUG] User authenticated successfully: ${user.username} (${socket.id})`);
-          console.log(`📊 [DEBUG] Connected users now:`, Array.from(connectedUsers.entries()));
+          console.log(`[Socket] User authenticated: ${user.username} (${socket.id})`);
+
+          // Periodic re-validation of SSO token (every 15 minutes)
+          const revalidateInterval = setInterval(async () => {
+            try {
+              const stillValid = await AuthService.validateSsoToken(data.token);
+              if (!stillValid) {
+                socket.emit('auth_error', { error: 'Token expired or revoked' });
+                socket.disconnect();
+                clearInterval(revalidateInterval);
+              }
+            } catch {
+              // SSO might be down, keep connection alive if we have a valid session
+            }
+          }, 15 * 60 * 1000);
+
+          // Clear revalidation interval on disconnect
+          socket.on('disconnect', () => {
+            clearInterval(revalidateInterval);
+          });
 
         } catch (error) {
-          console.error('Authentication error:', error);
+          console.error('[Socket] Authentication error:', error);
           socket.emit('auth_error', { error: 'Authentication failed' });
           socket.disconnect();
         }
@@ -309,10 +291,10 @@ export class SocketService {
             socket.to(`group_${data.group_id}`).emit('group_message', messageWithSender);
           }
 
-          console.log(`📨 Message sent from ${userSession.username} to ${data.recipient_id ? `user ${data.recipient_id}` : `group ${data.group_id}`}`);
+          console.log(`[Socket] Message sent from ${userSession.username} to ${data.recipient_id ? `user ${data.recipient_id}` : `group ${data.group_id}`}`);
 
         } catch (error) {
-          console.error('Send message error:', error);
+          console.error('[Socket] Send message error:', error);
           socket.emit('error', { error: 'Failed to send message' });
         }
       });
@@ -323,7 +305,7 @@ export class SocketService {
         if (!userSession) return;
 
         const conversationKey = data.recipient_id ? `direct_${data.recipient_id}` : `group_${data.group_id}`;
-        
+
         if (!typingUsers.has(conversationKey)) {
           typingUsers.set(conversationKey, new Set());
         }
@@ -353,7 +335,7 @@ export class SocketService {
         if (!userSession) return;
 
         const conversationKey = data.recipient_id ? `direct_${data.recipient_id}` : `group_${data.group_id}`;
-        
+
         if (typingUsers.has(conversationKey)) {
           typingUsers.get(conversationKey)!.delete(userSession.userId);
           if (typingUsers.get(conversationKey)!.size === 0) {
@@ -380,13 +362,13 @@ export class SocketService {
         }
       });
 
-      // Handle join group room (for future group functionality)
+      // Handle join group room
       socket.on('join_group', (data: { group_id: number }) => {
         const userSession = socketSessions.get(socket.id);
         if (!userSession) return;
 
         socket.join(`group_${data.group_id}`);
-        console.log(`👥 User ${userSession.username} joined group room ${data.group_id}`);
+        console.log(`[Socket] User ${userSession.username} joined group room ${data.group_id}`);
       });
 
       // Handle join any room
@@ -395,7 +377,7 @@ export class SocketService {
         if (!userSession) return;
 
         socket.join(data.room);
-        console.log(`🏠 User ${userSession.username} joined room ${data.room}`);
+        console.log(`[Socket] User ${userSession.username} joined room ${data.room}`);
       });
 
       socket.on('leave_group', (data: { group_id: number }) => {
@@ -403,7 +385,7 @@ export class SocketService {
         if (!userSession) return;
 
         socket.leave(`group_${data.group_id}`);
-        console.log(`👥 User ${userSession.username} left group ${data.group_id}`);
+        console.log(`[Socket] User ${userSession.username} left group ${data.group_id}`);
       });
 
       // Handle marking messages as read
@@ -413,37 +395,30 @@ export class SocketService {
           socket.emit('error', { error: 'Not authenticated' });
           return;
         }
-        
-        console.log(`📖 DEBUG: Socket mark_messages_read event from user ${userSession.userId}:`, data);
-        
+
         try {
           const { MessageReadService } = await import('./messageReads');
           await MessageReadService.markMessagesAsRead(data.message_ids, userSession.userId);
-          console.log(`📖 DEBUG: Socket - User ${userSession.userId} marked ${data.message_ids.length} messages as read`);
-          
+
           // Broadcast to other clients
           const broadcastData = {
             message_ids: data.message_ids,
             reader_id: userSession.userId,
             reader_username: userSession.username,
-            reader_avatar: null, // TODO: Get user avatar
+            reader_avatar: null,
             conversation_id: data.conversation_id,
             is_group: data.is_group
           };
-          
-          console.log(`📖 DEBUG: Socket - Broadcasting messages_read event:`, broadcastData);
-          
+
           if (data.is_group) {
             this.io?.to(`group_${data.conversation_id}`).emit('messages_read', broadcastData);
           } else {
             // For direct messages, emit to both participants
             this.io?.emit('messages_read', broadcastData);
           }
-          
-          console.log(`📖 DEBUG: Socket - messages_read broadcast completed`);
-          
+
         } catch (error) {
-          console.error('📖 DEBUG: Socket - Error in mark_messages_read:', error);
+          console.error('[Socket] Error in mark_messages_read:', error);
           socket.emit('error', { error: 'Failed to mark messages as read' });
         }
       });
@@ -463,7 +438,7 @@ export class SocketService {
               if (typingSet.size === 0) {
                 typingUsers.delete(conversationKey);
               }
-              
+
               // Notify others user stopped typing
               if (conversationKey.startsWith('direct_')) {
                 const recipientId = parseInt(conversationKey.replace('direct_', ''));
@@ -480,14 +455,14 @@ export class SocketService {
           }
 
           // Notify others that user is offline
-          socket.broadcast.emit('user_offline', { 
-            userId: userSession.userId, 
-            username: userSession.username 
+          socket.broadcast.emit('user_offline', {
+            userId: userSession.userId,
+            username: userSession.username
           });
 
-          console.log(`❌ User disconnected: ${userSession.username} (${socket.id})`);
+          console.log(`[Socket] User disconnected: ${userSession.username} (${socket.id})`);
         } else {
-          console.log(`❌ Socket disconnected: ${socket.id}`);
+          console.log(`[Socket] Socket disconnected: ${socket.id}`);
         }
       });
     });
@@ -517,20 +492,20 @@ export class SocketService {
   // Send message to specific user (for system notifications)
   static sendToUser(userId: number, event: string, data: any): boolean {
     const socketId = connectedUsers.get(userId);
-    
+
     // Ensure we have the Socket.io instance (force retrieval from global)
     const io = this.getIO();
-    
+
     if (socketId && io) {
       // Check if socket still exists
       const socket = io.sockets.sockets.get(socketId);
-      
+
       if (socket && socket.connected) {
         io.to(socketId).emit(event, data);
-        console.log(`✅ Message sent to user ${userId} via socket ${socketId}`);
+        console.log(`[Socket] Message sent to user ${userId} via socket ${socketId}`);
         return true;
       } else {
-        console.log(`❌ Socket ${socketId} for user ${userId} is not connected or doesn't exist`);
+        console.log(`[Socket] Socket ${socketId} for user ${userId} is not connected`);
         // Clean up stale connection
         connectedUsers.delete(userId);
         if (socketId) {
@@ -539,7 +514,6 @@ export class SocketService {
         return false;
       }
     }
-    console.log(`❌ Failed to send to user ${userId} - socketId: ${socketId}, io: ${!!io}`);
     return false;
   }
 
@@ -560,7 +534,7 @@ export class SocketService {
     const io = this.getIO();
     if (io) {
       io.to(`group_${groupId}`).emit(event, data);
-      console.log(`📢 Broadcasting to group ${groupId}: ${event}`);
+      console.log(`[Socket] Broadcasting to group ${groupId}: ${event}`);
     }
   }
 
@@ -569,17 +543,12 @@ export class SocketService {
     const io = this.getIO();
     if (io) {
       const roomName = `group_${groupId}`;
-      console.log(`📢 Broadcasting system message to room "${roomName}"`);
-      console.log(`📢 Message details:`, { id: message.id, content: message.content, type: message.message_type });
-      
-      // Get the room info to see who's in it
       const room = io.sockets.adapter.rooms.get(roomName);
-      console.log(`📢 Room "${roomName}" has ${room ? room.size : 0} members:`, room ? Array.from(room) : []);
-      
+      console.log(`[Socket] Broadcasting system message to room "${roomName}" (${room ? room.size : 0} members)`);
+
       io.to(roomName).emit('new_message', message);
-      console.log(`📢 Broadcast sent to room "${roomName}"`);
     } else {
-      console.error('❌ Socket.io instance not available for broadcast');
+      console.error('[Socket] Socket.io instance not available for broadcast');
     }
   }
 
@@ -587,14 +556,11 @@ export class SocketService {
   static broadcastGroupDeleted(groupId: number, deletedBy: { id: number; username: string }): void {
     const io = this.getIO();
     if (io) {
-      // Broadcast to all connected users instead of just the group room
-      // This ensures everyone receives the event even if they're not in the room
-      // or if the room is no longer accessible
-      io.emit('group_deleted', { 
+      io.emit('group_deleted', {
         group_id: groupId,
         deleted_by: deletedBy
       });
-      console.log(`📢 Broadcasting group deletion: ${groupId} deleted by ${deletedBy.username}`);
+      console.log(`[Socket] Broadcasting group deletion: ${groupId} deleted by ${deletedBy.username}`);
     }
   }
 
@@ -603,7 +569,7 @@ export class SocketService {
     if (!this.io && global.__socketio__) {
       this.io = global.__socketio__;
     }
-    
+
     return this.io;
   }
-} 
+}

@@ -48,7 +48,7 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
         const fullName = formatUserDisplayName(user).toLowerCase();
         const username = user.username.toLowerCase();
         const query = searchQuery.toLowerCase();
-        
+
         return fullName.includes(query) || username.includes(query);
       });
       setFilteredUsers(filtered);
@@ -86,42 +86,24 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
     setIsOpen(false);
   };
 
-  // Helper function to format user display name with same logic as sidebar and conversation list
+  // Display the SSO full_name or fall back to username
   const formatUserDisplayName = (user: User) => {
-    // Build full name with middle initial if available
-    if (user.name) {
-      let fullName = user.name;
-      
-      // Add middle initial if middle_name exists
-      if (user.middle_name) {
-        fullName += ` ${user.middle_name.charAt(0).toUpperCase()}.`;
-      }
-      
-      // Add last name if it exists
-      if (user.last_name) {
-        fullName += ` ${user.last_name}`;
-      }
-      
-      return fullName;
-    }
-    
-    // Fallback to username if no first name
-    return user.username;
+    return user.full_name || user.username;
   };
 
   const sortedUsers = useMemo(() => {
     if (!filteredUsers || !Array.isArray(filteredUsers)) {
       return [];
     }
-    
+
     return [...filteredUsers].sort((a, b) => {
       // Sort online users first
       const aOnline = onlineUsers.includes(a.id);
       const bOnline = onlineUsers.includes(b.id);
-      
+
       if (aOnline && !bOnline) return -1;
       if (!aOnline && bOnline) return 1;
-      
+
       // Then sort alphabetically by display name
       return formatUserDisplayName(a).localeCompare(formatUserDisplayName(b));
     });
@@ -148,7 +130,7 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
             Choose how you want to start a conversation
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           {/* Chat Type Selection */}
           <div className="grid grid-cols-2 gap-3">
@@ -212,9 +194,9 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
                       <div className="relative">
                         <Avatar className="h-8 w-8">
                           {user.avatar_path ? (
-                            <AvatarImage 
-                              src={`/api/files/download/${user.avatar_path}`} 
-                              alt={formatUserDisplayName(user)} 
+                            <AvatarImage
+                              src={`/api/files/download/${user.avatar_path}`}
+                              alt={formatUserDisplayName(user)}
                             />
                           ) : null}
                           <AvatarFallback className="bg-primary/10">
@@ -257,4 +239,4 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
       />
     </Dialog>
   );
-} 
+}

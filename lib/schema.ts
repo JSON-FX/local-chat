@@ -1,41 +1,36 @@
 import { getDatabase } from './database';
 
-// Database schema creation and migration
+// Database schema creation (fresh start for SSO integration)
 export const initializeDatabase = async (): Promise<void> => {
   const db = await getDatabase();
 
   try {
-    // Users table with enhanced admin fields
+    // Users table with SSO employee fields
     await db.run(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY,
-        username VARCHAR(50) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('admin', 'moderator', 'user', 'system')),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        last_login DATETIME,
-        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'banned')),
-        name VARCHAR(100),
-        last_name VARCHAR(100),
-        middle_name VARCHAR(100),
-        position VARCHAR(100),
-        department VARCHAR(100),
+        sso_employee_uuid VARCHAR(36) UNIQUE NOT NULL,
+        username VARCHAR(100) NOT NULL,
         email VARCHAR(255),
-        mobile_number VARCHAR(20),
+        role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('admin', 'moderator', 'user', 'system')),
+        sso_role VARCHAR(50),
+        full_name VARCHAR(200),
+        position VARCHAR(100),
+        office_name VARCHAR(200),
         avatar_path VARCHAR(500),
-        ban_reason TEXT,
-        banned_until DATETIME,
-        failed_login_attempts INTEGER DEFAULT 0,
-        last_failed_login DATETIME,
-        profile_data TEXT
+        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'banned')),
+        profile_synced_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_login DATETIME
       )
     `);
 
-    // Sessions table with enhanced tracking
+    // Sessions table with SSO token hash
     await db.run(`
       CREATE TABLE IF NOT EXISTS sessions (
         id VARCHAR(255) PRIMARY KEY,
         user_id INTEGER NOT NULL,
+        sso_token_hash VARCHAR(64),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         expires_at DATETIME NOT NULL,
         ip_address VARCHAR(45),
@@ -114,7 +109,7 @@ export const initializeDatabase = async (): Promise<void> => {
       )
     `);
 
-    // Audit Log table - optimized for high-volume logging
+    // Audit Log table
     await db.run(`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -144,14 +139,11 @@ export const initializeDatabase = async (): Promise<void> => {
       )
     `);
 
-    // Run migrations to ensure all columns exist
-    await runMigrations();
-    
-    // Create indexes for optimal performance in high-volume environment
+    // Create indexes for optimal performance
     console.log('Creating performance indexes...');
-    
+
     // User indexes
-    await db.run('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_users_sso_uuid ON users(sso_employee_uuid)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_users_status ON users(status)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login)');
@@ -162,6 +154,7 @@ export const initializeDatabase = async (): Promise<void> => {
     await db.run('CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_sessions_active ON sessions(is_active)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_sessions_last_activity ON sessions(last_activity)');
+    await db.run('CREATE INDEX IF NOT EXISTS idx_sessions_sso_token_hash ON sessions(sso_token_hash)');
 
     // Message indexes for admin search and monitoring
     await db.run('CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id)');
@@ -170,7 +163,7 @@ export const initializeDatabase = async (): Promise<void> => {
     await db.run('CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(message_type)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_messages_deleted ON messages(is_deleted)');
-    await db.run('CREATE INDEX IF NOT EXISTS idx_messages_content_search ON messages(content)'); // For text search
+    await db.run('CREATE INDEX IF NOT EXISTS idx_messages_content_search ON messages(content)');
 
     // Group indexes
     await db.run('CREATE INDEX IF NOT EXISTS idx_groups_created_by ON groups(created_by)');
@@ -188,7 +181,7 @@ export const initializeDatabase = async (): Promise<void> => {
     await db.run('CREATE INDEX IF NOT EXISTS idx_message_reads_user_id ON message_reads(user_id)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_message_reads_read_at ON message_reads(read_at)');
 
-    // Audit log indexes - critical for admin performance
+    // Audit log indexes
     await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_username ON audit_logs(username)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action)');
@@ -210,7 +203,7 @@ export const initializeDatabase = async (): Promise<void> => {
     await db.run('CREATE INDEX IF NOT EXISTS idx_messages_group_timestamp ON messages(group_id, timestamp)');
     await db.run('CREATE INDEX IF NOT EXISTS idx_system_metrics_name_timestamp ON system_metrics(metric_name, timestamp)');
 
-    console.log('✅ Database schema and indexes created successfully');
+    console.log('Database schema and indexes created successfully');
 
   } catch (error) {
     console.error('Database initialization error:', error);
@@ -221,22 +214,22 @@ export const initializeDatabase = async (): Promise<void> => {
 // Run database migrations for existing databases
 const runMigrations = async (): Promise<void> => {
   const db = await getDatabase();
-  
+
   try {
     // Check if avatar_path column exists in groups table
     const tableInfo = await db.all("PRAGMA table_info(groups)");
     const hasAvatarPath = tableInfo.some((column: any) => column.name === 'avatar_path');
-    
+
     if (!hasAvatarPath) {
       console.log('Adding avatar_path column to groups table...');
       await db.run('ALTER TABLE groups ADD COLUMN avatar_path VARCHAR(500)');
-      console.log('✅ avatar_path column added to groups table');
+      console.log('avatar_path column added to groups table');
     }
 
     // Check and add additional user profile columns
     const userTableInfo = await db.all("PRAGMA table_info(users)");
     const userColumns = userTableInfo.map((column: any) => column.name);
-    
+
     const profileColumns = [
       { name: 'name', type: 'VARCHAR(100)' },
       { name: 'last_name', type: 'VARCHAR(100)' },
@@ -257,8 +250,8 @@ const runMigrations = async (): Promise<void> => {
       if (!userColumns.includes(column.name)) {
         console.log(`Adding ${column.name} column to users table...`);
         await db.run(`ALTER TABLE users ADD COLUMN ${column.name} ${column.type}`);
-        console.log(`✅ ${column.name} column added to users table`);
-        
+        console.log(`${column.name} column added to users table`);
+
         // Set default values for specific columns that need them
         if (column.name === 'failed_login_attempts') {
           await db.run('UPDATE users SET failed_login_attempts = 0 WHERE failed_login_attempts IS NULL');
@@ -269,42 +262,30 @@ const runMigrations = async (): Promise<void> => {
     // Check and add user_deleted_by column to messages table
     const messageTableInfo = await db.all("PRAGMA table_info(messages)");
     const messageColumns = messageTableInfo.map((column: any) => column.name);
-    
+
     if (!messageColumns.includes('user_deleted_by')) {
       console.log('Adding user_deleted_by column to messages table...');
       await db.run('ALTER TABLE messages ADD COLUMN user_deleted_by TEXT');
-      console.log('✅ user_deleted_by column added to messages table');
+      console.log('user_deleted_by column added to messages table');
     }
 
     // Check and add file_name column to messages table
     if (!messageColumns.includes('file_name')) {
       console.log('Adding file_name column to messages table...');
       await db.run('ALTER TABLE messages ADD COLUMN file_name TEXT DEFAULT NULL');
-      console.log('✅ file_name column added to messages table');
-
+      console.log('file_name column added to messages table');
     }
 
     // Check and add last_activity column to sessions table
     const sessionTableInfo = await db.all("PRAGMA table_info(sessions)");
     const sessionColumns = sessionTableInfo.map((column: any) => column.name);
-    
+
     if (!sessionColumns.includes('last_activity')) {
       console.log('Adding last_activity column to sessions table...');
       await db.run('ALTER TABLE sessions ADD COLUMN last_activity DATETIME');
       // Update existing rows to have a default last_activity value
       await db.run('UPDATE sessions SET last_activity = created_at WHERE last_activity IS NULL');
-      console.log('✅ last_activity column added to sessions table');
-
-    // Ensure system user exists (for system messages)
-    console.log(.Ensuring system user exists...);
-    await db.run(`
-      INSERT OR IGNORE INTO users (
-        id, username, password_hash, role, name, status, created_at
-      ) VALUES (
-        0, "system", "system", "system", "System", "active", datetime("now")
-      )
-    `);
-    console.log(.✅ System user ensured.);
+      console.log('last_activity column added to sessions table');
     }
   } catch (error) {
     console.error('Error running migrations:', error);
@@ -312,10 +293,11 @@ const runMigrations = async (): Promise<void> => {
   }
 };
 
+
 // Clean up expired sessions
 export const cleanupExpiredSessions = async (): Promise<void> => {
   const db = await getDatabase();
-  
+
   try {
     await db.run(
       'UPDATE sessions SET is_active = 0 WHERE expires_at < CURRENT_TIMESTAMP AND is_active = 1'
@@ -329,18 +311,14 @@ export const cleanupExpiredSessions = async (): Promise<void> => {
 // Create system user for system messages
 export const createSystemUser = async (): Promise<void> => {
   const db = await getDatabase();
-  
+
   try {
-    // Check if system user exists
     const systemUser = await db.get('SELECT id FROM users WHERE id = 0');
-    
     if (!systemUser) {
-      // Insert system user with ID 0
       await db.run(
-        'INSERT INTO users (id, username, password_hash, role, status) VALUES (0, ?, ?, ?, ?)',
-        ['SYSTEM', 'N/A', 'system', 'active']
+        'INSERT INTO users (id, sso_employee_uuid, username, role, status, full_name) VALUES (0, ?, ?, ?, ?, ?)',
+        ['00000000-0000-0000-0000-000000000000', 'SYSTEM', 'system', 'active', 'System']
       );
-      
       console.log('System user created for system messages');
     }
   } catch (error) {
@@ -348,30 +326,3 @@ export const createSystemUser = async (): Promise<void> => {
     throw error;
   }
 };
-
-// Create default admin user if none exists
-export const createDefaultAdmin = async (username: string = 'admin', password: string = 'admin123'): Promise<void> => {
-  const db = await getDatabase();
-  const bcrypt = require('bcryptjs');
-  
-  try {
-    // Check if any admin user exists
-    const existingAdmin = await db.get('SELECT id FROM users WHERE role = ? LIMIT 1', ['admin']);
-    
-    if (!existingAdmin) {
-      const passwordHash = await bcrypt.hash(password, 10);
-      
-      await db.run(
-        'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
-        [username, passwordHash, 'admin']
-      );
-      
-      console.log(`Default admin user created: ${username}`);
-      console.log(`Default password: ${password}`);
-      console.log('Please change the default password after first login!');
-    }
-  } catch (error) {
-    console.error('Error creating default admin user:', error);
-    throw error;
-  }
-}; 

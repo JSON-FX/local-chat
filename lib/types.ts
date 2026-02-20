@@ -3,16 +3,17 @@
 export interface User {
   id: number;
   username: string;
+  sso_employee_uuid?: string;
   role: 'admin' | 'user';
-  created_at: string;
-  name?: string;
-  last_name?: string;
-  middle_name?: string;
+  sso_role?: string;
+  full_name?: string;
   position?: string;
-  department?: string;
+  office_name?: string;
   email?: string;
-  mobile_number?: string;
   avatar_path?: string;
+  profile_synced_at?: string;
+  created_at: string;
+  last_login?: string;
 }
 
 export interface Message {
@@ -64,8 +65,8 @@ export interface Conversation {
 export interface AuthResponse {
   success: boolean;
   data?: {
-    token: string;
-    user: User;
+    login_url: string;
+    state: string;
   };
   error?: string;
 }
@@ -121,4 +122,4 @@ export interface SocketEvents {
   messages_read: { message_ids: number[]; reader_id: number; reader_username: string; reader_avatar?: string | null; conversation_id: number; is_group: boolean };
   auth_error: { error: string };
   error: { error: string };
-} 
+}

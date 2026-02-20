@@ -1,5 +1,4 @@
 const sqlite3 = require('sqlite3').verbose();
-const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 
@@ -8,7 +7,7 @@ const DB_PATH = process.env.DB_PATH || './data/localchat.db';
 
 // Check if database exists
 if (!fs.existsSync(DB_PATH)) {
-    console.error('❌ Database not found at:', DB_PATH);
+    console.error('Database not found at:', DB_PATH);
     console.log('Please run database initialization first:');
     console.log('  npx tsx scripts/init-db.ts');
     process.exit(1);
@@ -35,204 +34,205 @@ async function runUpdate(sql, params = []) {
 }
 
 async function listUsers() {
-    console.log('\n📋 Current Users:');
+    console.log('\nCurrent Users:');
     console.log('================');
-    
+
     const users = await runQuery(`
-        SELECT id, username, role, created_at, last_login, status 
-        FROM users 
+        SELECT id, sso_employee_uuid, username, full_name, role, created_at, last_login, status
+        FROM users
         ORDER BY created_at DESC
     `);
-    
+
     if (users.length === 0) {
         console.log('No users found.');
         return;
     }
-    
+
     users.forEach(user => {
-        console.log(`ID: ${user.id} | Username: ${user.username} | Role: ${user.role} | Status: ${user.status}`);
+        console.log(`ID: ${user.id} | Name: ${user.full_name || user.username} | Role: ${user.role} | Status: ${user.status}`);
+        console.log(`  SSO UUID: ${user.sso_employee_uuid}`);
         console.log(`  Created: ${user.created_at} | Last Login: ${user.last_login || 'Never'}`);
         console.log('');
     });
 }
 
-async function removeUser(username) {
+async function removeUser(identifier) {
     try {
-        // Check if user exists
-        const user = await runQuery('SELECT id, username, role FROM users WHERE username = ?', [username]);
-        
+        // Check if user exists (search by username or SSO UUID)
+        const user = await runQuery(
+            'SELECT id, username, full_name, role, sso_employee_uuid FROM users WHERE username = ? OR sso_employee_uuid = ?',
+            [identifier, identifier]
+        );
+
         if (user.length === 0) {
-            console.log(`❌ User '${username}' not found.`);
+            console.log(`User '${identifier}' not found.`);
             return;
         }
-        
+
         const userInfo = user[0];
-        
+
+        // Prevent removing the system user
+        if (userInfo.id === 0) {
+            console.log('Cannot remove the system user.');
+            return;
+        }
+
         // Prevent removing the last admin
         if (userInfo.role === 'admin') {
             const adminCount = await runQuery('SELECT COUNT(*) as count FROM users WHERE role = ? AND status = ?', ['admin', 'active']);
             if (adminCount[0].count <= 1) {
-                console.log('❌ Cannot remove the last admin user. Create another admin first.');
+                console.log('Cannot remove the last admin user.');
                 return;
             }
         }
-        
+
         // Remove user's messages
         await runUpdate('DELETE FROM messages WHERE sender_id = ?', [userInfo.id]);
         await runUpdate('DELETE FROM message_reads WHERE user_id = ?', [userInfo.id]);
-        
+
         // Remove user from groups
         await runUpdate('DELETE FROM group_members WHERE user_id = ?', [userInfo.id]);
-        
+
         // Remove user's sessions
         await runUpdate('DELETE FROM sessions WHERE user_id = ?', [userInfo.id]);
-        
+
         // Remove the user
         const result = await runUpdate('DELETE FROM users WHERE id = ?', [userInfo.id]);
-        
+
         if (result.changes > 0) {
-            console.log(`✅ User '${username}' removed successfully.`);
+            console.log(`User '${userInfo.full_name || userInfo.username}' (${userInfo.sso_employee_uuid}) removed successfully.`);
         } else {
-            console.log(`❌ Failed to remove user '${username}'.`);
+            console.log(`Failed to remove user '${identifier}'.`);
         }
-        
+
     } catch (error) {
-        console.error('❌ Error removing user:', error);
+        console.error('Error removing user:', error);
     }
 }
 
-async function changePassword(username, newPassword) {
+async function setRole(identifier, role) {
     try {
-        const user = await runQuery('SELECT id FROM users WHERE username = ?', [username]);
-        
+        const validRoles = ['admin', 'moderator', 'user'];
+        if (!validRoles.includes(role)) {
+            console.log(`Invalid role '${role}'. Valid roles: ${validRoles.join(', ')}`);
+            return;
+        }
+
+        const user = await runQuery(
+            'SELECT id, username, full_name, role FROM users WHERE username = ? OR sso_employee_uuid = ?',
+            [identifier, identifier]
+        );
+
         if (user.length === 0) {
-            console.log(`❌ User '${username}' not found.`);
+            console.log(`User '${identifier}' not found.`);
             return;
         }
-        
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        const result = await runUpdate(
-            'UPDATE users SET password_hash = ? WHERE username = ?',
-            [hashedPassword, username]
-        );
-        
+
+        const userInfo = user[0];
+        const result = await runUpdate('UPDATE users SET role = ? WHERE id = ?', [role, userInfo.id]);
+
         if (result.changes > 0) {
-            console.log(`✅ Password changed successfully for user '${username}'.`);
+            console.log(`Role changed for '${userInfo.full_name || userInfo.username}': ${userInfo.role} -> ${role}`);
         } else {
-            console.log(`❌ Failed to change password for user '${username}'.`);
+            console.log(`Failed to change role for '${identifier}'.`);
         }
-        
+
     } catch (error) {
-        console.error('❌ Error changing password:', error);
+        console.error('Error changing role:', error);
     }
 }
 
-async function createUser(username, password, role = 'user') {
+async function setStatus(identifier, status) {
     try {
-        // Check if user already exists
-        const existingUser = await runQuery('SELECT id FROM users WHERE username = ?', [username]);
-        
-        if (existingUser.length > 0) {
-            console.log(`❌ User '${username}' already exists.`);
+        const validStatuses = ['active', 'inactive', 'banned'];
+        if (!validStatuses.includes(status)) {
+            console.log(`Invalid status '${status}'. Valid statuses: ${validStatuses.join(', ')}`);
             return;
         }
-        
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const result = await runUpdate(
-            'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
-            [username, hashedPassword, role]
-        );
-        
-        if (result.lastID) {
-            console.log(`✅ User '${username}' created successfully with role '${role}'.`);
-        } else {
-            console.log(`❌ Failed to create user '${username}'.`);
-        }
-        
-    } catch (error) {
-        console.error('❌ Error creating user:', error);
-    }
-}
 
-async function cleanupDemo() {
-    console.log('\n🧹 Cleaning up demo/test data...');
-    
-    // List of demo usernames to remove
-    const demoUsernames = ['demo', 'test', 'guest', 'sample'];
-    
-    for (const username of demoUsernames) {
-        await removeUser(username);
+        const user = await runQuery(
+            'SELECT id, username, full_name, status FROM users WHERE username = ? OR sso_employee_uuid = ?',
+            [identifier, identifier]
+        );
+
+        if (user.length === 0) {
+            console.log(`User '${identifier}' not found.`);
+            return;
+        }
+
+        const userInfo = user[0];
+        const result = await runUpdate('UPDATE users SET status = ? WHERE id = ?', [status, userInfo.id]);
+
+        if (result.changes > 0) {
+            console.log(`Status changed for '${userInfo.full_name || userInfo.username}': ${userInfo.status} -> ${status}`);
+        } else {
+            console.log(`Failed to change status for '${identifier}'.`);
+        }
+
+    } catch (error) {
+        console.error('Error changing status:', error);
     }
-    
-    // Remove test messages
-    await runUpdate("DELETE FROM messages WHERE content LIKE '%test%' OR content LIKE '%demo%'");
-    
-    console.log('✅ Demo cleanup completed.');
 }
 
 // Command line interface
 async function main() {
     const args = process.argv.slice(2);
     const command = args[0];
-    
-    console.log('🔧 LGU-Chat User Management Tool');
-    console.log('================================');
-    
+
+    console.log('LGU-Chat User Management Tool (SSO Mode)');
+    console.log('=========================================');
+    console.log('NOTE: Users are provisioned via LGU-SSO. Password management is handled by SSO.');
+    console.log('');
+
     try {
         switch (command) {
             case 'list':
                 await listUsers();
                 break;
-                
+
             case 'remove':
                 if (!args[1]) {
-                    console.log('❌ Usage: node manage-users.js remove <username>');
+                    console.log('Usage: node manage-users.js remove <username|sso_uuid>');
                     break;
                 }
                 await removeUser(args[1]);
                 break;
-                
-            case 'password':
+
+            case 'role':
                 if (!args[1] || !args[2]) {
-                    console.log('❌ Usage: node manage-users.js password <username> <new-password>');
+                    console.log('Usage: node manage-users.js role <username|sso_uuid> <admin|moderator|user>');
                     break;
                 }
-                await changePassword(args[1], args[2]);
+                await setRole(args[1], args[2]);
                 break;
-                
-            case 'create':
+
+            case 'status':
                 if (!args[1] || !args[2]) {
-                    console.log('❌ Usage: node manage-users.js create <username> <password> [role]');
+                    console.log('Usage: node manage-users.js status <username|sso_uuid> <active|inactive|banned>');
                     break;
                 }
-                await createUser(args[1], args[2], args[3] || 'user');
+                await setStatus(args[1], args[2]);
                 break;
-                
-            case 'cleanup':
-                await cleanupDemo();
-                break;
-                
+
             default:
                 console.log('Available commands:');
-                console.log('  list                           - List all users');
-                console.log('  remove <username>              - Remove a user');
-                console.log('  password <username> <password> - Change user password');
-                console.log('  create <username> <password> [role] - Create new user');
-                console.log('  cleanup                        - Remove demo/test data');
+                console.log('  list                                    - List all users');
+                console.log('  remove <username|sso_uuid>              - Remove a user');
+                console.log('  role <username|sso_uuid> <role>         - Change user role');
+                console.log('  status <username|sso_uuid> <status>     - Change user status');
                 console.log('');
                 console.log('Examples:');
                 console.log('  node manage-users.js list');
-                console.log('  node manage-users.js remove demo');
-                console.log('  node manage-users.js password admin newSecurePassword123');
-                console.log('  node manage-users.js create john password123 user');
-                console.log('  node manage-users.js cleanup');
+                console.log('  node manage-users.js remove "John Doe"');
+                console.log('  node manage-users.js role "John Doe" admin');
+                console.log('  node manage-users.js status "John Doe" banned');
                 break;
         }
     } catch (error) {
-        console.error('❌ Error:', error);
+        console.error('Error:', error);
     } finally {
         db.close();
     }
 }
 
-main(); 
+main();

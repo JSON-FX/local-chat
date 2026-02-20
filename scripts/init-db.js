@@ -1,28 +1,28 @@
-const { initializeDatabase, createDefaultAdmin, cleanupExpiredSessions } = require('../lib/schema');
+const { initializeDatabase, createSystemUser, cleanupExpiredSessions } = require('../lib/schema');
 const { closeDatabase } = require('../lib/database');
 
 async function initDb() {
   try {
-    console.log('🔄 Initializing LGU-Chat database...');
-    
+    console.log('Initializing LGU-Chat database...');
+
     // Initialize database schema
     await initializeDatabase();
-    
-    // Create default admin user
-    await createDefaultAdmin();
-    
+
+    // Create system user
+    await createSystemUser();
+
     // Clean up any expired sessions
     await cleanupExpiredSessions();
-    
-    console.log('✅ Database initialization completed successfully!');
+
+    console.log('Database initialization completed successfully!');
     console.log('');
-    console.log('📋 Next steps:');
-    console.log('1. Start the development server: npm run dev');
-    console.log('2. Login with username: admin, password: admin123');
-    console.log('3. Change the default admin password immediately!');
-    
+    console.log('Next steps:');
+    console.log('1. Configure SSO environment variables');
+    console.log('2. Start the development server: npm run dev');
+    console.log('3. Users will authenticate via LGU-SSO');
+
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
+    console.error('Database initialization failed:', error);
     process.exit(1);
   } finally {
     await closeDatabase();
@@ -35,4 +35,4 @@ if (require.main === module) {
   initDb();
 }
 
-module.exports = { initDb }; 
+module.exports = { initDb };

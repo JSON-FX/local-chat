@@ -59,47 +59,11 @@ class ApiService {
     }
   }
 
-  // Authentication endpoints
-  async login(username: string, password: string): Promise<AuthResponse> {
-    console.log('🔍 [DEBUG] API login called for username:', username);
-    
-    const response = await this.fetchApi<AuthResponse['data']>('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username, password }),
+  // SSO authentication endpoint
+  async getSsoLoginUrl(): Promise<ApiResponse<{ login_url: string; state: string }>> {
+    return this.fetchApi<{ login_url: string; state: string }>('/api/auth/login', {
+      method: 'GET',
     });
-
-    console.log('🔍 [DEBUG] Login API response success:', response.success);
-    if (response.success && response.data?.token) {
-      console.log('🔍 [DEBUG] Token received, length:', response.data.token.length);
-      console.log('🔍 [DEBUG] Token preview:', response.data.token.substring(0, 50) + '...');
-      this.setToken(response.data.token);
-      console.log('🔍 [DEBUG] Token stored in localStorage');
-    } else {
-      console.error('❌ [DEBUG] Login failed:', response.error);
-    }
-
-    return response as AuthResponse;
-  }
-
-  async register(username: string, password: string, confirmPassword: string): Promise<AuthResponse> {
-    console.log('🔍 [DEBUG] API register called for username:', username);
-    
-    const response = await this.fetchApi<AuthResponse['data']>('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ username, password, confirmPassword }),
-    });
-
-    console.log('🔍 [DEBUG] Register API response success:', response.success);
-    if (response.success && response.data?.token) {
-      console.log('🔍 [DEBUG] Token received, length:', response.data.token.length);
-      console.log('🔍 [DEBUG] Token preview:', response.data.token.substring(0, 50) + '...');
-      this.setToken(response.data.token);
-      console.log('🔍 [DEBUG] Token stored in localStorage');
-    } else {
-      console.error('❌ [DEBUG] Register failed:', response.error);
-    }
-
-    return response as AuthResponse;
   }
 
   async logout(): Promise<ApiResponse> {
@@ -158,15 +122,15 @@ class ApiService {
   ): Promise<ApiResponse<{ message: Message; file: any }>> {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     if (recipientId) {
       formData.append('recipient_id', recipientId.toString());
     }
-    
+
     if (groupId) {
       formData.append('group_id', groupId.toString());
     }
-    
+
     if (caption) {
       formData.append('caption', caption);
     }
@@ -209,9 +173,9 @@ class ApiService {
     initial_members?: number[];
   }): Promise<ApiResponse<any>> {
     console.log('DEBUG: API createGroup called with data:', JSON.stringify(data));
-    console.log('DEBUG: initial_members type:', data.initial_members ? typeof data.initial_members : 'undefined', 
+    console.log('DEBUG: initial_members type:', data.initial_members ? typeof data.initial_members : 'undefined',
                 'isArray:', data.initial_members ? Array.isArray(data.initial_members) : false);
-    
+
     return this.fetchApi('/api/groups/create', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -265,7 +229,7 @@ class ApiService {
         }
         results.push(result);
       }
-      
+
       // Return the last result which contains the updated member list
       return results[results.length - 1] || { success: true, data: [] };
     } catch (error: any) {
@@ -411,4 +375,4 @@ class ApiService {
 
 // Export singleton instance
 export const apiService = new ApiService();
-export default apiService; 
+export default apiService;

@@ -1,15 +1,14 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { User, Settings, Camera, Key, Save, Trash2, Upload } from 'lucide-react';
+import { User, Settings, Camera, Upload, Trash2, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { User as UserType } from '@/lib/types';
 
@@ -21,138 +20,13 @@ interface UserSettingsDialogProps {
 
 export function UserSettingsDialog({ currentUser, onUserUpdate, children }: UserSettingsDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'avatar'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'avatar'>('profile');
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Optimized dialog handler
   const handleOpenChange = useCallback((open: boolean) => {
     setIsOpen(open);
   }, []);
-
-  // Profile form state - update when currentUser changes
-  const [profileForm, setProfileForm] = useState({
-    name: currentUser?.name || '',
-    last_name: currentUser?.last_name || '',
-    middle_name: currentUser?.middle_name || '',
-    position: currentUser?.position || '',
-    department: currentUser?.department || '',
-    email: currentUser?.email || '',
-    mobile_number: currentUser?.mobile_number || ''
-  });
-
-  // Update form when currentUser changes
-  useEffect(() => {
-    if (currentUser) {
-      setProfileForm({
-        name: currentUser.name || '',
-        last_name: currentUser.last_name || '',
-        middle_name: currentUser.middle_name || '',
-        position: currentUser.position || '',
-        department: currentUser.department || '',
-        email: currentUser.email || '',
-        mobile_number: currentUser.mobile_number || ''
-      });
-    }
-  }, [currentUser]);
-
-  // Password form state
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-
-  const handleProfileUpdate = useCallback(async () => {
-    if (!profileForm.name || !profileForm.last_name || !profileForm.email) {
-      toast.error('First name, last name, and email are required');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Get token from localStorage
-      const token = localStorage.getItem('auth_token');
-      
-      const response = await fetch('/api/users/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(profileForm),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Profile updated successfully');
-        if (onUserUpdate && data.data) {
-          onUserUpdate(data.data);
-        }
-      } else {
-        toast.error(data.error || 'Failed to update profile');
-      }
-    } catch (error) {
-      console.error('Profile update error:', error);
-      toast.error('Failed to update profile');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [profileForm, onUserUpdate]);
-
-  const handlePasswordUpdate = useCallback(async () => {
-    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      toast.error('All password fields are required');
-      return;
-    }
-
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error('New passwords do not match');
-      return;
-    }
-
-    if (passwordForm.newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters long');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Get token from localStorage
-      const token = localStorage.getItem('auth_token');
-      
-      const response = await fetch('/api/users/password', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Password updated successfully');
-        setPasswordForm({
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
-      } else {
-        toast.error(data.error || 'Failed to update password');
-      }
-    } catch (error) {
-      console.error('Password update error:', error);
-      toast.error('Failed to update password');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [passwordForm]);
 
   const handleAvatarUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -175,9 +49,8 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
       const formData = new FormData();
       formData.append('avatar', file);
 
-      // Get token from localStorage
       const token = localStorage.getItem('auth_token');
-      
+
       const response = await fetch('/api/users/avatar', {
         method: 'POST',
         headers: {
@@ -201,7 +74,6 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
       toast.error('Failed to upload avatar');
     } finally {
       setIsLoading(false);
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -211,9 +83,8 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
   const handleAvatarDelete = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Get token from localStorage
       const token = localStorage.getItem('auth_token');
-      
+
       const response = await fetch('/api/users/avatar', {
         method: 'DELETE',
         headers: {
@@ -243,9 +114,9 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           className="text-muted-foreground hover:text-foreground"
         >
           <Settings className="h-4 w-4" />
@@ -258,226 +129,117 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
             <span>User Settings</span>
           </DialogTitle>
           <DialogDescription>
-            Manage your profile information, password, and avatar
+            View your profile information and manage your avatar
           </DialogDescription>
         </DialogHeader>
 
         {/* Tab Navigation */}
-        <div className="flex space-x-1 bg-muted/50 p-1 rounded-lg mb-6">
+        <div className="flex space-x-1 bg-muted/50 p-1 rounded-lg mb-6" role="tablist">
           <Button
             variant={activeTab === 'profile' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab('profile')}
             className="flex-1"
+            role="tab"
+            aria-selected={activeTab === 'profile'}
           >
             <User className="h-4 w-4 mr-2" />
             Profile
-          </Button>
-          <Button
-            variant={activeTab === 'password' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveTab('password')}
-            className="flex-1"
-          >
-            <Key className="h-4 w-4 mr-2" />
-            Password
           </Button>
           <Button
             variant={activeTab === 'avatar' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab('avatar')}
             className="flex-1"
+            role="tab"
+            aria-selected={activeTab === 'avatar'}
           >
             <Camera className="h-4 w-4 mr-2" />
             Avatar
           </Button>
         </div>
 
-        {/* Tab Content */}
+        {/* Profile Tab - Read-only SSO information */}
         {activeTab === 'profile' && (
           <Card>
             <CardHeader>
               <CardTitle>Personal Information</CardTitle>
               <CardDescription>
-                Update your personal details and contact information
+                Your profile details from LGU Single Sign-On
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">First Name *</Label>
-                  <Input
-                    id="name"
-                    value={profileForm.name}
-                    onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter your first name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="last_name">Last Name *</Label>
-                  <Input
-                    id="last_name"
-                    value={profileForm.last_name}
-                    onChange={(e) => setProfileForm(prev => ({ ...prev, last_name: e.target.value }))}
-                    placeholder="Enter your last name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="middle_name">Middle Name</Label>
-                  <Input
-                    id="middle_name"
-                    value={profileForm.middle_name}
-                    onChange={(e) => setProfileForm(prev => ({ ...prev, middle_name: e.target.value }))}
-                    placeholder="Enter your middle name"
-                  />
-                </div>
+              <div
+                className="flex items-center gap-2 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-3 text-sm text-blue-800 dark:text-blue-200"
+                role="status"
+              >
+                <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>This information is managed by LGU-SSO and cannot be edited here.</span>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="position">Position</Label>
-                  <Input
-                    id="position"
-                    value={profileForm.position}
-                    onChange={(e) => setProfileForm(prev => ({ ...prev, position: e.target.value }))}
-                    placeholder="Your job position"
-                  />
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Full Name</Label>
+                  <p className="text-sm font-medium">
+                    {currentUser?.full_name || 'Not set'}
+                  </p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Input
-                    id="department"
-                    value={profileForm.department}
-                    onChange={(e) => setProfileForm(prev => ({ ...prev, department: e.target.value }))}
-                    placeholder="Your department"
-                  />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Username</Label>
+                    <p className="text-sm font-medium">{currentUser?.username}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Email</Label>
+                    <p className="text-sm font-medium">
+                      {currentUser?.email || 'Not set'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Position</Label>
+                    <p className="text-sm font-medium">
+                      {currentUser?.position || 'Not set'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Office</Label>
+                    <p className="text-sm font-medium">
+                      {currentUser?.office_name || 'Not set'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={profileForm.email}
-                    onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="Enter your email address"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="mobile_number">Mobile Number</Label>
-                  <Input
-                    id="mobile_number"
-                    type="tel"
-                    value={profileForm.mobile_number}
-                    onChange={(e) => setProfileForm(prev => ({ ...prev, mobile_number: e.target.value }))}
-                    placeholder="Enter your mobile number"
-                  />
-                </div>
-              </div>
+              <Separator />
 
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="text-xs">
                   Username: {currentUser?.username}
                 </Badge>
                 <Badge variant="outline" className="text-xs capitalize">
                   Role: {currentUser?.role}
                 </Badge>
+                {currentUser?.sso_role && (
+                  <Badge variant="secondary" className="text-xs capitalize">
+                    SSO Role: {currentUser.sso_role}
+                  </Badge>
+                )}
               </div>
 
-              <Button
-                onClick={handleProfileUpdate}
-                disabled={isLoading}
-                className="w-full"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="h-4 w-4 mr-2 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Update Profile
-                  </>
-                )}
-              </Button>
+              {currentUser?.profile_synced_at && (
+                <p className="text-xs text-muted-foreground">
+                  Last synced: {new Date(currentUser.profile_synced_at).toLocaleString()}
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {activeTab === 'password' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Change Password</CardTitle>
-              <CardDescription>
-                Update your account password for security
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="current_password">Current Password</Label>
-                <Input
-                  id="current_password"
-                  type="password"
-                  value={passwordForm.currentPassword}
-                  onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
-                  placeholder="Enter your current password"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="new_password">New Password</Label>
-                <Input
-                  id="new_password"
-                  type="password"
-                  value={passwordForm.newPassword}
-                  onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                  placeholder="Enter your new password"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirm_password">Confirm New Password</Label>
-                <Input
-                  id="confirm_password"
-                  type="password"
-                  value={passwordForm.confirmPassword}
-                  onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                  placeholder="Confirm your new password"
-                />
-              </div>
-
-              <div className="bg-muted/50 p-3 rounded-lg text-sm text-muted-foreground">
-                <p>Password requirements:</p>
-                <ul className="list-disc list-inside mt-1 space-y-1">
-                  <li>At least 6 characters long</li>
-                  <li>Contains both letters and numbers (recommended)</li>
-                </ul>
-              </div>
-
-              <Button
-                onClick={handlePasswordUpdate}
-                disabled={isLoading || !passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
-                className="w-full"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="h-4 w-4 mr-2 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Key className="h-4 w-4 mr-2" />
-                    Update Password
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
+        {/* Avatar Tab - Locally editable */}
         {activeTab === 'avatar' && (
           <Card>
             <CardHeader>
@@ -490,19 +252,19 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
               <div className="flex items-center space-x-4">
                 <Avatar className="h-20 w-20">
                   {currentUser?.avatar_path ? (
-                    <img 
+                    <img
                       src={`/api/files/download/${currentUser.avatar_path}`}
                       alt={currentUser.username}
                       className="h-full w-full object-cover"
                     />
                   ) : (
                     <div className="h-full w-full bg-muted flex items-center justify-center text-2xl font-semibold">
-                      {currentUser?.name?.[0] || currentUser?.username?.[0]?.toUpperCase()}
+                      {currentUser?.full_name?.[0] || currentUser?.username?.[0]?.toUpperCase()}
                     </div>
                   )}
                 </Avatar>
                 <div className="flex-1">
-                  <p className="font-medium">{currentUser?.name || currentUser?.username}</p>
+                  <p className="font-medium">{currentUser?.full_name || currentUser?.username}</p>
                   <p className="text-sm text-muted-foreground">{currentUser?.email}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {currentUser?.avatar_path ? 'Custom avatar' : 'Default avatar'}
@@ -566,4 +328,4 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
       </DialogContent>
     </Dialog>
   );
-} 
+}
