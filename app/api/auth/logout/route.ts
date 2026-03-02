@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '../../../../lib/auth';
+import { ssoService } from '../../../../lib/sso';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +15,14 @@ export async function POST(request: NextRequest) {
     const token = authHeader.substring(7);
     const tokenHash = AuthService.hashToken(token);
 
-    // Invalidate local session only (don't call SSO logout so other apps stay logged in)
+    // Revoke JWT on SSO backend (best-effort — don't fail logout if SSO is unreachable)
+    try {
+      await ssoService.logout(token);
+    } catch (error) {
+      console.error('SSO logout failed (best-effort):', error);
+    }
+
+    // Invalidate local session
     await AuthService.logoutByTokenHash(tokenHash);
 
     return NextResponse.json({

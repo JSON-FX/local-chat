@@ -172,6 +172,41 @@ class SsoService {
     const key = this.hashToken(token);
     this.tokenCache.delete(key);
   }
+
+  // Revoke a token via POST /auth/logout on the SSO backend
+  async logout(token: string): Promise<boolean> {
+    const { controller, timeout } = this.createTimeoutController();
+
+    try {
+      const response = await fetch(`${SSO_API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          ...this.getAppHeaders(),
+          'Authorization': `Bearer ${token}`,
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+      this.invalidateCache(token);
+
+      if (!response.ok) {
+        console.error(`SSO logout returned status ${response.status}`);
+        return false;
+      }
+
+      return true;
+    } catch (error: any) {
+      clearTimeout(timeout);
+      this.invalidateCache(token);
+      if (error.name === 'AbortError') {
+        console.error('SSO logout request timed out');
+      } else {
+        console.error('SSO logout request failed:', error.message);
+      }
+      return false;
+    }
+  }
 }
 
 export const ssoService = new SsoService();
