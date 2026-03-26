@@ -148,7 +148,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-2 border-transparent border-t-[var(--gradient-from)] border-r-[var(--gradient-to)]"></div>
       </div>
     );
   }
@@ -175,10 +175,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 <Shield className="w-5 h-5 text-primary" />
                 <span className="font-semibold text-lg">Administration Panel</span>
               </div>
-              <Separator orientation="vertical" className="h-6" />
-              <Badge variant="outline" className="text-xs">
-                LocalChat Admin v1.0
-              </Badge>
             </div>
 
             <div className="flex items-center gap-3">
