@@ -98,16 +98,16 @@ export function ChatList({
     if (collapsed) {
       return (
         <div className="flex-1 flex items-center justify-center p-2">
-          <MessageSquare className="h-6 w-6 text-muted-foreground" />
+          <MessageSquare className="h-6 w-6 text-white/50" />
         </div>
       );
     }
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-center">
-          <MessageSquare className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">No conversations yet</p>
-          <p className="text-xs text-muted-foreground mt-1">
+          <MessageSquare className="h-8 w-8 mx-auto mb-2 text-white/50" />
+          <p className="text-sm text-white/50">No conversations yet</p>
+          <p className="text-xs text-white/50 mt-1">
             Start a new conversation to see it here
           </p>
         </div>
@@ -136,8 +136,8 @@ export function ChatList({
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    "w-full h-12 p-2 justify-center relative",
-                    isSelected && "bg-accent"
+                    "w-full h-12 p-2 justify-center relative hover:bg-white/5",
+                    isSelected && "bg-[oklch(0.59_0.16_255_/_20%)] border-l-[3px] border-l-[oklch(0.59_0.16_255)]"
                   )}
                   onClick={() => onSelectConversation(conversationId, isGroup)}
                   title={displayName}
@@ -157,7 +157,7 @@ export function ChatList({
                     ) : null}
                     <AvatarFallback className={cn(
                       "text-xs",
-                      isGroup ? "bg-blue-100 text-blue-700" : "bg-primary/10"
+                      isGroup ? "bg-white/10 text-white/70" : "bg-white/10"
                     )}>
                       {isGroup ? (
                         <Users className="h-4 w-4" />
@@ -167,10 +167,10 @@ export function ChatList({
                     </AvatarFallback>
                   </Avatar>
                     {!isGroup && onlineUsers.includes(conversation.other_user_id) && (
-                      <Circle className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 fill-green-500 text-green-500" />
+                      <Circle className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 fill-green-400 text-green-400" />
                     )}
                     {isGroup && (
-                      <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-blue-500 rounded-full flex items-center justify-center">
+                      <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 gradient-accent rounded-full flex items-center justify-center">
                         <span className="text-[6px] text-white font-bold">#</span>
                       </div>
                     )}
@@ -203,8 +203,8 @@ export function ChatList({
             <Button
               variant="ghost"
               className={cn(
-                "w-full h-auto p-3 mb-1 justify-start text-left",
-                isSelected && "bg-accent"
+                "w-full h-auto p-3 mb-1 justify-start text-left hover:bg-white/5",
+                isSelected && "bg-[oklch(0.59_0.16_255_/_20%)] border-l-[3px] border-l-[oklch(0.59_0.16_255)]"
               )}
               onClick={() => onSelectConversation(conversationId, isGroup)}
             >
@@ -225,7 +225,7 @@ export function ChatList({
                     ) : null}
                     <AvatarFallback className={cn(
                       "text-xs",
-                      isGroup ? "bg-blue-100 text-blue-700" : "bg-primary/10"
+                      isGroup ? "bg-white/10 text-white/70" : "bg-white/10"
                     )}>
                       {isGroup ? (
                         <Users className="h-5 w-5" />
@@ -235,10 +235,10 @@ export function ChatList({
                     </AvatarFallback>
                   </Avatar>
                   {!isGroup && onlineUsers.includes(conversation.other_user_id) && (
-                    <Circle className="absolute -bottom-1 -right-1 h-3 w-3 fill-green-500 text-green-500" />
+                    <Circle className="absolute -bottom-1 -right-1 h-3 w-3 fill-green-400 text-green-400" />
                   )}
                   {isGroup && (
-                    <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-blue-500 rounded-full flex items-center justify-center">
+                    <div className="absolute -bottom-1 -right-1 h-3 w-3 gradient-accent rounded-full flex items-center justify-center">
                       <span className="text-[8px] text-white font-bold">#</span>
                     </div>
                   )}
@@ -249,7 +249,7 @@ export function ChatList({
                 <div className="flex-1 min-w-0 relative">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center space-x-1 flex-1 min-w-0 max-w-[calc(100%-50px)] pr-2">
-                      <p className="text-sm font-medium text-truncate-ellipsis">
+                      <p className="text-sm font-medium text-white text-truncate-ellipsis">
                         {displayName}
                       </p>
                       {isGroup && (
@@ -258,16 +258,16 @@ export function ChatList({
                         </Badge>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground flex-shrink-0 min-w-[45px] text-right">
+                    <span className="text-xs text-white/50 flex-shrink-0 min-w-[45px] text-right">
                       {conversation.last_message_time ? formatLastMessageTime(conversation.last_message_time) : ''}
                     </span>
                   </div>
                   
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0 pr-2">
-                      <p className="text-xs text-muted-foreground text-truncate-ellipsis">
+                      <p className="text-xs text-white/50 text-truncate-ellipsis">
                         {!isGroup && typingUsers[conversation.other_user_id] ? (
-                          <span className="italic text-primary">typing...</span>
+                          <span className="italic text-[var(--gradient-from)]">typing...</span>
                         ) : (
                           truncateMessage(conversation.last_message || (isGroup ? 'Group created' : 'No messages yet'))
                         )}
