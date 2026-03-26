@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, LogIn, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Lock, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 
 const SSO_LOGIN_URL = process.env.NEXT_PUBLIC_SSO_LOGIN_URL || 'http://lgu-sso-ui.test/sso/login';
@@ -44,69 +43,106 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-muted/40">
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-white shadow-md">
-                <Image
-                  src="/lgu-seal.png"
-                  alt="LGU Seal"
-                  width={56}
-                  height={56}
-                  className="object-contain"
-                />
-              </div>
-            </div>
-            <CardTitle className="text-2xl">Welcome to LGU-Chat</CardTitle>
-            <CardDescription>
-              Sign in through the LGU Single Sign-On system
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {error && (
-              <div
-                role="alert"
-                className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive"
-              >
-                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>
-                  {error === 'auth_failed'
-                    ? 'Authentication failed. Please try again.'
-                    : 'An error occurred during sign in.'}
-                </span>
-              </div>
-            )}
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* Left Panel — Branding */}
+      <div className="relative lg:w-1/2 bg-[oklch(0.205_0.03_265)] overflow-hidden flex flex-col justify-between p-8 lg:p-12 min-h-[280px] lg:min-h-screen">
+        {/* Abstract decorative elements */}
+        <div className="absolute top-[-80px] right-[-80px] w-[400px] h-[400px] rounded-full bg-[oklch(0.59_0.16_255_/_15%)] blur-[80px]" />
+        <div className="absolute bottom-[-120px] left-[-60px] w-[500px] h-[500px] rounded-full bg-[oklch(0.63_0.14_195_/_10%)] blur-[100px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-[240px] border border-white/5 rounded-3xl rotate-45" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[360px] h-[360px] border border-white/[3%] rounded-[40px] rotate-[25deg]" />
 
-            <Button
-              onClick={handleSsoLogin}
-              className="w-full h-12 text-base"
-              disabled={isRedirecting}
-            >
-              {isRedirecting ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden="true" />
-                  Redirecting to SSO...
-                </>
-              ) : (
-                <>
-                  <LogIn className="mr-2 h-5 w-5" aria-hidden="true" />
-                  Sign in with LGU-SSO
-                </>
-              )}
-            </Button>
+        {/* Logo */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-[10px] gradient-accent flex items-center justify-center shadow-glow">
+            <Image
+              src="/lgu-seal.png"
+              alt="LGU Seal"
+              width={24}
+              height={24}
+              className="object-contain"
+            />
+          </div>
+          <span className="font-bold text-base text-white">LGU-Chat</span>
+        </div>
 
-
-            <p className="text-center text-xs text-muted-foreground mt-4">
-              You will be redirected to the LGU Single Sign-On portal to enter your credentials.
-            </p>
-          </CardContent>
-        </Card>
+        {/* Tagline */}
+        <div className="relative z-10">
+          <h1 className="text-[26px] lg:text-[32px] font-extrabold text-white leading-tight">
+            Connect.<br />Collaborate.<br />Communicate.
+          </h1>
+          <p className="mt-3 text-sm text-[oklch(0.65_0.015_260)] leading-relaxed">
+            The official messaging platform for the<br />
+            Local Government of Quezon Bukidnon.
+          </p>
+        </div>
       </div>
-      <footer className="py-4 text-center text-xs text-muted-foreground">
-        &copy; {new Date().getFullYear()} Local Government of Quezon Bukidnon. All rights reserved.
-      </footer>
+
+      {/* Right Panel — Login Form */}
+      <div className="flex-1 bg-[oklch(0.98_0.002_250)] flex flex-col items-center justify-center p-8 lg:p-12 relative">
+        <div className="w-full max-w-[320px]">
+          {/* Icon */}
+          <div className="w-12 h-12 bg-white rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] flex items-center justify-center mb-6">
+            <Image
+              src="/lgu-seal.png"
+              alt="LGU Seal"
+              width={32}
+              height={32}
+              className="object-contain"
+            />
+          </div>
+
+          <h2 className="text-xl font-bold text-foreground mb-1.5">Sign in to your account</h2>
+          <p className="text-sm text-muted-foreground mb-7">Access your secure government workspace</p>
+
+          {error && (
+            <div
+              role="alert"
+              className="flex items-center gap-2 rounded-xl bg-destructive/10 p-3 text-sm text-destructive mb-5"
+            >
+              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>
+                {error === 'auth_failed'
+                  ? 'Authentication failed. Please try again.'
+                  : 'An error occurred during sign in.'}
+              </span>
+            </div>
+          )}
+
+          <Button
+            onClick={handleSsoLogin}
+            className="w-full h-12 text-sm font-semibold"
+            disabled={isRedirecting}
+          >
+            {isRedirecting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                Redirecting to SSO...
+              </>
+            ) : (
+              <>
+                Sign in with LGU-SSO
+                <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+              </>
+            )}
+          </Button>
+
+          {/* Security badge */}
+          <div className="flex items-center gap-2 mt-5 p-3 bg-white rounded-xl border border-border">
+            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Secured with Single Sign-On authentication</span>
+          </div>
+
+          <p className="text-center text-[11px] text-muted-foreground mt-5 leading-relaxed">
+            You will be redirected to the LGU Single Sign-On portal to enter your credentials.
+          </p>
+        </div>
+
+        {/* Footer */}
+        <footer className="absolute bottom-4 text-[11px] text-muted-foreground">
+          &copy; {new Date().getFullYear()} Local Government of Quezon Bukidnon. All rights reserved.
+        </footer>
+      </div>
     </div>
   );
 }
