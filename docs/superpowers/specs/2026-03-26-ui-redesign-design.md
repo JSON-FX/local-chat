@@ -76,7 +76,7 @@ No replacement UI needed. The app loads cleanly without interruptions.
 | Sidebar bg | `#0a0f1a` → `#0f172a` | Deeper navy |
 | Content bg | `#1e293b` | Chat area, admin content |
 | Card bg | `#1e293b` | Cards, slightly lighter for elevation |
-| Primary accent | Same gradient, slightly brighter | CTAs |
+| Primary accent | `linear-gradient(135deg, #60a5fa, #22d3ee)` | CTAs (brighter variant) |
 | Text heading | `#f1f5f9` | Headings |
 | Text body | `#cbd5e1` | Body text |
 | Text secondary | `#94a3b8` | Secondary text |
@@ -88,8 +88,14 @@ No replacement UI needed. The app loads cleanly without interruptions.
 
 ```css
 --gradient-accent: linear-gradient(135deg, #3b82f6, #06b6d4);
+--gradient-accent-dark: linear-gradient(135deg, #60a5fa, #22d3ee);
 --shadow-glow: 0 4px 16px rgba(59, 130, 246, 0.3);
 ```
+
+### Implementation Notes
+
+- **Color format:** The current `globals.css` uses oklch color space. All hex values in this spec should be converted to oklch equivalents during implementation for consistency.
+- **Font references:** The current CSS references `--font-geist-sans` and `--font-geist-mono`. These should be replaced with system font stacks (`system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`) to maintain Docker/air-gapped compatibility.
 
 ---
 
