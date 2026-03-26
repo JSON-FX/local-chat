@@ -186,7 +186,7 @@ export function ChatList({
   }
 
   return (
-    <ScrollArea className="flex-1 overflow-y-auto">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden">
       <div className="p-2">
         {conversations.map((conversation) => {
           const isGroup = conversation.conversation_type === 'group';
@@ -200,15 +200,14 @@ export function ChatList({
             key={isGroup ? `group-${conversation.group_id}` : `user-${conversation.other_user_id}`}
             ref={isSelected ? selectedConversationRef : null}
           >
-            <Button
-              variant="ghost"
+            <button
               className={cn(
-                "w-full h-auto p-3 mb-1 justify-start text-left hover:bg-white/5",
+                "w-full h-auto p-3 mb-1 flex items-center text-left rounded-md hover:bg-white/5 overflow-hidden",
                 isSelected && "bg-[oklch(0.59_0.16_255_/_20%)] border-l-[3px] border-l-[oklch(0.59_0.16_255)]"
               )}
               onClick={() => onSelectConversation(conversationId, isGroup)}
             >
-              <div className="flex items-start space-x-3 w-full">
+              <div className="flex items-start gap-3 w-full min-w-0">
                 {/* Avatar with online indicator */}
                 <div className="relative">
                   <Avatar className="h-10 w-10">
@@ -246,41 +245,35 @@ export function ChatList({
                 </div>
 
                 {/* Conversation details */}
-                <div className="flex-1 min-w-0 relative">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center space-x-1 flex-1 min-w-0 max-w-[calc(100%-50px)] pr-2">
-                      <p className="text-sm font-medium text-white text-truncate-ellipsis">
-                        {displayName}
-                      </p>
-                      {isGroup && (
-                        <Badge variant="secondary" className="text-[10px] h-4 px-1 flex-shrink-0">
-                          Group
-                        </Badge>
-                      )}
-                    </div>
-                    <span className="text-xs text-white/50 flex-shrink-0 min-w-[45px] text-right">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1 mb-1">
+                    <p className="text-sm font-medium text-white truncate flex-1 min-w-0">
+                      {displayName}
+                    </p>
+                    {isGroup && (
+                      <Badge variant="secondary" className="text-[10px] h-4 px-1 shrink-0">
+                        Group
+                      </Badge>
+                    )}
+                    <span className="text-xs text-white/50 shrink-0">
                       {conversation.last_message_time ? formatLastMessageTime(conversation.last_message_time) : ''}
                     </span>
                   </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0 pr-2">
-                      <p className="text-xs text-white/50 text-truncate-ellipsis">
-                        {!isGroup && typingUsers[conversation.other_user_id] ? (
-                          <span className="italic text-[var(--gradient-from)]">typing...</span>
-                        ) : (
-                          truncateMessage(conversation.last_message || (isGroup ? 'Group created' : 'No messages yet'))
-                        )}
-                      </p>
-                    </div>
-                  </div>
+
+                  <p className="text-xs text-white/50 truncate">
+                    {!isGroup && typingUsers[conversation.other_user_id] ? (
+                      <span className="italic text-[var(--gradient-from)]">typing...</span>
+                    ) : (
+                      truncateMessage(conversation.last_message || (isGroup ? 'Group created' : 'No messages yet'))
+                    )}
+                  </p>
                 </div>
               </div>
-            </Button>
+            </button>
           </div>
           );
         })}
       </div>
-    </ScrollArea>
+    </div>
   );
 } 

@@ -1322,21 +1322,19 @@ export function ChatLayout() {
       <div className="h-screen flex flex-col bg-background">
         <div className="flex-1 flex overflow-hidden bg-background">
         {/* Sidebar */}
-        <div className={`${sidebarCollapsed ? 'w-16' : 'w-80'} flex flex-col h-full transition-all duration-300 ease-in-out`} style={{ background: 'linear-gradient(180deg, oklch(0.205 0.03 265), oklch(0.18 0.03 268))' }}>
+        <div className={`${sidebarCollapsed ? 'w-16' : 'w-80'} flex-shrink-0 flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out`} style={{ background: 'linear-gradient(180deg, oklch(0.205 0.03 265), oklch(0.18 0.03 268))' }}>
           {/* Header */}
           <div className="h-16 px-4 flex items-center justify-between border-b border-white/10">
             {!sidebarCollapsed ? (
               <>
                 <div className="flex items-center space-x-2">
-                  <div className="h-8 w-8 rounded-[10px] gradient-accent shadow-glow flex items-center justify-center">
-                    <Image
-                      src="/lgu-seal.png"
-                      alt="LGU Seal"
-                      width={24}
-                      height={24}
-                      className="object-contain"
-                    />
-                  </div>
+                  <Image
+                    src="/lgu-seal.png"
+                    alt="LGU Seal"
+                    width={32}
+                    height={32}
+                    className="object-contain"
+                  />
                   <span className="font-semibold text-white">LGU-Chat</span>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -1374,15 +1372,13 @@ export function ChatLayout() {
             ) : (
               <div className="flex flex-col items-center justify-center w-full space-y-1">
                 <div className="relative">
-                  <div className="h-6 w-6 rounded-lg gradient-accent shadow-glow flex items-center justify-center">
-                    <Image
-                      src="/lgu-seal.png"
-                      alt="LGU Seal"
-                      width={16}
-                      height={16}
-                      className="object-contain"
-                    />
-                  </div>
+                  <Image
+                    src="/lgu-seal.png"
+                    alt="LGU Seal"
+                    width={24}
+                    height={24}
+                    className="object-contain"
+                  />
                   {isConnected ? (
                     <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-green-400 text-green-400" />
                   ) : (

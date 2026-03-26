@@ -53,25 +53,23 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[360px] h-[360px] border border-white/[3%] rounded-[40px] rotate-[25deg]" />
 
         {/* Logo */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="h-9 w-9 rounded-[10px] gradient-accent flex items-center justify-center shadow-glow">
-            <Image
-              src="/lgu-seal.png"
-              alt="LGU Seal"
-              width={24}
-              height={24}
-              className="object-contain"
-            />
-          </div>
-          <span className="font-bold text-base text-white">LGU-Chat</span>
+        <div className="relative z-10 flex items-center gap-4">
+          <Image
+            src="/lgu-seal.png"
+            alt="LGU Seal"
+            width={56}
+            height={56}
+            className="object-contain"
+          />
+          <span className="font-bold text-xl text-white">LGU-Chat</span>
         </div>
 
         {/* Tagline */}
         <div className="relative z-10">
-          <h1 className="text-[26px] lg:text-[32px] font-extrabold text-white leading-tight">
+          <h1 className="text-[36px] lg:text-[48px] font-extrabold text-white leading-tight">
             Connect.<br />Collaborate.<br />Communicate.
           </h1>
-          <p className="mt-3 text-sm text-[oklch(0.65_0.015_260)] leading-relaxed">
+          <p className="mt-4 text-base lg:text-lg text-[oklch(0.65_0.015_260)] leading-relaxed">
             The official messaging platform for the<br />
             Local Government of Quezon Bukidnon.
           </p>
@@ -80,20 +78,18 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
       {/* Right Panel — Login Form */}
       <div className="flex-1 bg-[oklch(0.98_0.002_250)] flex flex-col items-center justify-center p-8 lg:p-12 relative">
-        <div className="w-full max-w-[320px]">
+        <div className="w-full max-w-[380px]">
           {/* Icon */}
-          <div className="w-12 h-12 bg-white rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] flex items-center justify-center mb-6">
-            <Image
-              src="/lgu-seal.png"
-              alt="LGU Seal"
-              width={32}
-              height={32}
-              className="object-contain"
-            />
-          </div>
+          <Image
+            src="/lgu-seal.png"
+            alt="LGU Seal"
+            width={80}
+            height={80}
+            className="object-contain mb-8"
+          />
 
-          <h2 className="text-xl font-bold text-foreground mb-1.5">Sign in to your account</h2>
-          <p className="text-sm text-muted-foreground mb-7">Access your secure government workspace</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Sign in to your account</h2>
+          <p className="text-base text-muted-foreground mb-8">Access your secure government workspace</p>
 
           {error && (
             <div
