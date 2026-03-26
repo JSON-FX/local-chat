@@ -1594,8 +1594,7 @@ export function ChatLayout() {
             <div className="px-4 py-3 border-t border-border">
               <p className="text-xs text-muted-foreground text-center leading-relaxed">
                 Developed By Management Information System Section (MISS)<br />
-                Municipality Of Quezon Bukidnon 8715 Philippines<br />
-                All Rights Reserved 2025
+                Local Government of Quezon Bukidnon. All rights reserved.
               </p>
             </div>
           )}

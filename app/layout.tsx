@@ -8,7 +8,10 @@ const fontMono = "Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', mon
 
 export const metadata: Metadata = {
   title: "LGU-Chat - Secure Internal Messaging",
-  description: "Secure, private messaging for Local Government Units requiring air-gapped communication.",
+  description: "Secure, private messaging for the Local Government of Quezon Bukidnon requiring air-gapped communication.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
