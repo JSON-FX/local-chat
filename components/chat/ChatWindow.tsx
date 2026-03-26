@@ -451,7 +451,7 @@ export function ChatWindow({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="h-16 px-6 flex items-center justify-between border-b border-border">
+      <div className="h-16 px-6 flex items-center justify-between bg-white dark:bg-[oklch(0.25_0.035_260)] border-b border-border">
         <div className="flex items-center space-x-3 min-w-0 overflow-hidden">
           <Avatar className={cn("h-8 w-8 shrink-0", selectedConversationType === 'group' && "bg-blue-500/10")}>
             {selectedConversationType === 'group' && conversations.find(c => c.group_id === selectedConversation)?.avatar_path ? (
@@ -486,7 +486,7 @@ export function ChatWindow({
             {typingUsers[selectedConversation] ? (
               <p className="text-xs text-muted-foreground italic">typing...</p>
             ) : (
-              <p className="text-xs text-muted-foreground">
+              <p className={cn("text-xs", isConnected ? "text-green-500" : "text-muted-foreground")}>
                 {isConnected ? 'Online' : 'Offline'}
               </p>
             )}
@@ -614,7 +614,7 @@ export function ChatWindow({
         </div>
       )}
 
-      <ScrollArea className="flex-1 px-6 overflow-hidden" ref={scrollAreaRef}>
+      <ScrollArea className="flex-1 px-6 overflow-hidden bg-[oklch(0.98_0.002_250)] dark:bg-[oklch(0.205_0.03_261)]" ref={scrollAreaRef}>
         <div className="py-4 space-y-4">
           {messages.map((message, index) => {
             // System messages should be displayed differently
@@ -684,10 +684,10 @@ export function ChatWindow({
 
                   <div
                     className={cn(
-                      "max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-2 break-words",
+                      "max-w-[85%] sm:max-w-[75%] break-words",
                       isCurrentUser
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
+                        ? "bg-[#eff6ff] dark:bg-[oklch(0.59_0.16_255_/_15%)] border border-[#dbeafe] dark:border-[oklch(0.59_0.16_255_/_20%)] rounded-[16px_4px_16px_16px] px-3.5 py-2.5"
+                        : "bg-[#f8fafc] dark:bg-white/5 border border-[#f1f5f9] dark:border-white/8 rounded-[4px_16px_16px_16px] px-3.5 py-2.5"
                     )}
                   >
                     {!isCurrentUser && showAvatar && (
@@ -749,11 +749,8 @@ export function ChatWindow({
                     ) : (
                       <p className="text-sm break-words whitespace-pre-wrap">{message.content}</p>
                     )}
-                    <div className="flex items-center justify-between mt-1">
-                      <span className={cn(
-                        "text-xs opacity-70",
-                        isCurrentUser ? "text-primary-foreground" : "text-muted-foreground"
-                      )}>
+                    <div className={cn("flex items-center justify-between mt-1", isCurrentUser && "justify-end")}>
+                      <span className="text-[11px] text-muted-foreground">
                         {formatMessageTime(message.timestamp)}
                       </span>
                       {message.queued ? (
@@ -879,14 +876,14 @@ export function ChatWindow({
       )}
 
       <div className="p-4 border-t border-border">
-        <form onSubmit={handleSubmit} className="flex space-x-2">
+        <form onSubmit={handleSubmit} className="flex items-center gap-2 bg-white dark:bg-white/5 border-2 border-border focus-within:border-[var(--gradient-from)] rounded-xl px-3 py-2 transition-colors">
           <Button
             type="button"
             size="icon"
             variant="ghost"
             onClick={() => setShowFileUpload(true)}
             disabled={!isConnected}
-            className="shrink-0"
+            className="shrink-0 hover:text-[var(--gradient-from)]"
           >
             <Paperclip className="h-4 w-4" />
           </Button>
@@ -894,12 +891,13 @@ export function ChatWindow({
             value={inputValue}
             onChange={handleInputChange}
             placeholder="Type a message..."
-            className="flex-1"
+            className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
             disabled={!isConnected}
           />
-          <Button 
-            type="submit" 
-            size="icon"
+          <Button
+            type="submit"
+            variant="gradient"
+            size="sm"
             disabled={!inputValue.trim() || !isConnected}
           >
             <Send className="h-4 w-4" />
