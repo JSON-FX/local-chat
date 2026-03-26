@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { Loader2, LogIn, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
-import { BetaNotice } from '@/components/ui/beta-notice';
 
 const SSO_LOGIN_URL = process.env.NEXT_PUBLIC_SSO_LOGIN_URL || 'http://lgu-sso-ui.test/sso/login';
 const SSO_CLIENT_ID = process.env.NEXT_PUBLIC_SSO_CLIENT_ID || '';
@@ -46,7 +45,6 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
   return (
     <div className="min-h-screen flex flex-col bg-muted/40">
-      <BetaNotice variant="warning" dismissible={false} persistent={true} />
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
