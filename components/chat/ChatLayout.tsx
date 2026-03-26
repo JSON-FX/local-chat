@@ -1310,7 +1310,7 @@ export function ChatLayout() {
     return (
       <div className="h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-transparent border-t-[var(--gradient-from)] border-r-[var(--gradient-to)] mx-auto"></div>
                       <p className="mt-2 text-muted-foreground">Loading LGU-Chat...</p>
         </div>
       </div>
@@ -1322,13 +1322,13 @@ export function ChatLayout() {
       <div className="h-screen flex flex-col bg-background">
         <div className="flex-1 flex overflow-hidden bg-background">
         {/* Sidebar */}
-        <div className={`${sidebarCollapsed ? 'w-16' : 'w-80'} border-r border-border flex flex-col h-full transition-all duration-300 ease-in-out`}>
+        <div className={`${sidebarCollapsed ? 'w-16' : 'w-80'} flex flex-col h-full transition-all duration-300 ease-in-out`} style={{ background: 'linear-gradient(180deg, oklch(0.205 0.03 265), oklch(0.18 0.03 268))' }}>
           {/* Header */}
-          <div className="h-16 px-4 flex items-center justify-between border-b border-border">
+          <div className="h-16 px-4 flex items-center justify-between border-b border-white/10">
             {!sidebarCollapsed ? (
               <>
                 <div className="flex items-center space-x-2">
-                  <div className="h-8 w-8 rounded-lg bg-white shadow-sm flex items-center justify-center">
+                  <div className="h-8 w-8 rounded-[10px] gradient-accent shadow-glow flex items-center justify-center">
                     <Image
                       src="/lgu-seal.png"
                       alt="LGU Seal"
@@ -1337,7 +1337,7 @@ export function ChatLayout() {
                       className="object-contain"
                     />
                   </div>
-                  <span className="font-semibold">LGU-Chat</span>
+                  <span className="font-semibold text-white">LGU-Chat</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   {/* Notification Status */}
@@ -1345,27 +1345,27 @@ export function ChatLayout() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setupNotifications()}
-                    className="text-muted-foreground hover:text-foreground p-1"
+                    className="text-white/50 hover:text-white p-1"
                     title={notificationPermission === 'granted' ? 'Notifications enabled - you will receive alerts for new messages' :
                            notificationPermission === 'denied' ? 'Notifications blocked - check your browser settings or site permissions' :
                            'Click to enable desktop notifications for new messages'}
                   >
                     {notificationPermission === 'granted' ? (
-                      <Bell className="h-4 w-4 text-green-600" />
+                      <Bell className="h-4 w-4 text-green-400" />
                     ) : (
-                      <BellOff className="h-4 w-4 text-muted-foreground" />
+                      <BellOff className="h-4 w-4 text-white/40" />
                     )}
                   </Button>
 
                   {/* Connection Status */}
                   {isConnected ? (
-                    <Badge variant="secondary" className="text-xs">
-                      <Circle className="h-2 w-2 mr-1 fill-green-500 text-green-500" />
+                    <Badge variant="secondary" className="text-xs bg-white/10 text-white/70 border-0">
+                      <Circle className="h-2 w-2 mr-1 fill-green-400 text-green-400" />
                       Online
                     </Badge>
                   ) : (
-                    <Badge variant="destructive" className="text-xs">
-                      <Circle className="h-2 w-2 mr-1 fill-red-500 text-red-500" />
+                    <Badge variant="destructive" className="text-xs bg-red-500/20 text-red-300 border-0">
+                      <Circle className="h-2 w-2 mr-1 fill-red-400 text-red-400" />
                       Offline
                     </Badge>
                   )}
@@ -1374,7 +1374,7 @@ export function ChatLayout() {
             ) : (
               <div className="flex flex-col items-center justify-center w-full space-y-1">
                 <div className="relative">
-                  <div className="h-6 w-6 rounded bg-white shadow-sm flex items-center justify-center">
+                  <div className="h-6 w-6 rounded-lg gradient-accent shadow-glow flex items-center justify-center">
                     <Image
                       src="/lgu-seal.png"
                       alt="LGU Seal"
@@ -1384,9 +1384,9 @@ export function ChatLayout() {
                     />
                   </div>
                   {isConnected ? (
-                    <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-green-500 text-green-500" />
+                    <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-green-400 text-green-400" />
                   ) : (
-                    <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-red-500 text-red-500" />
+                    <Circle className="absolute -top-1 -right-1 h-3 w-3 fill-red-400 text-red-400" />
                   )}
                 </div>
                 {/* Notification status in collapsed view */}
@@ -1400,9 +1400,9 @@ export function ChatLayout() {
                          'Click to enable desktop notifications for new messages'}
                 >
                   {notificationPermission === 'granted' ? (
-                    <Bell className="h-3 w-3 text-green-600" />
+                    <Bell className="h-3 w-3 text-green-400" />
                   ) : (
-                    <BellOff className="h-3 w-3 text-muted-foreground" />
+                    <BellOff className="h-3 w-3 text-white/40" />
                   )}
                 </Button>
               </div>
@@ -1410,12 +1410,12 @@ export function ChatLayout() {
           </div>
 
           {/* Toggle Button */}
-          <div className="px-2 py-2 border-b border-border">
+          <div className="px-2 py-2 border-b border-white/10">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className={`w-full ${sidebarCollapsed ? 'justify-center' : 'justify-start'} space-x-2`}
+              className={`w-full ${sidebarCollapsed ? 'justify-center' : 'justify-start'} space-x-2 text-white/60 hover:text-white hover:bg-white/10`}
               title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
             >
               {sidebarCollapsed ? (
@@ -1430,7 +1430,7 @@ export function ChatLayout() {
           </div>
 
           {/* New Chat Button */}
-          <div className="p-2 border-b border-border">
+          <div className="p-2 border-b border-white/10">
             <NewChatDialog
               onlineUsers={onlineUsers}
               onStartChat={handleStartChat}
@@ -1457,7 +1457,7 @@ export function ChatLayout() {
 
           {/* User Info - Moved to Bottom */}
           {!sidebarCollapsed && (
-            <div className="p-4 border-t border-border">
+            <div className="p-4 border-t border-white/10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="h-10 w-10 rounded-full overflow-hidden bg-muted flex items-center justify-center">
@@ -1474,17 +1474,17 @@ export function ChatLayout() {
                     )}
                   </div>
                   <div>
-                    <p className="font-medium">
+                    <p className="font-medium text-white">
                       {currentUser?.full_name || currentUser?.username}
                     </p>
                     {currentUser?.position && (
-                      <p className="text-sm text-muted-foreground">{currentUser.position}</p>
+                      <p className="text-sm text-white/50">{currentUser.position}</p>
                     )}
                     {currentUser?.office_name && (
-                      <p className="text-xs text-muted-foreground">{currentUser.office_name}</p>
+                      <p className="text-xs text-white/40">{currentUser.office_name}</p>
                     )}
                     {(!currentUser?.position && !currentUser?.office_name) && (
-                      <p className="text-sm text-muted-foreground capitalize">{currentUser?.role}</p>
+                      <p className="text-sm text-white/50 capitalize">{currentUser?.role}</p>
                     )}
                   </div>
                 </div>
@@ -1498,7 +1498,7 @@ export function ChatLayout() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-muted-foreground hover:text-foreground"
+                          className="text-white/50 hover:text-white hover:bg-white/10"
                         >
                           <Settings className="h-4 w-4" />
                         </Button>
@@ -1515,7 +1515,7 @@ export function ChatLayout() {
                         variant="ghost"
                         size="sm"
                         onClick={handleLogout}
-                        className="text-muted-foreground hover:text-foreground"
+                        className="text-white/50 hover:text-white hover:bg-white/10"
                       >
                         <LogOut className="h-4 w-4" />
                       </Button>
@@ -1531,7 +1531,7 @@ export function ChatLayout() {
 
           {/* Collapsed User Info */}
           {sidebarCollapsed && (
-            <div className="p-2 border-t border-border flex flex-col items-center space-y-1">
+            <div className="p-2 border-t border-white/10 flex flex-col items-center space-y-1">
               {/* User Avatar in collapsed state */}
               <div className="h-8 w-8 rounded-full overflow-hidden bg-muted flex items-center justify-center mb-1">
                 {currentUser?.avatar_path ? (
@@ -1541,7 +1541,7 @@ export function ChatLayout() {
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <span className="text-xs font-semibold">
+                  <span className="text-xs font-semibold text-white">
                     {currentUser?.full_name?.[0] || currentUser?.username?.[0]?.toUpperCase()}
                   </span>
                 )}
@@ -1556,7 +1556,7 @@ export function ChatLayout() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-muted-foreground hover:text-foreground p-2"
+                      className="text-white/50 hover:text-white hover:bg-white/10 p-2"
                     >
                       <Settings className="h-4 w-4" />
                     </Button>
@@ -1573,7 +1573,7 @@ export function ChatLayout() {
                     variant="ghost"
                     size="sm"
                     onClick={handleLogout}
-                    className="text-muted-foreground hover:text-foreground p-2"
+                    className="text-white/50 hover:text-white hover:bg-white/10 p-2"
                   >
                     <LogOut className="h-4 w-4" />
                   </Button>
@@ -1587,7 +1587,7 @@ export function ChatLayout() {
 
           {/* Signature */}
           {!sidebarCollapsed && (
-            <div className="px-4 py-3 border-t border-border">
+            <div className="px-4 py-3 border-t border-white/10">
               <p className="text-xs text-muted-foreground text-center leading-relaxed">
                 Developed By Management Information System Section (MISS)<br />
                 Local Government of Quezon Bukidnon. All rights reserved.
