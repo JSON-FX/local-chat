@@ -113,11 +113,11 @@ export function NewChatDialog({ onlineUsers, onStartChat, onGroupCreated, collap
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         {collapsed ? (
-          <Button size="sm" className="w-full h-10 p-2" title="New Chat">
+          <Button variant="gradient" size="sm" className="w-full h-10 p-2" title="New Chat">
             <Plus className="h-4 w-4" />
           </Button>
         ) : (
-          <Button size="sm" className="w-full">
+          <Button variant="gradient" size="sm" className="w-full">
             <Plus className="h-4 w-4 mr-2" />
             New Chat
           </Button>
