@@ -72,7 +72,6 @@ export function ChatWindow({
   const [isConfirmingLeave, setIsConfirmingLeave] = useState(false);
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
-  const [hoveredMessageId, setHoveredMessageId] = useState<number | null>(null);
   const lastMessageCountRef = useRef(0);
   const lastConversationRef = useRef<number | null>(null);
   
@@ -720,8 +719,6 @@ export function ChatWindow({
                     "flex items-end space-x-2 mb-2 w-full group/message",
                     isCurrentUser ? "justify-end" : "justify-start"
                   )}
-                  onMouseEnter={() => setHoveredMessageId(message.id)}
-                  onMouseLeave={() => setHoveredMessageId(null)}
                 >
                   {!isCurrentUser && (
                     <div className="w-8">
@@ -743,11 +740,11 @@ export function ChatWindow({
 
                   <div className="relative max-w-[85%] sm:max-w-[75%]">
                     {/* Hover reply button */}
-                    {hoveredMessageId === message.id && message.message_type !== 'system' && (
+                    {message.message_type !== 'system' && (
                       <button
                         onClick={() => handleReply(message)}
                         className={cn(
-                          "absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-muted/80 hover:bg-muted border border-border/50 flex items-center justify-center transition-opacity opacity-0 group-hover/message:opacity-100",
+                          "absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-muted/80 hover:bg-muted border border-border/50 flex items-center justify-center transition-opacity duration-150 opacity-0 group-hover/message:opacity-100",
                           isCurrentUser ? "-left-9" : "-right-9"
                         )}
                         title="Reply"
