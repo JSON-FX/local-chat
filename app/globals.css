@@ -183,3 +183,12 @@
     box-shadow: var(--shadow-glow);
   }
 }
+
+@keyframes reply-highlight {
+  0% { background-color: oklch(0.75 0.15 255 / 30%); }
+  100% { background-color: transparent; }
+}
+
+.reply-highlight {
+  animation: reply-highlight 1.5s ease-out;
+}

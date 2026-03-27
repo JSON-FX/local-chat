@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Send, Circle, Paperclip, Download, Image as ImageIcon, ArrowDown, Users, Settings, Trash2, LogOut, MessageSquare, MoreVertical, UserMinus, File, FileText, FileSpreadsheet, FileBox, FileJson } from 'lucide-react';
-import { Message, User, Conversation } from '@/lib/types';
+import { Send, Circle, Paperclip, Download, Image as ImageIcon, ArrowDown, Users, Settings, Trash2, LogOut, MessageSquare, MoreVertical, UserMinus, File, FileText, FileSpreadsheet, FileBox, FileJson, Reply, X } from 'lucide-react';
+import { Message, User, Conversation, ReplyTo } from '@/lib/types';
 import { socketClient } from '@/lib/socket-client';
 import { cn } from '@/lib/utils';
 import { ImageModal } from '@/components/ui/image-modal';
@@ -71,6 +71,8 @@ export function ChatWindow({
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isConfirmingLeave, setIsConfirmingLeave] = useState(false);
   const [userHasScrolled, setUserHasScrolled] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [hoveredMessageId, setHoveredMessageId] = useState<number | null>(null);
   const lastMessageCountRef = useRef(0);
   const lastConversationRef = useRef<number | null>(null);
   
@@ -119,6 +121,7 @@ export function ChatWindow({
   // Reset scroll behavior when conversation changes
   useEffect(() => {
     setUserHasScrolled(false);
+    setReplyingTo(null);
     
     // Force scroll to bottom for new conversation
     const timer = setTimeout(() => {
@@ -253,8 +256,9 @@ export function ChatWindow({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim() && currentUser) {
-      onSendMessage(inputValue);
+      onSendMessage(inputValue, replyingTo?.id);
       setInputValue('');
+      setReplyingTo(null);
       handleStopTyping();
       
       // Scroll to bottom after sending a message
@@ -285,6 +289,12 @@ export function ChatWindow({
     }, 2000);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && replyingTo) {
+      cancelReply();
+    }
+  };
+
   const handleStopTyping = () => {
     if (isTyping) {
       setIsTyping(false);
@@ -298,6 +308,54 @@ export function ChatWindow({
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
+  };
+
+  // Reply handlers
+  const handleReply = (message: Message) => {
+    setReplyingTo(message);
+    // Focus the input field
+    const inputEl = document.querySelector('input[placeholder="Type a message..."]') as HTMLInputElement;
+    if (inputEl) inputEl.focus();
+  };
+
+  const cancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  const scrollToMessage = (messageId: number) => {
+    const messageEl = document.querySelector(`[data-message-id="${messageId}"]`) as HTMLElement;
+    if (messageEl) {
+      messageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      messageEl.classList.add('reply-highlight');
+      setTimeout(() => messageEl.classList.remove('reply-highlight'), 1500);
+    } else {
+      toast('Original message is not in view');
+    }
+  };
+
+  // Truncate text for reply preview
+  const truncateText = (text: string, maxLength: number = 60) => {
+    if (!text) return '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+  };
+
+  // Get reply preview display text
+  const getReplyPreviewText = (message: Message | ReplyTo) => {
+    if ('is_deleted' in message && message.is_deleted) {
+      return 'Original message was deleted';
+    }
+    if (message.message_type === 'image') {
+      return message.file_name || 'Photo';
+    }
+    if (message.message_type === 'file') {
+      return message.file_name || 'File';
+    }
+    return truncateText(message.content);
+  };
+
+  // Get reply sender name
+  const getReplySenderName = (message: Message) => {
+    return formatSenderName(message);
   };
 
   useEffect(() => {
@@ -654,15 +712,16 @@ export function ChatWindow({
                   ref={(el) => {
                     if (el && selectedConversationType === 'group') {
                       messageRefs.current.set(message.id, el);
-                      console.log(`🔍 DEBUG: Set ref for message ${message.id}`);
                     }
                   }}
                   data-message-id={message.id}
                   data-sender-id={message.sender_id}
                   className={cn(
-                    "flex items-end space-x-2 mb-2 w-full",
+                    "flex items-end space-x-2 mb-2 w-full group/message",
                     isCurrentUser ? "justify-end" : "justify-start"
                   )}
+                  onMouseEnter={() => setHoveredMessageId(message.id)}
+                  onMouseLeave={() => setHoveredMessageId(null)}
                 >
                   {!isCurrentUser && (
                     <div className="w-8">
@@ -682,20 +741,76 @@ export function ChatWindow({
                     </div>
                   )}
 
-                  <div
-                    className={cn(
-                      "max-w-[85%] sm:max-w-[75%] break-words",
+                  <div className="relative max-w-[85%] sm:max-w-[75%]">
+                    {/* Hover reply button */}
+                    {hoveredMessageId === message.id && message.message_type !== 'system' && (
+                      <button
+                        onClick={() => handleReply(message)}
+                        className={cn(
+                          "absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-muted/80 hover:bg-muted border border-border/50 flex items-center justify-center transition-opacity opacity-0 group-hover/message:opacity-100",
+                          isCurrentUser ? "-left-9" : "-right-9"
+                        )}
+                        title="Reply"
+                      >
+                        <Reply className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    )}
+                    {/* Message bubble */}
+                    <div className={cn(
+                      "break-words",
                       isCurrentUser
                         ? "bg-[#eff6ff] dark:bg-[oklch(0.59_0.16_255_/_15%)] border border-[#dbeafe] dark:border-[oklch(0.59_0.16_255_/_20%)] rounded-[16px_4px_16px_16px] px-3.5 py-2.5"
                         : "bg-[#f8fafc] dark:bg-white/5 border border-[#f1f5f9] dark:border-white/8 rounded-[4px_16px_16px_16px] px-3.5 py-2.5"
-                    )}
-                  >
+                    )}>
                     {!isCurrentUser && showAvatar && (
                       <p className="text-xs font-medium mb-1 opacity-70">
                         {formatSenderName(message)}
                       </p>
                     )}
-                    
+
+                    {/* Reply preview */}
+                    {message.reply_to && (
+                      <div
+                        onClick={() => scrollToMessage(message.reply_to!.id)}
+                        className={cn(
+                          "rounded-lg p-2 mb-2 cursor-pointer transition-colors text-xs",
+                          isCurrentUser
+                            ? "bg-white/15 hover:bg-white/20"
+                            : "bg-black/5 hover:bg-black/8 dark:bg-white/8 dark:hover:bg-white/12"
+                        )}
+                      >
+                        <p className={cn(
+                          "font-semibold mb-0.5",
+                          isCurrentUser ? "opacity-90" : "text-primary"
+                        )}>
+                          {message.reply_to.sender_name}
+                        </p>
+                        <div className={cn(
+                          "flex items-center gap-2",
+                          isCurrentUser ? "opacity-75" : "opacity-60"
+                        )}>
+                          {message.reply_to.message_type === 'image' && message.reply_to.file_path && (
+                            <img
+                              src={`/api/files/download/${message.reply_to.file_path.split('/').pop()}`}
+                              alt=""
+                              className="w-9 h-9 rounded object-cover shrink-0"
+                            />
+                          )}
+                          {message.reply_to.message_type === 'file' && (
+                            <div className="w-9 h-9 rounded bg-black/10 dark:bg-white/10 flex items-center justify-center shrink-0">
+                              {getFileIcon(message.reply_to.file_name || '')}
+                            </div>
+                          )}
+                          <span className={cn(
+                            "truncate",
+                            message.reply_to.is_deleted && "italic opacity-60"
+                          )}>
+                            {getReplyPreviewText(message.reply_to)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Message content based on type */}
                     {message.message_type === 'image' && message.file_path ? (
                       <div className="space-y-2">
@@ -853,7 +968,8 @@ export function ChatWindow({
                         </div>
                       );
                     })()}
-                  </div>
+                    </div>  {/* close message bubble */}
+                  </div>  {/* close relative wrapper */}
                 </div>
               </div>
             );
@@ -876,6 +992,25 @@ export function ChatWindow({
       )}
 
       <div className="p-4 border-t border-border">
+        {/* Reply banner */}
+        {replyingTo && (
+          <div className="flex items-center justify-between gap-2 mb-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-primary">
+                Replying to {getReplySenderName(replyingTo)}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {getReplyPreviewText(replyingTo)}
+              </p>
+            </div>
+            <button
+              onClick={cancelReply}
+              className="shrink-0 p-1 rounded hover:bg-muted transition-colors"
+            >
+              <X className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="flex items-center gap-2 bg-white dark:bg-white/5 border-2 border-border focus-within:border-[var(--gradient-from)] rounded-xl px-3 py-2 transition-colors">
           <Button
             type="button"
@@ -890,6 +1025,7 @@ export function ChatWindow({
           <Input
             value={inputValue}
             onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
             disabled={!isConnected}
