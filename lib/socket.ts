@@ -233,6 +233,7 @@ export class SocketService {
         group_id?: number;
         content: string;
         message_type?: string;
+        reply_to_id?: number;
       }) => {
         try {
           const userSession = socketSessions.get(socket.id);
@@ -258,7 +259,8 @@ export class SocketService {
             recipient_id: data.recipient_id,
             group_id: data.group_id,
             content: data.content.trim(),
-            message_type: (data.message_type as 'text' | 'file' | 'image') || 'text'
+            message_type: (data.message_type as 'text' | 'file' | 'image') || 'text',
+            reply_to_id: data.reply_to_id || undefined
           };
 
           // Add file properties if they exist (for file uploads via socket)

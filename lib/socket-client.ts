@@ -359,7 +359,7 @@ class SocketClient {
   }
 
   // Send a message
-  sendMessage(recipientId: number, content: string, messageType: 'text' | 'file' | 'image' = 'text', fileData?: { file_path?: string; file_name?: string; file_size?: number }) {
+  sendMessage(recipientId: number, content: string, messageType: 'text' | 'file' | 'image' = 'text', fileData?: { file_path?: string; file_name?: string; file_size?: number }, replyToId?: number) {
     if (!this.socket?.connected) {
       throw new Error('Socket not connected');
     }
@@ -368,12 +368,13 @@ class SocketClient {
       recipient_id: recipientId,
       content,
       message_type: messageType,
-      ...fileData
+      ...fileData,
+      ...(replyToId ? { reply_to_id: replyToId } : {})
     });
   }
 
   // Send a group message
-  sendGroupMessage(groupId: number, content: string, messageType: 'text' | 'file' | 'image' = 'text', fileData?: { file_path?: string; file_name?: string; file_size?: number }) {
+  sendGroupMessage(groupId: number, content: string, messageType: 'text' | 'file' | 'image' = 'text', fileData?: { file_path?: string; file_name?: string; file_size?: number }, replyToId?: number) {
     if (!this.socket?.connected) {
       throw new Error('Socket not connected');
     }
@@ -382,7 +383,8 @@ class SocketClient {
       group_id: groupId,
       content,
       message_type: messageType,
-      ...fileData
+      ...fileData,
+      ...(replyToId ? { reply_to_id: replyToId } : {})
     });
   }
 

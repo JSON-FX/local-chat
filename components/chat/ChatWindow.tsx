@@ -26,7 +26,7 @@ interface ChatWindowProps {
   currentUser: User | null;
   selectedConversation: number;
   selectedConversationType: 'direct' | 'group';
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, replyToId?: number) => void;
   isConnected: boolean;
   conversations: Conversation[];
   typingUsers: { [userId: number]: boolean };

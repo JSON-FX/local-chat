@@ -1217,22 +1217,22 @@ export function ChatLayout() {
     }
   };
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, replyToId?: number) => {
     if (!content.trim() || !selectedConversation) return;
 
     try {
       // Try to send via socket first (real-time)
       if (socketClient.isConnected()) {
         if (selectedConversationType === 'group') {
-          socketClient.sendGroupMessage(selectedConversation.group_id || 0, content.trim());
+          socketClient.sendGroupMessage(selectedConversation.group_id || 0, content.trim(), 'text', undefined, replyToId);
         } else {
-          socketClient.sendMessage(selectedConversation.other_user_id, content.trim());
+          socketClient.sendMessage(selectedConversation.other_user_id, content.trim(), 'text', undefined, replyToId);
         }
       } else {
         // Fallback to HTTP API
         const response = selectedConversationType === 'group'
-          ? await apiService.sendGroupMessage(selectedConversation.group_id || 0, content.trim())
-          : await apiService.sendMessage(selectedConversation.other_user_id, content.trim());
+          ? await apiService.sendGroupMessage(selectedConversation.group_id || 0, content.trim(), 'text', replyToId)
+          : await apiService.sendMessage(selectedConversation.other_user_id, content.trim(), 'text', replyToId);
 
         if (response.success && response.data) {
           setMessages(prev => [...prev, response.data!]);

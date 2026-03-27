@@ -86,7 +86,8 @@ class ApiService {
   async sendMessage(
     recipientId: number,
     content: string,
-    messageType: 'text' | 'file' | 'image' = 'text'
+    messageType: 'text' | 'file' | 'image' = 'text',
+    replyToId?: number
   ): Promise<ApiResponse<Message>> {
     return this.fetchApi<Message>('/api/messages/send', {
       method: 'POST',
@@ -94,6 +95,7 @@ class ApiService {
         recipient_id: recipientId,
         content,
         message_type: messageType,
+        ...(replyToId ? { reply_to_id: replyToId } : {}),
       }),
     });
   }
@@ -101,7 +103,8 @@ class ApiService {
   async sendGroupMessage(
     groupId: number,
     content: string,
-    messageType: 'text' | 'file' | 'image' = 'text'
+    messageType: 'text' | 'file' | 'image' = 'text',
+    replyToId?: number
   ): Promise<ApiResponse<Message>> {
     return this.fetchApi<Message>('/api/messages/send', {
       method: 'POST',
@@ -109,6 +112,7 @@ class ApiService {
         group_id: groupId,
         content,
         message_type: messageType,
+        ...(replyToId ? { reply_to_id: replyToId } : {}),
       }),
     });
   }
