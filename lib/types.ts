@@ -14,6 +14,8 @@ export interface User {
   profile_synced_at?: string;
   created_at: string;
   last_login?: string;
+  bubble_style?: string;
+  theme?: string;
 }
 
 export interface ReplyTo {

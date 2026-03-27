@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
     const db = await getDatabase();
     const fullUser = await db.get(
-      'SELECT id, sso_employee_uuid, username, role, sso_role, full_name, position, office_name, email, avatar_path, created_at, last_login, profile_synced_at FROM users WHERE id = ?',
+      'SELECT id, sso_employee_uuid, username, role, sso_role, full_name, position, office_name, email, avatar_path, created_at, last_login, profile_synced_at, profile_data FROM users WHERE id = ?',
       [user.id]
     );
 
@@ -19,9 +19,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Parse profile_data JSON and merge preferences into response
+    let preferences: Record<string, any> = {};
+    if (fullUser.profile_data) {
+      try {
+        preferences = JSON.parse(fullUser.profile_data);
+      } catch {
+        // Ignore malformed JSON
+      }
+    }
+
+    const { profile_data, ...userData } = fullUser;
+
     return NextResponse.json({
       success: true,
-      data: fullUser,
+      data: {
+        ...userData,
+        bubble_style: preferences.bubble_style || 'default',
+        theme: preferences.theme || 'system',
+      },
       message: 'User profile retrieved successfully'
     });
   } catch (error: any) {
