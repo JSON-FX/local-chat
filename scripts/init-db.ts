@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 
-import { initializeDatabase, createSystemUser, cleanupExpiredSessions } from '../lib/schema';
+import { initializeDatabase, createSystemUser, cleanupExpiredSessions, runMigrations } from '../lib/schema';
 import { closeDatabase } from '../lib/database';
 
 async function initDb() {
@@ -9,6 +9,9 @@ async function initDb() {
 
     // Initialize database schema
     await initializeDatabase();
+
+    // Run migrations for existing databases
+    await runMigrations();
 
     // Create system user for system messages
     await createSystemUser();

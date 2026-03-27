@@ -212,7 +212,7 @@ export const initializeDatabase = async (): Promise<void> => {
 };
 
 // Run database migrations for existing databases
-const runMigrations = async (): Promise<void> => {
+export const runMigrations = async (): Promise<void> => {
   const db = await getDatabase();
 
   try {
@@ -286,6 +286,17 @@ const runMigrations = async (): Promise<void> => {
       // Update existing rows to have a default last_activity value
       await db.run('UPDATE sessions SET last_activity = created_at WHERE last_activity IS NULL');
       console.log('last_activity column added to sessions table');
+    }
+
+    // Check and add reply_to_id column to messages table
+    const messagesTableInfo = await db.all("PRAGMA table_info(messages)");
+    const messagesColumns = messagesTableInfo.map((column: any) => column.name);
+
+    if (!messagesColumns.includes('reply_to_id')) {
+      console.log('Adding reply_to_id column to messages table...');
+      await db.run('ALTER TABLE messages ADD COLUMN reply_to_id INTEGER REFERENCES messages(id)');
+      await db.run('CREATE INDEX IF NOT EXISTS idx_messages_reply_to_id ON messages(reply_to_id)');
+      console.log('reply_to_id column added to messages table');
     }
   } catch (error) {
     console.error('Error running migrations:', error);
