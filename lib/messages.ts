@@ -217,7 +217,7 @@ export class MessageService {
             rm.id AS reply_to_message_id,
             rm.content AS reply_to_content,
             rm.message_type AS reply_to_message_type,
-            rm.file_name AS reply_to_file_name,
+            COALESCE(rm.file_name, rm.original_filename) AS reply_to_file_name,
             rm.file_path AS reply_to_file_path,
             rm.file_type AS reply_to_file_type,
             rm.sender_id AS reply_to_sender_id,
@@ -231,7 +231,7 @@ export class MessageService {
           WHERE m.sender_id = ? ORDER BY m.id DESC LIMIT 1`,
           [messageData.sender_id]
         );
-        return message;
+        return MessageService.formatReplyData(message);
       }
 
       const message = await db.get(
@@ -239,7 +239,7 @@ export class MessageService {
           rm.id AS reply_to_message_id,
           rm.content AS reply_to_content,
           rm.message_type AS reply_to_message_type,
-          rm.file_name AS reply_to_file_name,
+          COALESCE(rm.file_name, rm.original_filename) AS reply_to_file_name,
           rm.file_path AS reply_to_file_path,
           rm.file_type AS reply_to_file_type,
           rm.sender_id AS reply_to_sender_id,
@@ -256,8 +256,8 @@ export class MessageService {
       if (!message) {
         throw new Error('Failed to retrieve created message');
       }
-      
-      return message;
+
+      return MessageService.formatReplyData(message);
     } catch (error) {
       throw error;
     }
@@ -283,7 +283,7 @@ export class MessageService {
          rm.id AS reply_to_message_id,
          rm.content AS reply_to_content,
          rm.message_type AS reply_to_message_type,
-         rm.file_name AS reply_to_file_name,
+         COALESCE(rm.file_name, rm.original_filename) AS reply_to_file_name,
          rm.file_path AS reply_to_file_path,
          rm.file_type AS reply_to_file_type,
          rm.sender_id AS reply_to_sender_id,
@@ -339,7 +339,7 @@ export class MessageService {
         rm.id AS reply_to_message_id,
         rm.content AS reply_to_content,
         rm.message_type AS reply_to_message_type,
-        rm.file_name AS reply_to_file_name,
+        COALESCE(rm.file_name, rm.original_filename) AS reply_to_file_name,
         rm.file_path AS reply_to_file_path,
         rm.file_type AS reply_to_file_type,
         rm.sender_id AS reply_to_sender_id,

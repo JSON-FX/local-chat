@@ -118,6 +118,7 @@ export interface SocketEvents {
     file_path?: string;
     file_name?: string;
     file_size?: number;
+    reply_to_id?: number;
   };
   typing_start: { recipient_id?: number; group_id?: number };
   typing_stop: { recipient_id?: number; group_id?: number };
