@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth(request);
     
     const body = await request.json();
-    const { recipient_id, group_id, content, message_type, file_path, file_name, file_size } = body;
+    const { recipient_id, group_id, content, message_type, file_path, file_name, file_size, reply_to_id } = body;
 
     // Validate input
     if (!content || content.trim() === '') {
@@ -28,6 +28,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate reply_to_id if provided
+    if (reply_to_id) {
+      const { getDatabase } = await import('../../../../lib/database');
+      const db = await getDatabase();
+      const originalMessage = await db.get('SELECT id, sender_id, recipient_id, group_id FROM messages WHERE id = ? AND is_deleted = 0', [reply_to_id]);
+
+      if (!originalMessage) {
+        return NextResponse.json(
+          { success: false, error: 'Original message not found' },
+          { status: 400 }
+        );
+      }
+
+      // Validate same conversation: for DMs, the original must involve the same two users
+      if (recipient_id) {
+        const isDmMatch =
+          (originalMessage.sender_id === user.id && originalMessage.recipient_id === recipient_id) ||
+          (originalMessage.sender_id === recipient_id && originalMessage.recipient_id === user.id);
+        if (!isDmMatch || originalMessage.group_id) {
+          return NextResponse.json(
+            { success: false, error: 'Cannot reply to a message from a different conversation' },
+            { status: 400 }
+          );
+        }
+      }
+
+      // For group messages, the original must be in the same group
+      if (group_id) {
+        if (originalMessage.group_id !== group_id) {
+          return NextResponse.json(
+            { success: false, error: 'Cannot reply to a message from a different conversation' },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Build message data with proper typing
     const messageData: CreateMessageData = {
       sender_id: user.id,
@@ -37,7 +74,8 @@ export async function POST(request: NextRequest) {
       message_type: message_type || 'text',
       file_path: file_path,
       file_name: file_name,
-      file_size: file_size
+      file_size: file_size,
+      reply_to_id: reply_to_id || undefined
     };
 
     // Send message
