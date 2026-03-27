@@ -27,6 +27,7 @@ import { User, Conversation, Message } from '@/lib/types';
 import { incrementUnreadCount, clearUnreadCount } from '@/lib/hooks/useReadStatus';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useReadStatus } from '@/lib/hooks/useReadStatus';
+import { useTheme } from 'next-themes';
 
 // Debounce utility function
 function debounce<T extends (...args: any[]) => any>(
@@ -77,6 +78,15 @@ export function ChatLayout() {
     selectedConversationType,
     isConnected
   });
+
+  const { setTheme } = useTheme();
+
+  // Sync saved theme preference when user data loads
+  useEffect(() => {
+    if (currentUser?.theme) {
+      setTheme(currentUser.theme);
+    }
+  }, [currentUser?.theme, setTheme]);
 
   // Debounced conversation loading to prevent excessive API calls
   const debouncedLoadConversations = useCallback(debounce(async () => {
