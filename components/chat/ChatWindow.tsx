@@ -20,6 +20,8 @@ import { apiService } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import path from 'path';
 import { useReadStatus } from '@/lib/hooks/useReadStatus';
+import { getBubbleStyle } from '@/lib/bubble-presets';
+import { useTheme } from 'next-themes';
 
 interface ChatWindowProps {
   messages: Message[];
@@ -74,7 +76,10 @@ export function ChatWindow({
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const lastMessageCountRef = useRef(0);
   const lastConversationRef = useRef<number | null>(null);
-  
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  const bubbleStyle = currentUser?.bubble_style || 'default';
+
   // Read status hook
   const { markAllUnreadAsRead, markMessagesAsRead } = useReadStatus({
     messages,
@@ -753,12 +758,15 @@ export function ChatWindow({
                       </button>
                     )}
                     {/* Message bubble */}
-                    <div className={cn(
-                      "break-words",
-                      isCurrentUser
-                        ? "bg-[#eff6ff] dark:bg-[oklch(0.59_0.16_255_/_15%)] border border-[#dbeafe] dark:border-[oklch(0.59_0.16_255_/_20%)] rounded-[16px_4px_16px_16px] px-3.5 py-2.5"
-                        : "bg-[#f8fafc] dark:bg-white/5 border border-[#f1f5f9] dark:border-white/8 rounded-[4px_16px_16px_16px] px-3.5 py-2.5"
-                    )}>
+                    <div
+                      className={cn(
+                        "break-words border",
+                        isCurrentUser
+                          ? "rounded-[16px_4px_16px_16px] px-3.5 py-2.5"
+                          : "bg-[#f8fafc] dark:bg-white/5 border-[#f1f5f9] dark:border-white/8 rounded-[4px_16px_16px_16px] px-3.5 py-2.5"
+                      )}
+                      style={isCurrentUser ? getBubbleStyle(bubbleStyle, isDark) : undefined}
+                    >
                     {!isCurrentUser && showAvatar && (
                       <p className="text-xs font-medium mb-1 opacity-70">
                         {formatSenderName(message)}
