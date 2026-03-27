@@ -1,0 +1,114 @@
+<h2>Reply Previews by Message Type</h2>
+<p class="subtitle">How replies look when the original message is text, an image, or a file. All use the embedded quote style.</p>
+
+<div style="max-width: 520px; margin: 0 auto;">
+  <div style="display: flex; flex-direction: column; gap: 20px; font-family: system-ui; font-size: 13px;">
+
+    <!-- Section: Text Reply -->
+    <div>
+      <div class="label" style="margin-bottom: 8px;">Reply to Text Message</div>
+      <div style="background: #0f172a; border-radius: 16px; padding: 16px;">
+        <!-- Original message -->
+        <div style="display: flex; align-items: flex-start; gap: 8px; max-width: 80%; margin-bottom: 10px;">
+          <div style="width: 28px; height: 28px; border-radius: 50%; background: #6366f1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">JD</div>
+          <div>
+            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">John Doe</div>
+            <div style="background: #1e293b; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 8px 12px; color: #e2e8f0;">
+              Has anyone reviewed the latest PR for the auth module? There are some edge cases I'm worried about.
+            </div>
+          </div>
+        </div>
+        <!-- Reply -->
+        <div style="align-self: flex-end; max-width: 80%; margin-left: auto;">
+          <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 12px; padding: 8px 12px; color: white;">
+            <div style="background: rgba(255,255,255,0.15); border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; font-size: 11px; cursor: pointer;">
+              <div style="font-weight: 600; margin-bottom: 2px; opacity: 0.9;">John Doe</div>
+              <div style="opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px;">Has anyone reviewed the latest PR for the auth mo...</div>
+            </div>
+            I'll take a look this afternoon, I spotted those edge cases too.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Image Reply -->
+    <div>
+      <div class="label" style="margin-bottom: 8px;">Reply to Image Message</div>
+      <div style="background: #0f172a; border-radius: 16px; padding: 16px;">
+        <!-- Original image message -->
+        <div style="display: flex; align-items: flex-start; gap: 8px; max-width: 80%; margin-bottom: 10px;">
+          <div style="width: 28px; height: 28px; border-radius: 50%; background: #ec4899; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">AS</div>
+          <div>
+            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">Ana Santos</div>
+            <div style="background: #1e293b; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 8px; color: #e2e8f0;">
+              <div style="width: 200px; height: 120px; background: linear-gradient(135deg, #1e3a5f, #2d5a87, #1e3a5f); border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              </div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">screenshot_dashboard.png</div>
+            </div>
+          </div>
+        </div>
+        <!-- Reply to image -->
+        <div style="align-self: flex-end; max-width: 80%; margin-left: auto;">
+          <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 12px; padding: 8px 12px; color: white;">
+            <div style="background: rgba(255,255,255,0.15); border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+              <!-- Thumbnail -->
+              <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #1e3a5f, #2d5a87); border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              </div>
+              <div>
+                <div style="font-weight: 600; margin-bottom: 1px; opacity: 0.9;">Ana Santos</div>
+                <div style="opacity: 0.75; display: flex; align-items: center; gap: 4px;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                  screenshot_dashboard.png
+                </div>
+              </div>
+            </div>
+            The sidebar looks great! Can we add a badge count on the nav items?
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: File Reply -->
+    <div>
+      <div class="label" style="margin-bottom: 8px;">Reply to File Message</div>
+      <div style="background: #0f172a; border-radius: 16px; padding: 16px;">
+        <!-- Original file message -->
+        <div style="display: flex; align-items: flex-start; gap: 8px; max-width: 80%; margin-bottom: 10px;">
+          <div style="width: 28px; height: 28px; border-radius: 50%; background: #f59e0b; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">MR</div>
+          <div>
+            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">Maria Reyes</div>
+            <div style="background: #1e293b; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 8px 12px; color: #e2e8f0; display: flex; align-items: center; gap: 8px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+              <div>
+                <div style="font-size: 12px;">Q1_Budget_Report.xlsx</div>
+                <div style="font-size: 10px; color: #64748b;">245 KB</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Reply to file -->
+        <div style="align-self: flex-end; max-width: 80%; margin-left: auto;">
+          <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 12px; padding: 8px 12px; color: white;">
+            <div style="background: rgba(255,255,255,0.15); border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+              <!-- File icon -->
+              <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.1); border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+              </div>
+              <div>
+                <div style="font-weight: 600; margin-bottom: 1px; opacity: 0.9;">Maria Reyes</div>
+                <div style="opacity: 0.75; display: flex; align-items: center; gap: 4px;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                  Q1_Budget_Report.xlsx
+                </div>
+              </div>
+            </div>
+            Numbers on page 3 look off — can you double check the formulas?
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

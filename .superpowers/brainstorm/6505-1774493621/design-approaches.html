@@ -1,0 +1,242 @@
+<h2>LGU-Chat UI Redesign — Pick a Design Direction</h2>
+<p class="subtitle">3 approaches for the modern SaaS chat look. Click to select your favorite.</p>
+
+<div class="cards">
+
+  <!-- Option A: Polished Professional -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#334155 100%);padding:16px;height:340px;display:flex;gap:8px;font-family:system-ui;font-size:11px;color:#e2e8f0;">
+        <!-- Sidebar -->
+        <div style="width:200px;background:rgba(255,255,255,0.05);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);">
+            <div style="width:28px;height:28px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:white;">L</div>
+            <span style="font-weight:600;font-size:13px;">LGU-Chat</span>
+          </div>
+          <div style="background:linear-gradient(135deg,#3b82f6,#2563eb);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:500;color:white;text-align:center;">+ New Chat</div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:2px;margin-top:4px;">
+            <div style="background:rgba(59,130,246,0.15);border-radius:8px;padding:8px;border-left:3px solid #3b82f6;">
+              <div style="font-weight:600;font-size:11px;">Juan Dela Cruz</div>
+              <div style="font-size:10px;opacity:0.6;margin-top:2px;">Hey, about the report...</div>
+            </div>
+            <div style="padding:8px;border-radius:8px;opacity:0.7;">
+              <div style="font-weight:500;font-size:11px;">Maria Santos</div>
+              <div style="font-size:10px;opacity:0.6;margin-top:2px;">Thanks for the update</div>
+            </div>
+            <div style="padding:8px;border-radius:8px;opacity:0.7;">
+              <div style="display:flex;align-items:center;gap:4px;">
+                <span style="font-size:9px;">👥</span>
+                <span style="font-weight:500;font-size:11px;">IT Department</span>
+              </div>
+              <div style="font-size:10px;opacity:0.6;margin-top:2px;">Meeting at 2pm</div>
+            </div>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;display:flex;align-items:center;gap:8px;">
+            <div style="width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#6366f1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;">J</div>
+            <div><div style="font-size:11px;font-weight:500;">John Doe</div><div style="font-size:9px;opacity:0.5;">Admin</div></div>
+          </div>
+        </div>
+        <!-- Chat area -->
+        <div style="flex:1;background:rgba(255,255,255,0.03);border-radius:12px;padding:12px;display:flex;flex-direction:column;">
+          <div style="padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:between;gap:8px;">
+            <div style="width:24px;height:24px;background:#22c55e;border-radius:50%;opacity:0.8;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;">J</div>
+            <div><div style="font-weight:600;font-size:12px;">Juan Dela Cruz</div><div style="font-size:9px;color:#22c55e;">Online</div></div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;padding:12px 0;">
+            <div style="display:flex;gap:8px;align-items:flex-start;">
+              <div style="width:24px;height:24px;background:#6366f1;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;">J</div>
+              <div style="background:rgba(255,255,255,0.06);border-radius:4px 12px 12px 12px;padding:8px 12px;max-width:70%;">
+                <div style="font-size:11px;">Hey, have you reviewed the quarterly report?</div>
+                <div style="font-size:9px;opacity:0.4;margin-top:4px;">10:30 AM</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:flex-start;flex-direction:row-reverse;">
+              <div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-radius:12px 4px 12px 12px;padding:8px 12px;max-width:70%;">
+                <div style="font-size:11px;">Yes, I'll send my comments by 3pm today</div>
+                <div style="font-size:9px;opacity:0.5;margin-top:4px;text-align:right;">10:32 AM ✓✓</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;background:rgba(255,255,255,0.05);border-radius:12px;padding:8px 12px;">
+            <span style="opacity:0.4;font-size:12px;">📎</span>
+            <div style="flex:1;font-size:11px;opacity:0.4;">Type a message...</div>
+            <div style="background:linear-gradient(135deg,#3b82f6,#2563eb);border-radius:8px;padding:4px 12px;font-size:10px;font-weight:500;">Send</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Polished Professional</h3>
+      <p>Dark sidebar with glass-like panels, blue gradient accents, smooth rounded corners. Feels like a premium enterprise tool. Strong visual hierarchy with subtle depth effects.</p>
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Premium, modern feel</li><li>Great dark mode foundation</li><li>Strong brand presence</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Heavier visual weight</li><li>More contrast to manage</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option B: Clean & Airy -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden;">
+      <div style="background:#f8fafc;padding:16px;height:340px;display:flex;gap:1px;font-family:system-ui;font-size:11px;color:#1e293b;border-radius:8px 8px 0 0;">
+        <!-- Sidebar -->
+        <div style="width:200px;background:white;padding:12px;display:flex;flex-direction:column;gap:8px;border-right:1px solid #e2e8f0;">
+          <div style="display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:1px solid #f1f5f9;">
+            <div style="width:28px;height:28px;background:#1e3a5f;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:white;">L</div>
+            <span style="font-weight:600;font-size:13px;color:#0f172a;">LGU-Chat</span>
+          </div>
+          <div style="background:#1e3a5f;border-radius:8px;padding:8px 10px;font-size:11px;font-weight:500;color:white;text-align:center;">+ New Chat</div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:2px;margin-top:4px;">
+            <div style="background:#eff6ff;border-radius:8px;padding:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:600;font-size:11px;color:#0f172a;">Juan Dela Cruz</span>
+                <span style="font-size:9px;color:#94a3b8;">10:30</span>
+              </div>
+              <div style="font-size:10px;color:#64748b;margin-top:3px;">Hey, about the report...</div>
+            </div>
+            <div style="padding:10px;border-radius:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:500;font-size:11px;">Maria Santos</span>
+                <span style="font-size:9px;color:#94a3b8;">9:15</span>
+              </div>
+              <div style="font-size:10px;color:#64748b;margin-top:3px;">Thanks for the update</div>
+            </div>
+            <div style="padding:10px;border-radius:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="display:flex;align-items:center;gap:4px;"><span style="font-size:9px;">👥</span><span style="font-weight:500;font-size:11px;">IT Department</span></div>
+                <span style="font-size:9px;color:#94a3b8;">Yesterday</span>
+              </div>
+              <div style="font-size:10px;color:#64748b;margin-top:3px;">Meeting at 2pm</div>
+            </div>
+          </div>
+          <div style="border-top:1px solid #f1f5f9;padding-top:10px;display:flex;align-items:center;gap:8px;">
+            <div style="width:32px;height:32px;background:linear-gradient(135deg,#1e3a5f,#2563eb);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;color:white;">J</div>
+            <div><div style="font-size:11px;font-weight:500;">John Doe</div><div style="font-size:9px;color:#94a3b8;">Admin</div></div>
+          </div>
+        </div>
+        <!-- Chat area -->
+        <div style="flex:1;background:white;padding:12px;display:flex;flex-direction:column;">
+          <div style="padding-bottom:10px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px;">
+            <div style="width:28px;height:28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:white;">J</div>
+            <div><div style="font-weight:600;font-size:12px;color:#0f172a;">Juan Dela Cruz</div><div style="font-size:9px;color:#22c55e;">● Online</div></div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:16px 0;">
+            <div style="display:flex;gap:8px;align-items:flex-start;">
+              <div style="width:24px;height:24px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:white;">J</div>
+              <div>
+                <div style="background:#f8fafc;border-radius:4px 16px 16px 16px;padding:10px 14px;border:1px solid #f1f5f9;">
+                  <div style="font-size:11px;color:#334155;">Hey, have you reviewed the quarterly report?</div>
+                </div>
+                <div style="font-size:9px;color:#94a3b8;margin-top:4px;margin-left:4px;">10:30 AM</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:flex-start;flex-direction:row-reverse;">
+              <div>
+                <div style="background:#eff6ff;border-radius:16px 4px 16px 16px;padding:10px 14px;border:1px solid #dbeafe;">
+                  <div style="font-size:11px;color:#1e3a5f;">Yes, I'll send my comments by 3pm today</div>
+                </div>
+                <div style="font-size:9px;color:#94a3b8;margin-top:4px;text-align:right;margin-right:4px;">10:32 AM ✓✓</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;">
+            <span style="color:#94a3b8;font-size:14px;">📎</span>
+            <div style="flex:1;font-size:11px;color:#94a3b8;">Type a message...</div>
+            <div style="background:#1e3a5f;border-radius:8px;padding:6px 14px;font-size:10px;font-weight:500;color:white;">Send</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Clean & Airy</h3>
+      <p>White/light gray base, crisp borders, spacious layout. Navy accents on buttons and key elements. Feels like a well-designed internal tool — professional without being heavy. Easy on the eyes for all-day use.</p>
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Very readable, low fatigue</li><li>Familiar SaaS feel</li><li>Easy to implement both themes</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Less dramatic impression</li><li>Needs good spacing to avoid "plain"</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option C: Bold Accent -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden;">
+      <div style="background:#f8fafc;padding:16px;height:340px;display:flex;gap:0;font-family:system-ui;font-size:11px;color:#1e293b;">
+        <!-- Sidebar - navy -->
+        <div style="width:200px;background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);padding:12px;display:flex;flex-direction:column;gap:8px;border-radius:12px 0 0 12px;color:#e2e8f0;">
+          <div style="display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.1);">
+            <div style="width:28px;height:28px;background:linear-gradient(135deg,#3b82f6,#06b6d4);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:white;">L</div>
+            <span style="font-weight:600;font-size:13px;color:white;">LGU-Chat</span>
+          </div>
+          <div style="background:linear-gradient(135deg,#3b82f6,#06b6d4);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:600;color:white;text-align:center;box-shadow:0 2px 8px rgba(59,130,246,0.3);">+ New Chat</div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:2px;margin-top:4px;">
+            <div style="background:rgba(59,130,246,0.2);border-radius:8px;padding:10px;border-left:3px solid #3b82f6;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:600;font-size:11px;color:white;">Juan Dela Cruz</span>
+                <span style="font-size:9px;opacity:0.5;">10:30</span>
+              </div>
+              <div style="font-size:10px;opacity:0.5;margin-top:3px;">Hey, about the report...</div>
+            </div>
+            <div style="padding:10px;border-radius:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:500;font-size:11px;">Maria Santos</span>
+                <span style="font-size:9px;opacity:0.4;">9:15</span>
+              </div>
+              <div style="font-size:10px;opacity:0.4;margin-top:3px;">Thanks for the update</div>
+            </div>
+            <div style="padding:10px;border-radius:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="display:flex;align-items:center;gap:4px;"><span style="font-size:9px;">👥</span><span style="font-weight:500;font-size:11px;">IT Department</span></div>
+                <span style="font-size:9px;opacity:0.4;">Yesterday</span>
+              </div>
+              <div style="font-size:10px;opacity:0.4;margin-top:3px;">Meeting at 2pm</div>
+            </div>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:10px;display:flex;align-items:center;gap:8px;">
+            <div style="width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#06b6d4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;color:white;">J</div>
+            <div><div style="font-size:11px;font-weight:500;color:white;">John Doe</div><div style="font-size:9px;opacity:0.5;">Admin</div></div>
+          </div>
+        </div>
+        <!-- Chat area - light -->
+        <div style="flex:1;background:white;padding:12px;display:flex;flex-direction:column;border-radius:0 12px 12px 0;">
+          <div style="padding-bottom:10px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px;">
+            <div style="width:28px;height:28px;background:linear-gradient(135deg,#f97316,#ef4444);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:white;">J</div>
+            <div><div style="font-weight:600;font-size:12px;color:#0f172a;">Juan Dela Cruz</div><div style="font-size:9px;color:#22c55e;">● Online</div></div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:16px 0;">
+            <div style="display:flex;gap:8px;align-items:flex-start;">
+              <div style="width:24px;height:24px;background:linear-gradient(135deg,#f97316,#ef4444);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:white;">J</div>
+              <div>
+                <div style="background:#f8fafc;border-radius:4px 16px 16px 16px;padding:10px 14px;">
+                  <div style="font-size:11px;color:#334155;">Hey, have you reviewed the quarterly report?</div>
+                </div>
+                <div style="font-size:9px;color:#94a3b8;margin-top:4px;margin-left:4px;">10:30 AM</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:flex-start;flex-direction:row-reverse;">
+              <div>
+                <div style="background:linear-gradient(135deg,#eff6ff,#e0f2fe);border-radius:16px 4px 16px 16px;padding:10px 14px;">
+                  <div style="font-size:11px;color:#0f172a;">Yes, I'll send my comments by 3pm today</div>
+                </div>
+                <div style="font-size:9px;color:#94a3b8;margin-top:4px;text-align:right;margin-right:4px;">10:32 AM ✓✓</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;border:2px solid #e2e8f0;border-radius:12px;padding:10px 14px;transition:border-color 0.2s;">
+            <span style="color:#94a3b8;font-size:14px;">📎</span>
+            <div style="flex:1;font-size:11px;color:#94a3b8;">Type a message...</div>
+            <div style="background:linear-gradient(135deg,#3b82f6,#06b6d4);border-radius:8px;padding:6px 14px;font-size:10px;font-weight:600;color:white;box-shadow:0 2px 6px rgba(59,130,246,0.3);">Send</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Bold Accent</h3>
+      <p>Dark navy sidebar contrasted with a bright white chat area. Blue-to-teal gradient accents for CTAs and key elements. The two-tone layout creates a strong visual anchor while keeping the chat area clean and readable.</p>
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Strong visual identity</li><li>Clear sidebar/content separation</li><li>Gradient accents feel modern</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Two-tone requires careful dark mode</li><li>Gradients need consistent application</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>

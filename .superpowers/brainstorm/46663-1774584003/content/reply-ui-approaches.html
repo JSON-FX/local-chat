@@ -1,0 +1,159 @@
+<h2>Reply-to-Message UI Approaches</h2>
+<p class="subtitle">Three visual approaches for the inline reply feature. Each shows: hover action, reply composer, and reply bubble in chat.</p>
+
+<div class="cards">
+  <!-- Approach A: Telegram Style -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 16px; background: #0f172a;">
+      <!-- Chat mockup -->
+      <div style="display: flex; flex-direction: column; gap: 8px; font-family: system-ui; font-size: 13px;">
+
+        <!-- Other user message with hover action -->
+        <div style="display: flex; align-items: flex-start; gap: 8px; max-width: 75%; position: relative;">
+          <div style="width: 28px; height: 28px; border-radius: 50%; background: #6366f1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;">JD</div>
+          <div style="position: relative;">
+            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">John Doe</div>
+            <div style="background: #1e293b; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 8px 12px; color: #e2e8f0;">
+              Can we push the meeting to 3pm? I have a conflict with the design review.
+            </div>
+            <!-- Hover action button -->
+            <div style="position: absolute; top: 14px; right: -36px; background: #334155; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid rgba(255,255,255,0.1);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reply message (current user) with colored left bar -->
+        <div style="align-self: flex-end; max-width: 75%;">
+          <!-- Reply preview -->
+          <div style="background: rgba(99,102,241,0.15); border-left: 3px solid #6366f1; border-radius: 8px; padding: 6px 10px; margin-bottom: 4px; font-size: 11px;">
+            <div style="color: #818cf8; font-weight: 600; margin-bottom: 2px;">John Doe</div>
+            <div style="color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px;">Can we push the meeting to 3pm? I have a confli...</div>
+          </div>
+          <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 12px; padding: 8px 12px; color: white;">
+            Sure, 3pm works for me!
+          </div>
+        </div>
+
+        <!-- Composer preview -->
+        <div style="background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 0; margin-top: 8px; overflow: hidden;">
+          <div style="background: rgba(99,102,241,0.1); border-left: 3px solid #6366f1; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="color: #818cf8; font-size: 11px; font-weight: 600;">Replying to John Doe</div>
+              <div style="color: #64748b; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">Can we push the meeting to 3pm?...</div>
+            </div>
+            <div style="color: #64748b; cursor: pointer; font-size: 16px;">&times;</div>
+          </div>
+          <div style="padding: 10px 12px; color: #64748b; font-size: 12px;">Type a message...</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Telegram Style</h3>
+      <p>Colored left border on reply preview. Compact excerpt with sender name. Reply preview sits directly above the reply bubble. Composer shows a dismissible banner when replying.</p>
+    </div>
+  </div>
+
+  <!-- Approach B: iMessage/Messenger Style -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 16px; background: #0f172a;">
+      <div style="display: flex; flex-direction: column; gap: 8px; font-family: system-ui; font-size: 13px;">
+
+        <!-- Other user message with hover action -->
+        <div style="display: flex; align-items: flex-start; gap: 8px; max-width: 75%; position: relative;">
+          <div style="width: 28px; height: 28px; border-radius: 50%; background: #6366f1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;">JD</div>
+          <div style="position: relative;">
+            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">John Doe</div>
+            <div style="background: #1e293b; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 8px 12px; color: #e2e8f0;">
+              Can we push the meeting to 3pm? I have a conflict with the design review.
+            </div>
+            <div style="position: absolute; top: 14px; right: -36px; background: #334155; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid rgba(255,255,255,0.1);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reply message with embedded quoted block -->
+        <div style="align-self: flex-end; max-width: 75%;">
+          <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 12px; padding: 8px 12px; color: white;">
+            <!-- Embedded quote -->
+            <div style="background: rgba(255,255,255,0.15); border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; font-size: 11px;">
+              <div style="font-weight: 600; margin-bottom: 2px; opacity: 0.9;">John Doe</div>
+              <div style="opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px;">Can we push the meeting to 3pm? I have a confli...</div>
+            </div>
+            Sure, 3pm works for me!
+          </div>
+        </div>
+
+        <!-- Composer preview -->
+        <div style="background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 0; margin-top: 8px; overflow: hidden;">
+          <div style="background: rgba(99,102,241,0.1); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <div>
+              <div style="color: #818cf8; font-size: 11px; font-weight: 600;">Replying to John Doe</div>
+              <div style="color: #64748b; font-size: 11px;">Can we push the meeting to 3pm?...</div>
+            </div>
+            <div style="color: #64748b; cursor: pointer; font-size: 16px;">&times;</div>
+          </div>
+          <div style="padding: 10px 12px; color: #64748b; font-size: 12px;">Type a message...</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. iMessage / Messenger Style</h3>
+      <p>Quoted message embedded <strong>inside</strong> the reply bubble with a frosted/translucent background. Everything is one cohesive bubble. Looks polished but takes more vertical space.</p>
+    </div>
+  </div>
+
+  <!-- Approach C: Minimal / WhatsApp Style -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 16px; background: #0f172a;">
+      <div style="display: flex; flex-direction: column; gap: 8px; font-family: system-ui; font-size: 13px;">
+
+        <!-- Other user message with hover action -->
+        <div style="display: flex; align-items: flex-start; gap: 8px; max-width: 75%; position: relative;">
+          <div style="width: 28px; height: 28px; border-radius: 50%; background: #6366f1; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;">JD</div>
+          <div style="position: relative;">
+            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">John Doe</div>
+            <div style="background: #1e293b; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 8px 12px; color: #e2e8f0;">
+              Can we push the meeting to 3pm? I have a conflict with the design review.
+            </div>
+            <div style="position: absolute; top: 14px; right: -36px; background: #334155; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid rgba(255,255,255,0.1);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reply with connected top bar -->
+        <div style="align-self: flex-end; max-width: 75%;">
+          <div style="border-radius: 12px; overflow: hidden;">
+            <!-- Connected reply preview header -->
+            <div style="background: rgba(99,102,241,0.2); padding: 6px 12px; border-left: 3px solid #6366f1;">
+              <span style="color: #818cf8; font-weight: 600; font-size: 11px;">John Doe</span>
+              <span style="color: #94a3b8; font-size: 11px; margin-left: 6px;">Can we push the meeting to 3pm?...</span>
+            </div>
+            <!-- Reply body -->
+            <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 8px 12px; color: white;">
+              Sure, 3pm works for me!
+            </div>
+          </div>
+        </div>
+
+        <!-- Composer preview -->
+        <div style="background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 0; margin-top: 8px; overflow: hidden;">
+          <div style="background: rgba(99,102,241,0.1); border-left: 3px solid #6366f1; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="color: #818cf8; font-size: 11px; font-weight: 600;">Replying to John Doe</div>
+              <div style="color: #64748b; font-size: 11px;">Can we push the meeting to 3pm?...</div>
+            </div>
+            <div style="color: #64748b; cursor: pointer; font-size: 16px;">&times;</div>
+          </div>
+          <div style="padding: 10px 12px; color: #64748b; font-size: 12px;">Type a message...</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. WhatsApp / Connected Style</h3>
+      <p>Reply preview and message body are <strong>connected</strong> as one unit with a colored left border. Sender name and excerpt on one line. Most compact — minimal vertical space.</p>
+    </div>
+  </div>
+</div>

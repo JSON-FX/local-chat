@@ -1,0 +1,115 @@
+<h2>Login Page — Split Layout with Bold Accent Style</h2>
+<p class="subtitle">Two variations of the split login page. Click to select your preference.</p>
+
+<div class="cards">
+
+  <!-- Option A: Gradient Hero -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden;">
+      <div style="height:400px;display:flex;font-family:system-ui;font-size:12px;">
+        <!-- Left: Branding -->
+        <div style="width:50%;background:linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#0f172a 100%);padding:40px;display:flex;flex-direction:column;justify-content:center;align-items:center;color:white;text-align:center;position:relative;overflow:hidden;">
+          <!-- Subtle pattern overlay -->
+          <div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 40%,rgba(59,130,246,0.15) 0%,transparent 50%),radial-gradient(circle at 70% 80%,rgba(6,182,212,0.1) 0%,transparent 50%);"></div>
+          <div style="position:relative;z-index:1;">
+            <div style="width:72px;height:72px;background:linear-gradient(135deg,#3b82f6,#06b6d4);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;box-shadow:0 8px 32px rgba(59,130,246,0.3);">
+              <span style="font-size:32px;font-weight:800;color:white;">L</span>
+            </div>
+            <h1 style="font-size:24px;font-weight:700;margin:0 0 8px;letter-spacing:-0.5px;">LGU-Chat</h1>
+            <p style="font-size:13px;color:#94a3b8;margin:0 0 24px;line-height:1.5;">Secure internal messaging for the<br>Local Government of Quezon Bukidnon</p>
+            <div style="display:flex;flex-direction:column;gap:12px;text-align:left;max-width:240px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:28px;height:28px;background:rgba(59,130,246,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <span style="font-size:12px;">🔒</span>
+                </div>
+                <span style="font-size:11px;color:#cbd5e1;">End-to-end secure messaging</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:28px;height:28px;background:rgba(6,182,212,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <span style="font-size:12px;">📁</span>
+                </div>
+                <span style="font-size:11px;color:#cbd5e1;">File sharing & collaboration</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:28px;height:28px;background:rgba(59,130,246,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <span style="font-size:12px;">👥</span>
+                </div>
+                <span style="font-size:11px;color:#cbd5e1;">Group chats & team channels</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Right: Login Form -->
+        <div style="width:50%;background:white;padding:40px;display:flex;flex-direction:column;justify-content:center;align-items:center;">
+          <div style="width:100%;max-width:280px;">
+            <h2 style="font-size:20px;font-weight:700;color:#0f172a;margin:0 0 6px;">Welcome back</h2>
+            <p style="font-size:12px;color:#64748b;margin:0 0 28px;">Sign in through the LGU Single Sign-On system</p>
+            <button style="width:100%;background:linear-gradient(135deg,#3b82f6,#06b6d4);color:white;border:none;border-radius:10px;padding:14px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(59,130,246,0.3);">
+              🔑 Sign in with LGU-SSO
+            </button>
+            <p style="font-size:10px;color:#94a3b8;text-align:center;margin-top:16px;line-height:1.5;">You will be redirected to the LGU Single Sign-On portal to enter your credentials.</p>
+          </div>
+          <div style="position:absolute;bottom:16px;font-size:10px;color:#94a3b8;">
+            &copy; 2026 Local Government of Quezon Bukidnon
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Gradient Hero</h3>
+      <p>Dark gradient left panel with feature highlights and branding. Clean white right panel with the SSO login button. The gradient background with subtle radial glows creates depth and visual interest.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Illustration Focus -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden;">
+      <div style="height:400px;display:flex;font-family:system-ui;font-size:12px;">
+        <!-- Left: Branding with abstract art -->
+        <div style="width:50%;background:linear-gradient(160deg,#0f172a 0%,#172554 100%);padding:40px;display:flex;flex-direction:column;justify-content:space-between;color:white;position:relative;overflow:hidden;">
+          <!-- Abstract shapes -->
+          <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;background:linear-gradient(135deg,rgba(59,130,246,0.3),rgba(6,182,212,0.2));border-radius:50%;filter:blur(40px);"></div>
+          <div style="position:absolute;bottom:-60px;left:-30px;width:250px;height:250px;background:linear-gradient(135deg,rgba(6,182,212,0.2),rgba(59,130,246,0.15));border-radius:50%;filter:blur(50px);"></div>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:120px;height:120px;border:1px solid rgba(255,255,255,0.05);border-radius:24px;transform:translate(-50%,-50%) rotate(45deg);"></div>
+          <div style="position:absolute;top:50%;left:50%;width:180px;height:180px;border:1px solid rgba(255,255,255,0.03);border-radius:32px;transform:translate(-50%,-50%) rotate(25deg);"></div>
+
+          <div style="position:relative;z-index:1;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:36px;height:36px;background:linear-gradient(135deg,#3b82f6,#06b6d4);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;">L</div>
+              <span style="font-weight:700;font-size:16px;">LGU-Chat</span>
+            </div>
+          </div>
+          <div style="position:relative;z-index:1;">
+            <h1 style="font-size:26px;font-weight:800;margin:0 0 12px;line-height:1.2;letter-spacing:-0.5px;">Connect.<br>Collaborate.<br>Communicate.</h1>
+            <p style="font-size:12px;color:#94a3b8;margin:0;line-height:1.6;">The official messaging platform for the<br>Local Government of Quezon Bukidnon.</p>
+          </div>
+        </div>
+        <!-- Right: Login Form -->
+        <div style="width:50%;background:#fafbfc;padding:40px;display:flex;flex-direction:column;justify-content:center;align-items:center;position:relative;">
+          <div style="width:100%;max-width:280px;">
+            <div style="width:48px;height:48px;background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:center;margin-bottom:24px;">
+              <span style="font-size:22px;">🏛️</span>
+            </div>
+            <h2 style="font-size:20px;font-weight:700;color:#0f172a;margin:0 0 6px;">Sign in to your account</h2>
+            <p style="font-size:12px;color:#64748b;margin:0 0 28px;">Access your secure government workspace</p>
+            <button style="width:100%;background:#0f172a;color:white;border:none;border-radius:10px;padding:14px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;">
+              Sign in with LGU-SSO →
+            </button>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:20px;padding:12px;background:white;border-radius:8px;border:1px solid #e2e8f0;">
+              <span style="font-size:11px;">🔒</span>
+              <span style="font-size:10px;color:#64748b;">Secured with Single Sign-On authentication</span>
+            </div>
+          </div>
+          <div style="position:absolute;bottom:16px;font-size:10px;color:#94a3b8;">
+            &copy; 2026 Local Government of Quezon Bukidnon
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Abstract & Bold</h3>
+      <p>Dark navy left panel with abstract blurred shapes, bold tagline typography, and logo at top. Off-white right panel with a more structured login form and security badge. More dramatic and memorable first impression.</p>
+    </div>
+  </div>
+
+</div>
