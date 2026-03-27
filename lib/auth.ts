@@ -70,6 +70,7 @@ export class AuthService {
     const db = await getDatabase();
     const localRole = this.mapSsoRole(ssoRole);
     const uuid = ssoEmployee.uuid;
+    const username = ssoEmployee.username || '';
     const fullName = ssoEmployee.full_name || `${ssoEmployee.first_name || ''} ${ssoEmployee.last_name || ''}`.trim();
     const email = ssoEmployee.email || '';
     const position = ssoEmployee.position || '';
@@ -89,16 +90,16 @@ export class AuthService {
           full_name = ?, position = ?, office_name = ?,
           profile_synced_at = CURRENT_TIMESTAMP, status = 'active'
         WHERE sso_employee_uuid = ?`,
-        [fullName, email, localRole, ssoRole, fullName, position, officeName, uuid]
+        [username, email, localRole, ssoRole, fullName, position, officeName, uuid]
       );
-      return { ...existingUser, role: localRole, sso_role: ssoRole, full_name: fullName, email, position, office_name: officeName };
+      return { ...existingUser, username, role: localRole, sso_role: ssoRole, full_name: fullName, email, position, office_name: officeName };
     }
 
     // Create new user
     await db.run(
       `INSERT INTO users (sso_employee_uuid, username, email, role, sso_role, full_name, position, office_name, profile_synced_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      [uuid, fullName, email, localRole, ssoRole, fullName, position, officeName]
+      [uuid, username, email, localRole, ssoRole, fullName, position, officeName]
     );
 
     const newUser = await db.get('SELECT * FROM users WHERE sso_employee_uuid = ?', [uuid]);
