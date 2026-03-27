@@ -48,7 +48,37 @@ export class MessageService {
     
     return { valid: true };
   }
-  
+
+  // Format flat reply_to columns from a DB row into a nested reply_to object
+  static formatReplyData(row: any): any {
+    if (!row || !row.reply_to_message_id) {
+      const { reply_to_message_id, reply_to_content, reply_to_message_type, reply_to_file_name, reply_to_file_path, reply_to_file_type, reply_to_sender_id, reply_to_is_deleted, reply_to_sender_username, reply_to_sender_name, reply_to_sender_last_name, ...rest } = row || {};
+      return { ...rest, reply_to: null };
+    }
+
+    const { reply_to_message_id, reply_to_content, reply_to_message_type, reply_to_file_name, reply_to_file_path, reply_to_file_type, reply_to_sender_id, reply_to_is_deleted, reply_to_sender_username, reply_to_sender_name, reply_to_sender_last_name, ...rest } = row;
+
+    // Build display name: "Name Last_name" format
+    const senderName = [reply_to_sender_name, reply_to_sender_last_name]
+      .filter(Boolean)
+      .join(' ') || reply_to_sender_username || 'Unknown';
+
+    return {
+      ...rest,
+      reply_to: {
+        id: reply_to_message_id,
+        content: reply_to_content,
+        message_type: reply_to_message_type,
+        file_name: reply_to_file_name,
+        file_path: reply_to_file_path,
+        file_type: reply_to_file_type,
+        sender_id: reply_to_sender_id,
+        sender_name: senderName,
+        is_deleted: !!reply_to_is_deleted
+      }
+    };
+  }
+
   // Create a system message (for group membership changes)
   static async createSystemMessage(groupId: number, content: string): Promise<Message> {
     const db = await getDatabase();
@@ -159,8 +189,8 @@ export class MessageService {
       
       // Insert message
       const result = await db.run(
-        `INSERT INTO messages (sender_id, recipient_id, group_id, content, message_type, file_path, original_filename, file_size)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO messages (sender_id, recipient_id, group_id, content, message_type, file_path, original_filename, file_size, reply_to_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           messageData.sender_id,
           messageData.recipient_id || null,
@@ -169,7 +199,8 @@ export class MessageService {
           messageData.message_type || 'text',
           hasValidAttachment ? messageData.file_path : null,
           hasValidAttachment ? messageData.file_name : null,
-          hasValidAttachment ? messageData.file_size : null
+          hasValidAttachment ? messageData.file_size : null,
+          messageData.reply_to_id || null
         ]
       );
 
@@ -182,13 +213,46 @@ export class MessageService {
       if (!messageId) {
         // Fallback: get the last inserted message for this user
         const message = await db.get(
-          'SELECT * FROM messages WHERE sender_id = ? ORDER BY id DESC LIMIT 1',
+          `SELECT m.*,
+            rm.id AS reply_to_message_id,
+            rm.content AS reply_to_content,
+            rm.message_type AS reply_to_message_type,
+            rm.file_name AS reply_to_file_name,
+            rm.file_path AS reply_to_file_path,
+            rm.file_type AS reply_to_file_type,
+            rm.sender_id AS reply_to_sender_id,
+            rm.is_deleted AS reply_to_is_deleted,
+            ru.username AS reply_to_sender_username,
+            ru.name AS reply_to_sender_name,
+            ru.last_name AS reply_to_sender_last_name
+          FROM messages m
+          LEFT JOIN messages rm ON m.reply_to_id = rm.id
+          LEFT JOIN users ru ON rm.sender_id = ru.id
+          WHERE m.sender_id = ? ORDER BY m.id DESC LIMIT 1`,
           [messageData.sender_id]
         );
         return message;
       }
-      
-      const message = await db.get('SELECT * FROM messages WHERE id = ?', [messageId]);
+
+      const message = await db.get(
+        `SELECT m.*,
+          rm.id AS reply_to_message_id,
+          rm.content AS reply_to_content,
+          rm.message_type AS reply_to_message_type,
+          rm.file_name AS reply_to_file_name,
+          rm.file_path AS reply_to_file_path,
+          rm.file_type AS reply_to_file_type,
+          rm.sender_id AS reply_to_sender_id,
+          rm.is_deleted AS reply_to_is_deleted,
+          ru.username AS reply_to_sender_username,
+          ru.name AS reply_to_sender_name,
+          ru.last_name AS reply_to_sender_last_name
+        FROM messages m
+        LEFT JOIN messages rm ON m.reply_to_id = rm.id
+        LEFT JOIN users ru ON rm.sender_id = ru.id
+        WHERE m.id = ?`,
+        [messageId]
+      );
       if (!message) {
         throw new Error('Failed to retrieve created message');
       }
@@ -207,18 +271,31 @@ export class MessageService {
       const messages = await db.all(
         `SELECT m.*, u.username as sender_username, u.full_name as sender_name, u.avatar_path as sender_avatar,
          (
-           SELECT COUNT(*) > 0 
-           FROM message_reads mr 
+           SELECT COUNT(*) > 0
+           FROM message_reads mr
            WHERE mr.message_id = m.id AND mr.user_id = ?
          ) as is_read,
          (
-           SELECT mr.read_at 
-           FROM message_reads mr 
+           SELECT mr.read_at
+           FROM message_reads mr
            WHERE mr.message_id = m.id AND mr.user_id = ?
-         ) as read_at
+         ) as read_at,
+         rm.id AS reply_to_message_id,
+         rm.content AS reply_to_content,
+         rm.message_type AS reply_to_message_type,
+         rm.file_name AS reply_to_file_name,
+         rm.file_path AS reply_to_file_path,
+         rm.file_type AS reply_to_file_type,
+         rm.sender_id AS reply_to_sender_id,
+         rm.is_deleted AS reply_to_is_deleted,
+         ru.username AS reply_to_sender_username,
+         ru.name AS reply_to_sender_name,
+         ru.last_name AS reply_to_sender_last_name
          FROM messages m
          JOIN users u ON m.sender_id = u.id
-         WHERE m.is_deleted = 0 
+         LEFT JOIN messages rm ON m.reply_to_id = rm.id
+         LEFT JOIN users ru ON rm.sender_id = ru.id
+         WHERE m.is_deleted = 0
          AND ((m.sender_id = ? AND m.recipient_id = ?) OR (m.sender_id = ? AND m.recipient_id = ?))
          AND (m.user_deleted_by IS NULL OR m.user_deleted_by = '' OR NOT m.user_deleted_by LIKE '%,' || ? || ',%')
          ORDER BY m.timestamp DESC
@@ -226,7 +303,7 @@ export class MessageService {
         [userId2, userId2, userId1, userId2, userId2, userId1, userId1, limit, offset]
       );
 
-      return messages.reverse(); // Return in chronological order
+      return messages.map(m => MessageService.formatReplyData(m)).reverse(); // Return in chronological order
     } catch (error) {
       console.error('Get direct messages error:', error);
       throw error;
@@ -258,9 +335,22 @@ export class MessageService {
 
       // If userId is provided, exclude messages that were deleted by this user
       let query = `
-        SELECT m.*, u.username as sender_username, u.full_name as sender_name, u.avatar_path as sender_avatar 
+        SELECT m.*, u.username as sender_username, u.full_name as sender_name, u.avatar_path as sender_avatar,
+        rm.id AS reply_to_message_id,
+        rm.content AS reply_to_content,
+        rm.message_type AS reply_to_message_type,
+        rm.file_name AS reply_to_file_name,
+        rm.file_path AS reply_to_file_path,
+        rm.file_type AS reply_to_file_type,
+        rm.sender_id AS reply_to_sender_id,
+        rm.is_deleted AS reply_to_is_deleted,
+        ru.username AS reply_to_sender_username,
+        ru.name AS reply_to_sender_name,
+        ru.last_name AS reply_to_sender_last_name
         FROM messages m
         JOIN users u ON m.sender_id = u.id
+        LEFT JOIN messages rm ON m.reply_to_id = rm.id
+        LEFT JOIN users ru ON rm.sender_id = ru.id
         WHERE m.group_id = ? AND m.is_deleted = 0
       `;
       
@@ -289,7 +379,7 @@ export class MessageService {
         });
       }
 
-      return messages.reverse();
+      return messages.map(m => MessageService.formatReplyData(m)).reverse();
     } catch (error) {
       console.error('Get group messages error:', error);
       return []; // Return empty array on error
