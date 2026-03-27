@@ -16,6 +16,18 @@ export interface User {
   last_login?: string;
 }
 
+export interface ReplyTo {
+  id: number;
+  content: string;
+  message_type: 'text' | 'file' | 'image' | 'system';
+  file_name?: string;
+  file_path?: string;
+  file_type?: string;
+  sender_id: number;
+  sender_name: string;
+  is_deleted: boolean;
+}
+
 export interface Message {
   id: number;
   sender_id: number;
@@ -34,6 +46,7 @@ export interface Message {
   sender_avatar?: string | null;
   queued?: boolean;
   queuedAt?: number;
+  reply_to?: ReplyTo | null;
   // Read status information
   read_by?: MessageRead[]; // Users who have read this message
   is_read?: boolean; // For direct messages - if the recipient has read it

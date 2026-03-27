@@ -47,6 +47,7 @@ export interface CreateMessageData {
   file_path?: string;
   file_name?: string;
   file_size?: number;
+  reply_to_id?: number;
 }
 
 // Audit Log for comprehensive activity tracking
