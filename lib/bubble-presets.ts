@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 export interface BubblePreset {
   key: string;
   name: string;
@@ -89,11 +91,11 @@ export function getPreset(key: string): BubblePreset {
   return BUBBLE_PRESETS.find(p => p.key === key) || BUBBLE_PRESETS[0];
 }
 
-export function getBubbleStyle(presetKey: string, isDark: boolean): React.CSSProperties {
+export function getBubbleStyle(presetKey: string, isDark: boolean): CSSProperties {
   const preset = getPreset(presetKey);
   const colors = isDark ? preset.dark : preset.light;
 
-  const style: React.CSSProperties = {
+  const style: CSSProperties = {
     borderColor: colors.border,
   };
 

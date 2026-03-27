@@ -26,7 +26,8 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
   const [activeTab, setActiveTab] = useState<'profile' | 'avatar' | 'appearance'>('profile');
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { setTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   const handleOpenChange = useCallback((open: boolean) => {
     setIsOpen(open);
@@ -181,7 +182,7 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
             <span>User Settings</span>
           </DialogTitle>
           <DialogDescription>
-            View your profile information and manage your avatar
+            View your profile information and customize your experience
           </DialogDescription>
         </DialogHeader>
 
@@ -440,9 +441,9 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
                           className="w-full rounded-[16px_4px_16px_16px] px-3 py-2 border text-xs"
                           style={{
                             ...(preset.type === 'gradient'
-                              ? { background: preset.light.bg }
-                              : { backgroundColor: preset.light.bg }),
-                            borderColor: preset.light.border,
+                              ? { background: (isDark ? preset.dark : preset.light).bg }
+                              : { backgroundColor: (isDark ? preset.dark : preset.light).bg }),
+                            borderColor: (isDark ? preset.dark : preset.light).border,
                           }}
                         >
                           <span className="text-foreground/70">Hello!</span>

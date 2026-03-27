@@ -1,7 +1,6 @@
 'use client';
 
-import { getDisplayName, User } from '../../lib/models';
-import { MessageWithSender } from '../../lib/types';
+import { getDisplayName, User as ModelUser } from '../../lib/models';
 import { useState, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -231,7 +230,7 @@ export function ChatWindow({
   };
 
   // Helper function to format sender name with same logic as sidebar and conversation list
-  const formatSenderName = (message: MessageWithSender) => {
+  const formatSenderName = (message: Message) => {
     // Create a user-like object for the getDisplayName function
     const senderUser = {
       id: message.sender_id,
@@ -239,7 +238,7 @@ export function ChatWindow({
       name: message.sender_name,
       middle_name: message.sender_middle_name,
       last_name: message.sender_last_name
-    } as User;
+    } as ModelUser;
     
     return getDisplayName(senderUser);
   };
