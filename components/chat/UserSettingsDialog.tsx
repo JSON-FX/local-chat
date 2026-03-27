@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -8,9 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { User, Settings, Camera, Upload, Trash2, Info } from 'lucide-react';
+import { User, Settings, Camera, Upload, Trash2, Info, Palette, Sun, Moon, Monitor, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { User as UserType } from '@/lib/types';
+import { BUBBLE_PRESETS } from '@/lib/bubble-presets';
+import { cn } from '@/lib/utils';
 
 interface UserSettingsDialogProps {
   currentUser: UserType | null;
@@ -20,9 +23,10 @@ interface UserSettingsDialogProps {
 
 export function UserSettingsDialog({ currentUser, onUserUpdate, children }: UserSettingsDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'avatar'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'avatar' | 'appearance'>('profile');
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { setTheme } = useTheme();
 
   const handleOpenChange = useCallback((open: boolean) => {
     setIsOpen(open);
@@ -32,13 +36,11 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('File size must be less than 5MB');
       return;
     }
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
@@ -111,6 +113,56 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
     }
   }, [onUserUpdate]);
 
+  const savePreference = useCallback(async (key: string, value: string) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/users/preferences', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ [key]: value }),
+      });
+
+      const data = await response.json();
+      if (data.success && onUserUpdate && currentUser) {
+        onUserUpdate({ ...currentUser, ...data.data });
+      }
+      return data.success;
+    } catch (error) {
+      console.error('Save preference error:', error);
+      return false;
+    }
+  }, [currentUser, onUserUpdate]);
+
+  const handleThemeChange = useCallback(async (newTheme: string) => {
+    setTheme(newTheme);
+    const saved = await savePreference('theme', newTheme);
+    if (saved) {
+      toast.success('Theme updated');
+    } else {
+      toast.error('Failed to save theme preference');
+    }
+  }, [setTheme, savePreference]);
+
+  const handleBubbleStyleChange = useCallback(async (styleKey: string) => {
+    const saved = await savePreference('bubble_style', styleKey);
+    if (saved) {
+      toast.success('Bubble style updated');
+    } else {
+      toast.error('Failed to save bubble style');
+    }
+  }, [savePreference]);
+
+  const selectedBubbleStyle = currentUser?.bubble_style || 'default';
+
+  const themeOptions = [
+    { key: 'light', label: 'Light', icon: Sun },
+    { key: 'dark', label: 'Dark', icon: Moon },
+    { key: 'system', label: 'System', icon: Monitor },
+  ];
+
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -157,6 +209,17 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
             <Camera className="h-4 w-4 mr-2" />
             Avatar
           </Button>
+          <Button
+            variant={activeTab === 'appearance' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('appearance')}
+            className="flex-1"
+            role="tab"
+            aria-selected={activeTab === 'appearance'}
+          >
+            <Palette className="h-4 w-4 mr-2" />
+            Appearance
+          </Button>
         </div>
 
         {/* Profile Tab - Read-only SSO information */}
@@ -191,35 +254,24 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
                     <p className="text-sm font-medium">{currentUser?.username}</p>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Email</Label>
-                    <p className="text-sm font-medium">
-                      {currentUser?.email || 'Not set'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Position</Label>
                     <p className="text-sm font-medium">
                       {currentUser?.position || 'Not set'}
                     </p>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Office</Label>
-                    <p className="text-sm font-medium">
-                      {currentUser?.office_name || 'Not set'}
-                    </p>
-                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Office</Label>
+                  <p className="text-sm font-medium">
+                    {currentUser?.office_name || 'Not set'}
+                  </p>
                 </div>
               </div>
 
               <Separator />
 
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="text-xs">
-                  Username: {currentUser?.username}
-                </Badge>
                 <Badge variant="outline" className="text-xs capitalize">
                   Role: {currentUser?.role}
                 </Badge>
@@ -265,7 +317,6 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
                 </Avatar>
                 <div className="flex-1">
                   <p className="font-medium">{currentUser?.full_name || currentUser?.username}</p>
-                  <p className="text-sm text-muted-foreground">{currentUser?.email}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {currentUser?.avatar_path ? 'Custom avatar' : 'Default avatar'}
                   </p>
@@ -324,6 +375,89 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Appearance Tab */}
+        {activeTab === 'appearance' && (
+          <div className="space-y-6">
+            {/* Theme Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Theme</CardTitle>
+                <CardDescription>
+                  Choose your preferred appearance
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-3">
+                  {themeOptions.map(({ key, label, icon: Icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => handleThemeChange(key)}
+                      className={cn(
+                        "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors",
+                        (currentUser?.theme || 'system') === key
+                          ? "border-[var(--gradient-from)] bg-[var(--gradient-from)]/5"
+                          : "border-border hover:border-muted-foreground/30"
+                      )}
+                    >
+                      <Icon className="h-6 w-6" />
+                      <span className="text-sm font-medium">{label}</span>
+                      {(currentUser?.theme || 'system') === key && (
+                        <Check className="h-4 w-4 text-[var(--gradient-from)]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bubble Style Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Chat Bubble Style</CardTitle>
+                <CardDescription>
+                  Choose how your sent messages appear
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {BUBBLE_PRESETS.map((preset) => {
+                    const isSelected = selectedBubbleStyle === preset.key;
+                    return (
+                      <button
+                        key={preset.key}
+                        onClick={() => handleBubbleStyleChange(preset.key)}
+                        className={cn(
+                          "relative flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors",
+                          isSelected
+                            ? "border-[var(--gradient-from)] bg-[var(--gradient-from)]/5"
+                            : "border-border hover:border-muted-foreground/30"
+                        )}
+                      >
+                        {/* Preview bubble */}
+                        <div
+                          className="w-full rounded-[16px_4px_16px_16px] px-3 py-2 border text-xs"
+                          style={{
+                            ...(preset.type === 'gradient'
+                              ? { background: preset.light.bg }
+                              : { backgroundColor: preset.light.bg }),
+                            borderColor: preset.light.border,
+                          }}
+                        >
+                          <span className="text-foreground/70">Hello!</span>
+                        </div>
+                        <span className="text-xs font-medium">{preset.name}</span>
+                        {isSelected && (
+                          <Check className="absolute top-2 right-2 h-4 w-4 text-[var(--gradient-from)]" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </DialogContent>
     </Dialog>
