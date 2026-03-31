@@ -42,3 +42,26 @@ export function formatFullName(
   const middleInitial = parts[1].charAt(0).toUpperCase() + '.';
   return `${first} ${middleInitial} ${lastPart}`;
 }
+
+/**
+ * Abbreviates an office name by taking the first letter of each significant word.
+ * Handles " - " separators by abbreviating each part separately with a dash.
+ * e.g., "Municipal Mayor's Office - Management Information System Section" → "MMO-MISS"
+ * e.g., "Human Resource Management Office" → "HRMO"
+ */
+export function abbreviateOfficeName(officeName: string | null | undefined): string {
+  if (!officeName?.trim()) return '';
+  const noise = new Set(['of', 'the', 'and', 'for', 'in', 'on', 'at', 'to', 'a', 'an']);
+  return officeName
+    .split(/\s*-\s*/)
+    .map(part =>
+      part
+        .replace(/['']/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 0 && !noise.has(w.toLowerCase()))
+        .map(w => w[0].toUpperCase())
+        .join('')
+    )
+    .filter(Boolean)
+    .join('-');
+}

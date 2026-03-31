@@ -28,7 +28,7 @@ import { incrementUnreadCount, clearUnreadCount } from '@/lib/hooks/useReadStatu
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useReadStatus } from '@/lib/hooks/useReadStatus';
 import { useTheme } from 'next-themes';
-import { formatFullName } from '@/lib/utils';
+import { formatFullName, abbreviateOfficeName } from '@/lib/utils';
 
 // Debounce utility function
 function debounce<T extends (...args: any[]) => any>(
@@ -1464,40 +1464,38 @@ export function ChatLayout() {
 
           {/* User Info - Moved to Bottom */}
           {!sidebarCollapsed && (
-            <div className="p-4 border-t border-white/10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="h-10 w-10 rounded-full overflow-hidden bg-muted flex items-center justify-center">
-                    {currentUser?.avatar_path ? (
-                      <img
-                        src={`/api/files/download/${currentUser.avatar_path}`}
-                        alt={currentUser.username}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-sm font-semibold">
-                        {currentUser?.full_name?.[0] || currentUser?.username?.[0]?.toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium text-white">
-                      {currentUser?.name
-                        ? formatFullName(currentUser.name, currentUser.middle_name, currentUser.last_name)
-                        : formatFullName(currentUser?.full_name, currentUser?.username)}
-                    </p>
-                    {currentUser?.position && (
-                      <p className="text-sm text-white/50">{currentUser.position}</p>
-                    )}
-                    {currentUser?.office_name && (
-                      <p className="text-xs text-white/40">{currentUser.office_name}</p>
-                    )}
-                    {(!currentUser?.position && !currentUser?.office_name) && (
-                      <p className="text-sm text-white/50 capitalize">{currentUser?.role}</p>
-                    )}
-                  </div>
+            <div className="p-3 border-t border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
+                  {currentUser?.avatar_path ? (
+                    <img
+                      src={`/api/files/download/${currentUser.avatar_path}`}
+                      alt={currentUser.username}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm font-semibold">
+                      {currentUser?.full_name?.[0] || currentUser?.username?.[0]?.toUpperCase()}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center space-x-1">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-white text-sm truncate">
+                    {currentUser?.name
+                      ? formatFullName(currentUser.name, currentUser.middle_name, currentUser.last_name)
+                      : formatFullName(currentUser?.full_name, currentUser?.username)}
+                  </p>
+                  {currentUser?.position && (
+                    <p className="text-xs text-white/50 truncate">{currentUser.position}</p>
+                  )}
+                  {currentUser?.office_name && (
+                    <p className="text-xs text-white/40 truncate">{abbreviateOfficeName(currentUser.office_name)}</p>
+                  )}
+                  {(!currentUser?.position && !currentUser?.office_name) && (
+                    <p className="text-xs text-white/50 capitalize">{currentUser?.role}</p>
+                  )}
+                </div>
+                <div className="flex items-center flex-shrink-0">
                   <UserSettingsDialog
                     currentUser={currentUser}
                     onUserUpdate={setCurrentUser}
@@ -1506,10 +1504,10 @@ export function ChatLayout() {
                       <TooltipTrigger asChild>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="text-white/50 hover:text-white hover:bg-white/10"
+                          size="icon"
+                          className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10"
                         >
-                          <Settings className="h-4 w-4" />
+                          <Settings className="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -1522,11 +1520,11 @@ export function ChatLayout() {
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={handleLogout}
-                        className="text-white/50 hover:text-white hover:bg-white/10"
+                        className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10"
                       >
-                        <LogOut className="h-4 w-4" />
+                        <LogOut className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
