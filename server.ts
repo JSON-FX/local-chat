@@ -8,6 +8,7 @@ import next from 'next';
 import { networkInterfaces } from 'os';
 import { SocketService } from './lib/socket';
 import { FileService } from './lib/files';
+import { startSyncScheduler } from './lib/sso-sync';
 
 const dev = process.env.NODE_ENV !== 'production';
 
@@ -55,6 +56,9 @@ app.prepare().then(() => {
   });
 
   server.listen(port, hostname, () => {
+    // Start SSO employee sync
+    startSyncScheduler();
+
     console.log('');
     console.log('🚀 LGU-Chat Server Started Successfully!');
     console.log('='.repeat(50));
