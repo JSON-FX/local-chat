@@ -1624,16 +1624,6 @@ export function ChatLayout() {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <Card className="p-8 text-center max-w-md">
-              <div className="h-12 w-12 mx-auto mb-4 rounded-lg bg-white shadow-md flex items-center justify-center">
-                <Image
-                  src="/lgu-seal.png"
-                  alt="LGU Seal"
-                  width={32}
-                  height={32}
-                  className="object-contain"
-                />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Welcome to LGU-Chat</h3>
               <p className="text-muted-foreground">
                 Select a conversation from the sidebar to start messaging
               </p>
