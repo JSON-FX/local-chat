@@ -7,13 +7,13 @@ check_database() {
         echo "🔍 Database not found. Initializing database..."
         return 1
     fi
-    
+
     # Check if database has required tables
     if ! sqlite3 /app/data/localchat.db "SELECT name FROM sqlite_master WHERE type='table' AND name='users';" | grep -q "users"; then
         echo "🔍 Database exists but appears uninitialized. Re-initializing..."
         return 1
     fi
-    
+
     echo "✅ Database is already initialized"
     return 0
 }
@@ -23,6 +23,11 @@ if ! check_database; then
     echo "🔄 Initializing LGU-Chat database..."
     npx tsx scripts/init-db.ts
     echo "✅ Database initialization completed!"
+else
+    # Always run migrations on existing databases to apply new schema changes
+    echo "🔄 Running database migrations..."
+    npx tsx scripts/run-migrations.ts
+    echo "✅ Migrations completed!"
 fi
 
 # Print startup information

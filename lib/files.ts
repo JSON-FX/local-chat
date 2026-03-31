@@ -19,7 +19,7 @@ export interface FileValidationOptions {
 
 export class FileService {
   private static readonly UPLOAD_DIR = path.join(process.cwd(), 'uploads');
-  private static readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  private static readonly MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
   
   // Image file types
   private static readonly ALLOWED_IMAGE_TYPES = [

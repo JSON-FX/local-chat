@@ -7,6 +7,9 @@ export interface User {
   role: 'admin' | 'user';
   sso_role?: string;
   full_name?: string;
+  name?: string;
+  middle_name?: string;
+  last_name?: string;
   position?: string;
   office_name?: string;
   email?: string;

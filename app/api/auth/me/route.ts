@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
     const db = await getDatabase();
     const fullUser = await db.get(
-      'SELECT id, sso_employee_uuid, username, role, sso_role, full_name, position, office_name, email, avatar_path, created_at, last_login, profile_synced_at, profile_data FROM users WHERE id = ?',
+      'SELECT id, sso_employee_uuid, username, role, sso_role, full_name, name, middle_name, last_name, position, office_name, email, avatar_path, created_at, last_login, profile_synced_at, profile_data FROM users WHERE id = ?',
       [user.id]
     );
 
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       data: {
         ...userData,
         bubble_style: preferences.bubble_style || 'default',
-        theme: preferences.theme || 'system',
+        theme: preferences.theme || 'light',
       },
       message: 'User profile retrieved successfully'
     });

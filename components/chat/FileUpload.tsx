@@ -33,11 +33,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   // File validation
   const validateFile = (file: File): string | null => {
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    
+    const maxSize = 100 * 1024 * 1024; // 100MB
+
     // Check file size
     if (file.size > maxSize) {
-      return 'File size must be less than 10MB';
+      return 'File size must be less than 100MB';
     }
     
     // Get file extension
@@ -287,7 +287,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                   </button>
                 </p>
                 <p className="text-xs text-gray-500">
-                  Supports images, documents, spreadsheets and more (max 10MB)
+                  Supports images, documents, spreadsheets and more (max 100MB)
                 </p>
               </div>
             )}

@@ -1,6 +1,5 @@
 'use client';
 
-import { getDisplayName, User as ModelUser } from '../../lib/models';
 import { useState, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Send, Circle, Paperclip, Download, Image as ImageIcon, ArrowDown, Users, Settings, Trash2, LogOut, MessageSquare, MoreVertical, UserMinus, File, FileText, FileSpreadsheet, FileBox, FileJson, Reply, X } from 'lucide-react';
 import { Message, User, Conversation, ReplyTo } from '@/lib/types';
 import { socketClient } from '@/lib/socket-client';
-import { cn } from '@/lib/utils';
+import { cn, formatFullName } from '@/lib/utils';
 import { ImageModal } from '@/components/ui/image-modal';
 import FileUpload from './FileUpload';
 import { GroupSettingsDialog } from './GroupSettingsDialog';
@@ -229,18 +228,9 @@ export function ChatWindow({
     }
   };
 
-  // Helper function to format sender name with same logic as sidebar and conversation list
+  // Helper function to format sender name using full_name → "First M. Last"
   const formatSenderName = (message: Message) => {
-    // Create a user-like object for the getDisplayName function
-    const senderUser = {
-      id: message.sender_id,
-      username: message.sender_username || "Unknown User",
-      name: message.sender_name,
-      middle_name: message.sender_middle_name,
-      last_name: message.sender_last_name
-    } as ModelUser;
-    
-    return getDisplayName(senderUser);
+    return formatFullName(message.sender_name, message.sender_username || 'Unknown User');
   };
 
   // Auto-mark messages as read when conversation changes

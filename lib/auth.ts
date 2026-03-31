@@ -37,7 +37,11 @@ export class AuthService {
     }
 
     // Get full employee data
-    const employeeData = await ssoService.getEmployee(token);
+    const employeeResponse = await ssoService.getEmployee(token);
+
+    // SSO may return employee data nested under a `data` key or at top level.
+    // Handle both shapes to avoid NULL constraint failures.
+    const employeeData = employeeResponse?.data || employeeResponse;
 
     // Upsert local user
     const user = await this.upsertLocalUser(
@@ -59,7 +63,7 @@ export class AuthService {
     // Update last login
     await db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
 
-    // Cache the validation result
+    // Cache the validation result (store the unwrapped employee data)
     ssoService.cacheValidation(token, employeeData || authResult.employee, authResult.role);
 
     return { user, sessionId };
@@ -69,12 +73,22 @@ export class AuthService {
   static async upsertLocalUser(ssoEmployee: any, ssoRole: string): Promise<any> {
     const db = await getDatabase();
     const localRole = this.mapSsoRole(ssoRole);
-    const uuid = ssoEmployee.uuid;
-    const username = ssoEmployee.username || '';
-    const fullName = ssoEmployee.full_name || `${ssoEmployee.first_name || ''} ${ssoEmployee.last_name || ''}`.trim();
-    const email = ssoEmployee.email || '';
-    const position = ssoEmployee.position || '';
-    const officeName = ssoEmployee.office?.name || '';
+
+    // Handle both nested (data.uuid) and top-level (uuid) response shapes
+    const employee = ssoEmployee?.data || ssoEmployee;
+    const uuid = employee?.uuid;
+
+    if (!uuid) {
+      throw new Error('SSO employee data missing uuid field');
+    }
+    const username = employee.username || '';
+    const firstName = employee.first_name || '';
+    const middleName = employee.middle_name || '';
+    const lastName = employee.last_name || '';
+    const fullName = employee.full_name || `${firstName} ${lastName}`.trim();
+    const email = employee.email || '';
+    const position = typeof employee.position === 'object' ? (employee.position?.title || '') : (employee.position || '');
+    const officeName = employee.office?.name || '';
 
     // Try to find existing user
     const existingUser = await db.get(
@@ -87,19 +101,20 @@ export class AuthService {
       await db.run(
         `UPDATE users SET
           username = ?, email = ?, role = ?, sso_role = ?,
-          full_name = ?, position = ?, office_name = ?,
+          full_name = ?, name = ?, middle_name = ?, last_name = ?,
+          position = ?, office_name = ?,
           profile_synced_at = CURRENT_TIMESTAMP, status = 'active'
         WHERE sso_employee_uuid = ?`,
-        [username, email, localRole, ssoRole, fullName, position, officeName, uuid]
+        [username, email, localRole, ssoRole, fullName, firstName, middleName, lastName, position, officeName, uuid]
       );
-      return { ...existingUser, username, role: localRole, sso_role: ssoRole, full_name: fullName, email, position, office_name: officeName };
+      return { ...existingUser, username, role: localRole, sso_role: ssoRole, full_name: fullName, name: firstName, middle_name: middleName, last_name: lastName, email, position, office_name: officeName };
     }
 
     // Create new user
     await db.run(
-      `INSERT INTO users (sso_employee_uuid, username, email, role, sso_role, full_name, position, office_name, profile_synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      [uuid, username, email, localRole, ssoRole, fullName, position, officeName]
+      `INSERT INTO users (sso_employee_uuid, username, email, role, sso_role, full_name, name, middle_name, last_name, position, office_name, profile_synced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [uuid, username, email, localRole, ssoRole, fullName, firstName, middleName, lastName, position, officeName]
     );
 
     const newUser = await db.get('SELECT * FROM users WHERE sso_employee_uuid = ?', [uuid]);
@@ -143,6 +158,15 @@ export class AuthService {
         const employee = result.data;
         const uuid = employee?.uuid || employee?.data?.uuid;
         if (uuid) {
+          // Re-sync profile from SSO data on each validation
+          try {
+            const ssoData = await ssoService.getEmployee(token);
+            const ssoEmployee = ssoData?.data || ssoData;
+            const ssoRole = ssoEmployee?.applications?.[0]?.role || 'guest';
+            await this.upsertLocalUser(ssoEmployee, ssoRole);
+          } catch {
+            // SSO employee fetch failed, continue with local data
+          }
           const user = await db.get('SELECT * FROM users WHERE sso_employee_uuid = ?', [uuid]);
           return user;
         }

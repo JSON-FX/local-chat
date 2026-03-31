@@ -13,7 +13,7 @@ import { User, Settings, Camera, Upload, Trash2, Info, Palette, Sun, Moon, Monit
 import { toast } from 'sonner';
 import { User as UserType } from '@/lib/types';
 import { BUBBLE_PRESETS } from '@/lib/bubble-presets';
-import { cn } from '@/lib/utils';
+import { cn, formatFullName } from '@/lib/utils';
 
 interface UserSettingsDialogProps {
   currentUser: UserType | null;
@@ -245,21 +245,17 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Full Name</Label>
                   <p className="text-sm font-medium">
-                    {currentUser?.full_name || 'Not set'}
+                    {currentUser?.name
+                      ? formatFullName(currentUser.name, currentUser.middle_name, currentUser.last_name)
+                      : formatFullName(currentUser?.full_name) || 'Not set'}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Username</Label>
-                    <p className="text-sm font-medium">{currentUser?.username}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Position</Label>
-                    <p className="text-sm font-medium">
-                      {currentUser?.position || 'Not set'}
-                    </p>
-                  </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Position</Label>
+                  <p className="text-sm font-medium">
+                    {currentUser?.position || 'Not set'}
+                  </p>
                 </div>
 
                 <div className="space-y-1">
@@ -397,14 +393,14 @@ export function UserSettingsDialog({ currentUser, onUserUpdate, children }: User
                       onClick={() => handleThemeChange(key)}
                       className={cn(
                         "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors",
-                        (currentUser?.theme || 'system') === key
+                        (currentUser?.theme || 'light') === key
                           ? "border-[var(--gradient-from)] bg-[var(--gradient-from)]/5"
                           : "border-border hover:border-muted-foreground/30"
                       )}
                     >
                       <Icon className="h-6 w-6" />
                       <span className="text-sm font-medium">{label}</span>
-                      {(currentUser?.theme || 'system') === key && (
+                      {(currentUser?.theme || 'light') === key && (
                         <Check className="h-4 w-4 text-[var(--gradient-from)]" />
                       )}
                     </button>

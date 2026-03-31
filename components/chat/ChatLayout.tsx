@@ -28,6 +28,7 @@ import { incrementUnreadCount, clearUnreadCount } from '@/lib/hooks/useReadStatu
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useReadStatus } from '@/lib/hooks/useReadStatus';
 import { useTheme } from 'next-themes';
+import { formatFullName } from '@/lib/utils';
 
 // Debounce utility function
 function debounce<T extends (...args: any[]) => any>(
@@ -1369,7 +1370,7 @@ export function ChatLayout() {
                   {isConnected ? (
                     <Badge variant="secondary" className="text-xs bg-white/10 text-white/70 border-0">
                       <Circle className="h-2 w-2 mr-1 fill-green-400 text-green-400" />
-                      Online
+                      {onlineUsers.length} Online
                     </Badge>
                   ) : (
                     <Badge variant="destructive" className="text-xs bg-red-500/20 text-red-300 border-0">
@@ -1481,7 +1482,9 @@ export function ChatLayout() {
                   </div>
                   <div>
                     <p className="font-medium text-white">
-                      {currentUser?.full_name || currentUser?.username}
+                      {currentUser?.name
+                        ? formatFullName(currentUser.name, currentUser.middle_name, currentUser.last_name)
+                        : formatFullName(currentUser?.full_name, currentUser?.username)}
                     </p>
                     {currentUser?.position && (
                       <p className="text-sm text-white/50">{currentUser.position}</p>
@@ -1591,15 +1594,6 @@ export function ChatLayout() {
             </div>
           )}
 
-          {/* Signature */}
-          {!sidebarCollapsed && (
-            <div className="px-4 py-3 border-t border-white/10">
-              <p className="text-xs text-muted-foreground text-center leading-relaxed">
-                Developed By Management Information System Section (MISS)<br />
-                Local Government of Quezon Bukidnon. All rights reserved.
-              </p>
-            </div>
-          )}
         </div>
 
       {/* Main Chat Area */}
